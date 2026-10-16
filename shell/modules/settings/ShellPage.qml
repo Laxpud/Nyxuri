@@ -1,7 +1,9 @@
 import QtQuick
 import QtQuick.Layouts
+import qs.app
 import qs.shared.theme
 import qs.app.services
+import qs.modules.keystone.tools
 import qs.shared.controls
 import qs.shared.i18n
 
@@ -30,7 +32,7 @@ StyledFlickable {
         iconName: "open_in_new"
         tooltipText: I18n.tr("Open folder")
         accessibleName: I18n.tr("Open folder")
-        onClicked: ApplicationService.openUrl("file://" + folderPath)
+        onClicked: ApplicationService.openUrl(Paths.fileUrl(folderPath))
 
         property string folderPath: ""
     }

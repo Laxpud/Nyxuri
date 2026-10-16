@@ -1,5 +1,6 @@
 """Behavior checks for the source launcher, tooling scope and presentation owners."""
 
+import base64
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,27 @@ import unittest
 from tests.utils import TempEnv
 
 SHELL = Path(__file__).resolve().parents[1] / "shell"
+
+PRESENTATION_TIMEOUT_SCALE = 1.0
+
+
+def presentation_timeout_scale():
+    """Multiplier for presentation budgets, for hardware slower than CI."""
+    for key in ("NYXURI_PRESENTATION_TIMEOUT_SCALE", "CLAVIS_PRESENTATION_TIMEOUT_SCALE"):
+        raw = os.environ.get(key, "").strip()
+        if not raw:
+            continue
+        try:
+            value = float(raw)
+        except ValueError:
+            continue
+        if value >= 1:
+            return value
+    return PRESENTATION_TIMEOUT_SCALE
+
+
+def presentation_budget(seconds):
+    return seconds * presentation_timeout_scale()
 
 
 class ShellLauncherTests(unittest.TestCase):
@@ -441,13 +463,17 @@ ShellRoot {
     def call(self, method, *args):
         return subprocess.run(
             [self.qs, "-p", str(self.shell), "ipc", "call", "presentation-test", method, *args],
-            env=self.environment, capture_output=True, text=True, timeout=5,
+            env=self.environment, capture_output=True, text=True,
+            timeout=presentation_budget(5),
         )
 
     def wait_for(self, method, expected):
-        deadline = time.monotonic() + 10
+        deadline = time.monotonic() + presentation_budget(10)
         while time.monotonic() < deadline and self.process.poll() is None:
-            result = self.call(method)
+            try:
+                result = self.call(method)
+            except subprocess.TimeoutExpired:
+                continue
             if result.returncode == 0 and result.stdout.strip() == expected:
                 return
             time.sleep(0.05)
@@ -481,7 +507,7 @@ ShellRoot {
         """The render queue must drain: a stuck renderingId swallows every
         later renderAll silently (FileView.setText no-ops on identical
         content, so an onSaved-only completion never fires)."""
-        deadline = time.monotonic() + 20
+        deadline = time.monotonic() + presentation_budget(20)
         while time.monotonic() < deadline and self.process.poll() is None:
             state = json.loads(self.call("templateState").stdout)
             if state["rendering"] == "" and state["queue"] == 0:
@@ -499,6 +525,12 @@ ShellRoot {
         if not hook_log.exists():
             return 0
         return len(hook_log.read_text(encoding="utf-8").splitlines())
+
+    def hook_signal_arguments(self):
+        hook_log = self.ctx.home / "hook-pkill"
+        if not hook_log.exists():
+            return []
+        return [line.split() for line in hook_log.read_text(encoding="utf-8").splitlines()]
 
     def hook_trace(self):
         trace = self.ctx.home / "hook-trace"
@@ -519,7 +551,7 @@ ShellRoot {
         self.wait_for("palette", "#abcdef")
         replacement.write_text("invalid JSON")
         replacement.replace(self.palette)
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + presentation_budget(5)
         while time.monotonic() < deadline:
             if self.call("error").stdout.strip():
                 break
@@ -592,7 +624,7 @@ ShellRoot {
                     return False
             return True
 
-        deadline = time.monotonic() + 30
+        deadline = time.monotonic() + presentation_budget(30)
         while time.monotonic() < deadline and self.process.poll() is None:
             if outputs_ready():
                 break
@@ -623,7 +655,7 @@ ShellRoot {
         replacement.replace(self.palette_modes)
         switched = self._template_outputs("switched")
 
-        deadline = time.monotonic() + 20
+        deadline = time.monotonic() + presentation_budget(20)
         while time.monotonic() < deadline and self.process.poll() is None:
             if all(path.is_file() and marker in path.read_text(encoding="utf-8")
                    for path, marker in switched.values()):
@@ -649,6 +681,12 @@ ShellRoot {
         self.wait_for_queue_idle()
         self.assertGreater(self.hook_invocation_count(), hooks_before,
                            "identical re-render did not run the post hooks")
+        signals = self.hook_signal_arguments()
+        self.assertTrue(signals, "template hooks never signalled the applications")
+        for arguments in signals:
+            if "kitty" in arguments:
+                self.assertIn("-x", arguments,
+                              "the kitty reload signal must match the process name exactly")
         for path, marker in switched.values():
             self.assertIn(marker, path.read_text(encoding="utf-8"))
 
@@ -656,7 +694,7 @@ ShellRoot {
         replacement.write_text(self._palette_modes_fixture())
         replacement.replace(self.palette_modes)
         restored = self._template_outputs("first")
-        deadline = time.monotonic() + 20
+        deadline = time.monotonic() + presentation_budget(20)
         while time.monotonic() < deadline and self.process.poll() is None:
             if all(path.is_file() and marker in path.read_text(encoding="utf-8")
                    for path, marker in restored.values()):
@@ -692,7 +730,7 @@ ShellRoot {
         return json.loads(result.stdout.strip())
 
     def _wait_sampling(self, predicate, timeout=15):
-        deadline = time.monotonic() + timeout
+        deadline = time.monotonic() + presentation_budget(timeout)
         state = {}
         while time.monotonic() < deadline and self.process.poll() is None:
             state = self._sampling_state()
@@ -770,7 +808,7 @@ ShellRoot {
 
         # 3. The export writes the same sanitized document into the cache.
         self.assertEqual(self.call("diagExport").stdout.strip(), "OK")
-        deadline = time.monotonic() + 8
+        deadline = time.monotonic() + presentation_budget(8)
         state = {"path": "", "error": ""}
         while time.monotonic() < deadline:
             result = self.call("diagExportState")
@@ -786,6 +824,357 @@ ShellRoot {
         content = exported.read_text(encoding="utf-8")
         self.assertNotIn(str(self.ctx.home), content)
         self.assertEqual(json.loads(content)["schemaVersion"], 1)
+
+
+class ShellConfigStoreTests(unittest.TestCase):
+    """A config store that cannot be read must survive, and a first run must create it."""
+
+    CONFIG_RELATIVE = ".config/nyxuri/config.json"
+
+    def setUp(self):
+        self.ctx = TempEnv()
+        self.ctx.__enter__()
+        self.addCleanup(self.ctx.__exit__)
+        self.qs = shutil.which("qs")
+        weston = shutil.which("weston")
+        if not self.qs or not weston:
+            self.skipTest("Quickshell and Weston required for config store tests")
+        self.shell = self.ctx.home / "preview"
+        shutil.copytree(SHELL, self.shell, ignore=shutil.ignore_patterns(
+            "native", "build", "wiki", "tests", ".qmlls.ini", "__pycache__"))
+        runtime = self.ctx.home / "runtime"
+        runtime.mkdir(mode=0o700)
+        fallback = str(SHELL / "fallback")
+        self.environment = {
+            key: value for key, value in os.environ.items()
+            if not key.startswith(("CLAVIS_", "QS_", "NYXURI_"))
+            and key not in {"NIRI_SOCKET", "WAYLAND_DISPLAY", "DISPLAY", "DBUS_SESSION_BUS_ADDRESS"}
+        }
+        self.environment.update(
+            QT_QPA_PLATFORM="wayland", QT_QUICK_BACKEND="software",
+            XDG_RUNTIME_DIR=str(runtime), XDG_DATA_HOME=str(self.ctx.home / "data"),
+            WAYLAND_DISPLAY="config-store-wayland",
+            QML_IMPORT_PATH=fallback, QML2_IMPORT_PATH=fallback,
+        )
+        compositor_log = open(self.ctx.home / "compositor.log", "w+")
+        self.addCleanup(compositor_log.close)
+        compositor = subprocess.Popen(
+            [weston, "--backend=headless", "--renderer=pixman", "--no-config",
+             "--socket=config-store-wayland", "--idle-time=0"],
+            env=self.environment, stdout=compositor_log, stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        self.addCleanup(self.stop_process, compositor)
+        deadline = time.monotonic() + 10
+        while not (runtime / "config-store-wayland").exists():
+            if compositor.poll() is not None or time.monotonic() >= deadline:
+                compositor_log.seek(0)
+                self.fail("Private compositor did not start:\n" + compositor_log.read())
+            time.sleep(0.05)
+        (self.shell / "shell.qml").write_text(self._harness_qml())
+        self.output = open(self.ctx.home / "preview.log", "w+")
+        self.addCleanup(self.output.close)
+        self.process = subprocess.Popen(
+            [self.qs, "-p", str(self.shell), "--no-duplicate"],
+            env=self.environment, stdout=self.output, stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        self.addCleanup(self.stop_process, self.process)
+
+    def _harness_qml(self):
+        return '''import QtQuick
+import Quickshell
+import Quickshell.Io
+import qs.app
+import qs.app.services
+import qs.modules.bar.tray
+import qs.modules.quicksettings
+import qs.modules.sidebars.dashboard.infotools
+
+ShellRoot {
+    IpcHandler {
+        target: "configStore"
+        function themeMode(): string { return String(PersonalizationConfig.themeMode); }
+        function auxiliaryStores(): string {
+            return String(IdleService.policyConfigPath) + "|" + String(TrayService.filePath)
+                 + "|" + String(QuickToggleConfig.filePath);
+        }
+        function statefulStores(): string {
+            return String(InfoDrawerState.filePath) + "|" + String(TodoService.filePath);
+        }
+    }
+}
+'''
+
+    def stop_process(self, process):
+        if process.poll() is None:
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+
+    @property
+    def config_path(self):
+        return self.ctx.home / self.CONFIG_RELATIVE
+
+    def log_text(self):
+        self.output.flush()
+        self.output.seek(0)
+        return self.output.read()
+
+    def call(self, method):
+        done = subprocess.run(
+            [self.qs, "-p", str(self.shell), "ipc", "call", "configStore", method],
+            env=self.environment, capture_output=True, text=True, timeout=20)
+        return done.stdout
+
+    def wait_until_ready(self):
+        deadline = time.monotonic() + presentation_budget(300)
+        while time.monotonic() < deadline:
+            if self.process.poll() is not None:
+                break
+            try:
+                done = subprocess.run(
+                    [self.qs, "-p", str(self.shell), "ipc", "call", "configStore", "themeMode"],
+                    env=self.environment, capture_output=True, text=True, timeout=10)
+            except subprocess.TimeoutExpired:
+                continue
+            if done.returncode == 0 and done.stdout.strip():
+                return
+            time.sleep(1)
+        self.fail("Shell never reported readiness:\n" + self.log_text())
+
+    def test_corrupt_config_is_left_untouched(self):
+        """A parse failure must be reported, not repaired by overwriting the user's file."""
+        self.config_path.parent.mkdir(parents=True, exist_ok=True)
+        corrupt = '{"theme":{"mode":"light"},"sidebar":{"keepLoaded":false},"pad":"'
+        self.config_path.write_text(corrupt, encoding="utf-8")
+        self.wait_until_ready()
+        time.sleep(25)
+        self.assertEqual(self.config_path.read_text(encoding="utf-8"), corrupt)
+        self.assertIn("leaving the existing config untouched", self.log_text())
+
+    def test_missing_config_is_created_with_defaults(self):
+        """The first run still has to materialise the store."""
+        self.assertFalse(self.config_path.exists())
+        self.wait_until_ready()
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline and not self.config_path.exists():
+            time.sleep(0.5)
+        self.assertTrue(self.config_path.exists(), "the store was never created")
+        parsed = json.loads(self.config_path.read_text(encoding="utf-8"))
+        self.assertIn("theme", parsed)
+        self.assertIn(parsed["theme"]["mode"], ("dark", "light"))
+
+    def test_corrupt_auxiliary_stores_are_left_untouched(self):
+        """The tray, quick toggle and idle stores must survive a parse failure too."""
+        corrupt = '{"broken":'
+        stores = [self.ctx.home / relative for relative in (
+            ".config/nyxuri/idle-policy.json",
+            ".config/nyxuri/tray.json",
+            ".config/nyxuri/quick-toggles.json",
+        )]
+        for store in stores:
+            store.parent.mkdir(parents=True, exist_ok=True)
+            store.write_text(corrupt, encoding="utf-8")
+        self.wait_until_ready()
+        self.assertTrue(self.call("auxiliaryStores").strip())
+        time.sleep(25)
+        for store in stores:
+            self.assertEqual(store.read_text(encoding="utf-8"), corrupt, store.name)
+        log = self.log_text()
+        for name in ("IdleService", "TrayService", "QuickToggleConfig"):
+            self.assertIn(name + " failed to load", log)
+            self.assertIn("leaving the existing", log)
+
+    def test_corrupt_stateful_stores_are_left_untouched(self):
+        """The drawer and todo stores schedule a save after loading; a parse failure must skip it."""
+        corrupt = '{"broken":'
+        stores = [self.ctx.home / relative for relative in (
+            ".local/state/nyxuri/clavis-info-drawer.json",
+            ".local/state/nyxuri/todo.json",
+        )]
+        for store in stores:
+            store.parent.mkdir(parents=True, exist_ok=True)
+            store.write_text(corrupt, encoding="utf-8")
+        self.wait_until_ready()
+        self.assertTrue(self.call("statefulStores").strip())
+        time.sleep(25)
+        for store in stores:
+            self.assertEqual(store.read_text(encoding="utf-8"), corrupt, store.name)
+        log = self.log_text()
+        for name in ("InfoDrawerState", "TodoService"):
+            self.assertIn(name + " failed to load", log)
+
+
+class ShellFileUrlTests(unittest.TestCase):
+    """A file whose name carries URL-significant characters still has to load."""
+
+    SPECIAL_NAMES = (
+        "plain.png",
+        "has #hash.png",
+        "has?question.png",
+        "50%percent.png",
+        "sp ace.png",
+    )
+    PNG = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+
+    def setUp(self):
+        self.ctx = TempEnv()
+        self.ctx.__enter__()
+        self.addCleanup(self.ctx.__exit__)
+        self.qs = shutil.which("qs")
+        weston = shutil.which("weston")
+        if not self.qs or not weston:
+            self.skipTest("Quickshell and Weston required for file URL tests")
+        self.shell = self.ctx.home / "preview"
+        shutil.copytree(SHELL, self.shell, ignore=shutil.ignore_patterns(
+            "native", "build", "wiki", "tests", ".qmlls.ini", "__pycache__"))
+        self.pictures = self.ctx.home / "pictures"
+        self.pictures.mkdir()
+        for name in self.SPECIAL_NAMES:
+            (self.pictures / name).write_bytes(self.PNG)
+        runtime = self.ctx.home / "runtime"
+        runtime.mkdir(mode=0o700)
+        fallback = str(SHELL / "fallback")
+        self.environment = {
+            key: value for key, value in os.environ.items()
+            if not key.startswith(("CLAVIS_", "QS_", "NYXURI_"))
+            and key not in {"NIRI_SOCKET", "WAYLAND_DISPLAY", "DISPLAY", "DBUS_SESSION_BUS_ADDRESS"}
+        }
+        self.environment.update(
+            QT_QPA_PLATFORM="wayland", QT_QUICK_BACKEND="software",
+            XDG_RUNTIME_DIR=str(runtime), XDG_DATA_HOME=str(self.ctx.home / "data"),
+            WAYLAND_DISPLAY="file-url-wayland",
+            QML_IMPORT_PATH=fallback, QML2_IMPORT_PATH=fallback,
+        )
+        compositor_log = open(self.ctx.home / "compositor.log", "w+")
+        self.addCleanup(compositor_log.close)
+        compositor = subprocess.Popen(
+            [weston, "--backend=headless", "--renderer=pixman", "--no-config",
+             "--socket=file-url-wayland", "--idle-time=0"],
+            env=self.environment, stdout=compositor_log, stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        self.addCleanup(self.stop_process, compositor)
+        deadline = time.monotonic() + 10
+        while not (runtime / "file-url-wayland").exists():
+            if compositor.poll() is not None or time.monotonic() >= deadline:
+                compositor_log.seek(0)
+                self.fail("Private compositor did not start:\n" + compositor_log.read())
+            time.sleep(0.05)
+        (self.shell / "shell.qml").write_text(self._harness_qml())
+        self.output = open(self.ctx.home / "preview.log", "w+")
+        self.addCleanup(self.output.close)
+        self.process = subprocess.Popen(
+            [self.qs, "-p", str(self.shell), "--no-duplicate"],
+            env=self.environment, stdout=self.output, stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        self.addCleanup(self.stop_process, self.process)
+
+    def _harness_qml(self):
+        images = "\n".join(
+            '    Image { id: image%d; source: Paths.fileUrl(base + "/%s") }' % (index, name)
+            for index, name in enumerate(self.SPECIAL_NAMES))
+        statuses = " + \"|\" + ".join(
+            'name%d + "=" + status(image%d)' % (index, index)
+            for index in range(len(self.SPECIAL_NAMES)))
+        names = "\n".join(
+            '    property string name%d: "%s"' % (index, name)
+            for index, name in enumerate(self.SPECIAL_NAMES))
+        return '''import QtQuick
+import Quickshell
+import Quickshell.Io
+import qs.app
+
+ShellRoot {
+    property string base: "%s"
+%s
+%s
+
+    function status(image): string {
+        if (image.status === Image.Ready) return "Ready";
+        if (image.status === Image.Error) return "Error";
+        if (image.status === Image.Loading) return "Loading";
+        return "Null";
+    }
+
+    IpcHandler {
+        target: "fileUrl"
+        function statuses(): string { return %s; }
+        function shapes(): string {
+            return "hash=" + Paths.fileUrl("/p/has #hash.png")
+                 + "|question=" + Paths.fileUrl("/p/has?question.png")
+                 + "|space=" + Paths.fileUrl("/p/sp ace.png")
+                 + "|percent=" + Paths.fileUrl("/p/50%%percent.png")
+                 + "|plain=" + Paths.fileUrl("/p/plain.png")
+                 + "|empty=" + Paths.fileUrl("")
+                 + "|already=" + Paths.fileUrl("file:///p/already%%20encoded.png");
+        }
+    }
+}
+''' % (self.pictures, names, images, statuses)
+
+    def stop_process(self, process):
+        if process.poll() is None:
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+
+    def log_text(self):
+        self.output.flush()
+        self.output.seek(0)
+        return self.output.read()
+
+    def call(self, method):
+        done = subprocess.run(
+            [self.qs, "-p", str(self.shell), "ipc", "call", "fileUrl", method],
+            env=self.environment, capture_output=True, text=True, timeout=20)
+        return done.stdout
+
+    def wait_until_ready(self):
+        deadline = time.monotonic() + presentation_budget(300)
+        while time.monotonic() < deadline:
+            if self.process.poll() is not None:
+                break
+            try:
+                done = subprocess.run(
+                    [self.qs, "-p", str(self.shell), "ipc", "call", "fileUrl", "shapes"],
+                    env=self.environment, capture_output=True, text=True, timeout=10)
+            except subprocess.TimeoutExpired:
+                continue
+            if done.returncode == 0 and done.stdout.strip():
+                return
+            time.sleep(1)
+        self.fail("Shell never reported readiness:\n" + self.log_text())
+
+    def test_special_characters_still_load(self):
+        """A hash or question mark in the file name used to make the image fail outright."""
+        self.wait_until_ready()
+        time.sleep(25)
+        statuses = self.call("statuses").strip()
+        self.assertTrue(statuses)
+        for entry in statuses.split("|"):
+            self.assertTrue(entry.endswith("=Ready"), entry)
+
+    def test_reserved_characters_are_percent_encoded(self):
+        """Every character that URL parsing would otherwise consume has to be escaped."""
+        self.wait_until_ready()
+        time.sleep(25)
+        shapes = self.call("shapes").strip()
+        self.assertTrue(shapes)
+        self.assertIn("hash=file:///p/has%20%23hash.png", shapes)
+        self.assertIn("question=file:///p/has%3Fquestion.png", shapes)
+        self.assertIn("space=file:///p/sp%20ace.png", shapes)
+        self.assertIn("percent=file:///p/50%25percent.png", shapes)
+        self.assertIn("plain=file:///p/plain.png", shapes)
+        self.assertIn("empty=", shapes)
+        self.assertIn("already=file:///p/already%20encoded.png", shapes)
 
 
 if __name__ == "__main__":

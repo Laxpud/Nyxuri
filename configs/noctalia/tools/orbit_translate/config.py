@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import os
 from pathlib import Path
 import re
 import tomllib
@@ -75,8 +74,7 @@ class AppConfig:
 
 
 def config_path() -> Path:
-    config_home = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
-    return Path(config_home) / "noctalia" / "tools" / "orbit-translate__custom__.toml"
+    return Path.home() / ".config" / "noctalia" / "tools" / "orbit-translate__custom__.toml"
 
 
 def default_config() -> AppConfig:
@@ -92,6 +90,8 @@ def load_config(path: str | Path | None = None) -> AppConfig:
             raw = tomllib.load(handle)
     except tomllib.TOMLDecodeError as exc:
         raise ConfigError(f"配置文件格式错误: {path_obj.name}") from exc
+    except UnicodeError as exc:
+        raise ConfigError(f"配置文件编码错误: {path_obj.name}") from exc
     except OSError as exc:
         raise ConfigError(f"无法读取配置文件: {path_obj.name}") from exc
     return parse_config(raw)
@@ -177,9 +177,7 @@ def _parse_provider(value: dict[str, object], index: int) -> ProviderConfig:
         try:
             parsed = urlparse(base_url)
         except ValueError as exc:
-            if provider_type in AI_PROVIDER_TYPES:
-                raise ConfigError(f"Provider {provider_id} 的 base_url 必须是有效的 http 或 https URL") from exc
-            raise
+            raise ConfigError(f"Provider {provider_id} 的 base_url 必须是有效的 http 或 https URL") from exc
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ConfigError(f"Provider {provider_id} 的 base_url 必须是 http 或 https URL")
         if provider_type in AI_PROVIDER_TYPES:
