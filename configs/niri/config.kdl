@@ -62,7 +62,7 @@ recent-windows {
 }
 
 cursor {
-    xcursor-theme "Colloid-dark-cursors"
+    xcursor-theme "Adwaita"
     xcursor-size 24
 }
 

@@ -55,6 +55,7 @@ optdepends=(
   'kdenlive: Kdenlive'
   'libreoffice-fresh: LibreOffice'
   'lutris: Lutris'
+  'mangowm: Mango WM'
   'mission-center: Mission Center'
   'motrix: Motrix'
   'nautilus: Nautilus'

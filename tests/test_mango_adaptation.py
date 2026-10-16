@@ -32,11 +32,12 @@ class TestMangoAdaptation(unittest.TestCase):
         self.assertTrue(conf_path.is_file())
         res = subprocess.run(["mango", "-c", str(conf_path), "-p"], capture_output=True, text=True)
         self.assertEqual(res.returncode, 0, f"mango -p failed: {res.stderr}")
-
     def test_mango_manifest_contract(self):
         """Verify .module.toml parameters for mango."""
         m = load_manifest(self.mango_src, is_optional=True)
         self.assertEqual(m.name, "mango")
+        self.assertEqual(m.packages_repo, ["mangowm"])
+        self.assertEqual(m.packages_aur, [])
         self.assertEqual(m.detect, "mango")
         self.assertEqual(m.label, "Mango WM")
         self.assertIn("monitors.conf", m.preserve)
@@ -159,6 +160,29 @@ class TestMangoAdaptation(unittest.TestCase):
             res2 = chk2.run()
 
         self.assertEqual(res2, ["wm_mango"])
+
+        # Pressing SPACE again on already-selected mango keeps it selected (cannot untick radio)
+        chk3 = CheckboxList("title", [
+            CheckboxEntry(key="wm_niri", label="Niri", checked=False, radio_group="wm"),
+            CheckboxEntry(key="wm_mango", label="Mango", checked=True, radio_group="wm"),
+        ])
+        with patch("sys.stdin.isatty", return_value=True), \
+             patch("nyxuri.tui.read_key", side_effect=["DOWN", "SPACE", "ENTER"]), \
+             patch("sys.stdout", new_callable=StringIO):
+            res3 = chk3.run()
+        self.assertEqual(res3, ["wm_mango"])
+
+        # Pressing 'n' deselects normal apps but keeps the active radio selection
+        chk4 = CheckboxList("title", [
+            CheckboxEntry(key="wm_niri", label="Niri", checked=True, radio_group="wm"),
+            CheckboxEntry(key="wm_mango", label="Mango", checked=False, radio_group="wm"),
+            CheckboxEntry(key="app_waybar", label="Waybar", checked=True),
+        ])
+        with patch("sys.stdin.isatty", return_value=True), \
+             patch("nyxuri.tui.read_key", side_effect=["n", "ENTER"]), \
+             patch("sys.stdout", new_callable=StringIO):
+            res4 = chk4.run()
+        self.assertEqual(res4, ["wm_niri"])
 
     def test_run_master_component_menu_uses_radio_for_wms(self):
         """Master component menu creates radio entries for all supported WMs."""

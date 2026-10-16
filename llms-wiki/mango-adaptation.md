@@ -8,7 +8,7 @@ Mango (`mangowm`) 是一款现代、轻量、基于 wlroots 的 Wayland 合成�
 
 遵循 Nyxuri 的 [two-axis-config](two-axis-config.md)（双轴解耦）设计：
 - **配置轴（Axis A）**：`configs/mango/` 目录存在，由部署引擎原子复制到 `~/.config/mango/`。
-- **可选轴（Axis B）**：登记在 `configs/.optional-apps.toml` 中，声明为可选桌面组件（`aur = ["mangowm"]`），不强占系统硬依赖，不破坏 PKGBUILD 纯度。
+- **可选轴（Axis B）**：登记在 `configs/.optional-apps.toml` 中，声明为可选桌面组件（`repo = ["mangowm"]`），不强占系统硬依赖，不破坏 PKGBUILD 纯度。
 
 ## 2. 目录结构与配置文件分工
 

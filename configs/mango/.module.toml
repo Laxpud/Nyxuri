@@ -1,7 +1,7 @@
 # Mango Wayland Compositor manifest
 [packages]
-repo = []
-aur = ["mangowm"]
+repo = ["mangowm"]
+aur = []
 preserve = ["monitors.conf", "noctalia.conf"]
 chmod = ["scripts/*.sh", "scripts/*.py"]
 label = "Mango WM"

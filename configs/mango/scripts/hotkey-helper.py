@@ -7,6 +7,7 @@
 import os
 import re
 import sys
+import shutil
 import subprocess
 
 CONFIG_PATH = os.path.expanduser("~/.config/mango/config.conf")
@@ -201,6 +202,16 @@ def parse_config(filepath):
     return entries
 
 def main():
+    if not shutil.which("rofi"):
+        subprocess.run([
+            "notify-send",
+            "-u", "normal",
+            "-a", "Nyxuri",
+            "快捷键速查",
+            "未检测到 rofi 命令，请先安装 rofi 或 rofi-wayland 以使用按键引导\nRofi is not installed. Please install rofi or rofi-wayland."
+        ], check=False)
+        return
+
     entries = parse_config(CONFIG_PATH)
     if not entries:
         print("未能在 config.conf 中找到快捷键绑定。")

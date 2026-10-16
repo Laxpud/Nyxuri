@@ -707,7 +707,7 @@ class CheckboxList:
                         for e in self.entries:
                             if e.radio_group == target.radio_group and e != target:
                                 e.checked = False
-                        target.checked = not target.checked
+                        target.checked = True
                     else:
                         target.checked = not target.checked
                 elif key in ("a", "A"):
@@ -716,7 +716,7 @@ class CheckboxList:
                             e.checked = True
                 elif key in ("n", "N"):
                     for e in self.entries:
-                        if not e.is_separator:
+                        if not e.is_separator and not e.radio_group:
                             e.checked = False
                 elif key in ("0", "q", "Q", "ESC", "EXIT"):
                     return None
@@ -730,7 +730,7 @@ class CheckboxList:
                             for e in self.entries:
                                 if e.radio_group == target.radio_group and e != target:
                                     e.checked = False
-                            target.checked = not target.checked
+                            target.checked = True
                         else:
                             target.checked = not target.checked
                 elif key == "ENTER":
