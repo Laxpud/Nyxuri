@@ -49,6 +49,21 @@
 * **系统软件包（pacman / AUR / Flatpak 包）**：不是单元！它们只是单元声明书里写的 `dependencies`。
 * **预设与零件（Preset / Parts）**：不是单元！它们是单元内部的配置变体（Variants）。
 
+### 内核分层契约（依赖方向冻结）
+
+四个内核模块呈星形单向分层：**transaction 是唯一允许多依赖的编排层，其余三件互不认识**。
+
+```
+transaction（编排：唯一可触碰副作用的模块）
+ ├─► registry   唯一扫描 configs/ 与 manifest 的模块（蓝图域唯一入口）
+ ├─► resolver   纯函数：依赖图进，拓扑序出（零 I/O、零状态，表驱动可测）
+ └─► ledger     唯一读写 state.json 的模块（状态域唯一入口）
+```
+
+* 禁止绕过 ledger 直写账本，禁止绕过 registry 直读蓝图；
+* `resolver` 不 import 任何内核兄弟模块，只做纯计算；
+* deploy.atomic、Vault、事件通知只允许 transaction 触碰。
+
 ---
 
 ## 3. 正交模型与状态机 (Orthogonal State Machine)
@@ -74,14 +89,26 @@
    - 检查外部包：若缺少 pacman/AUR 包，调用 `nyxuri.pkg` 提示安装；
    - 从 `vault/<unit>/` 捞回自定义文件与最新蓝图合并；
    - 原子置换进 `~/.config/<target>` 并完成模板渲染；
-   - 状态写入 `state.json`，通过轻量 IPC 信号通知 Shell 刷新。
+   - 状态经 ledger 落账 `state.json`，随后发出一次 `unit-changed` 事件（见 §6，尽力而为，无订阅者即 no-op）；
 2. **停用动作 (`off` / `disable`)**：
    - 反向依赖检查：若有其他已启用单元依赖它且未带 `--cascade`，强行阻断并报警；
    - 将 `~/.config/<target>` 中的 `__custom__` 与 `preserve` 文件原子移入 `vault/<unit>/`；
    - 彻底删除受管文件，空目录删除，实机恢复纯白；
-   - 状态写入 `state.json`；
+   - 状态经 ledger 落账 `state.json`；
    - 真诚报告交底：明确告知配置已归档，二进制包保留在系统（不背着用户 sudo 卸包）；
-   - 通过 IPC 信号通知 Shell 移除对应挂件。
+   - 发出同一 `unit-changed` 事件，Shell 据此摘除挂件。
+
+### 账本记录形状（KM0 冻结）
+
+`state.json` 中每条单元记录只含五个字段。KM2 的事务与 doctor 对账全部建立在其上，实现不得私加：
+
+| 字段 | 类型 | 含义 |
+|---|---|---|
+| `state` | `enabled` / `disabled` | 开关轴唯一状态 |
+| `preset` | `string` | 形态轴当前选择（预设或零件） |
+| `files` | `map<相对路径, sha256>` | 受管文件哈希快照，`Drifted` 判定依据 |
+| `vault` | `路径?` | 停用时自定义文件的 Vault 归档位置，`disabled` 时必填 |
+| `updated` | `ISO 时间戳` | 最近一次事务落账时间 |
 
 ---
 
@@ -128,30 +155,38 @@ requires_root = false
 system_paths = []
 ```
 
+### 声明边界
+
+manifest 只声明上述字段，不追求覆盖一切。服务启停（systemd unit 等）**暂不进 manifest**：属单元内部行为，随单元自身脚本处理；KM2 前不发明新字段，出现跨单元或系统级服务效果的真实需求再议（登记于 [delayed-decisions](delayed-decisions.md)）。
+
 ---
 
 ## 5. 四大核心命令
 
-命令行只保留 4 个通用动词（`list`、`on`、`off`、`doctor`），支持直觉短动词别名：
+命令行只保留 4 个通用动词（`list`、`on`、`off`、`doctor`），`on` / `off` 另有语义等价长动词（`enable` / `disable`）。不设更短的缩写别名——动词已经够短，别名只是要供养的表面：
 
 ```bash
 # 1. 查看全景清单或单个详情
-nyxuri list [unit]              # 别名: ls
+nyxuri list [unit]
 
 # 2. 开启单元（支持指定预设）
-nyxuri on <unit> [--preset <p>] # 别名: enable
+nyxuri on <unit> [--preset <p>]     # 等价: enable
 
-# 3. 关闭单元（级联关闭下游依赖）
-nyxuri off <unit> [--cascade]   # 别名: disable
+# 3. 关闭单元（默认拒绝级联，显式 --cascade 才级联关闭下游依赖）
+nyxuri off <unit> [--cascade]       # 等价: disable
 
 # 4. 对账检查（实机文件 vs 账本三态审计）
-nyxuri doctor [unit]            # 别名: doc
+nyxuri doctor [unit]
 ```
+
+单源阶段**不设独立 `refresh` 动词**：账本即真相，无缓存可刷。
 
 ---
 
 ## 6. Shell 内部完全单元化与协同契约 (Shell Unitization & Coordination)
 
+> **层次边界**：内核只关心本节三件事——同一账本、单一事件通道、点分 ID。插槽分类学与微内核实现细节属 Shell 侧契约，KM4 Shell 模块化时迁归 [shell 契约](../shell/AGENTS.md)，本页届时只留这三条。
+>
 > **设计初衷**：当前 Shell 超过 50% 组件为借用的临时过渡品，未来将由作者大幅重构与推倒重写。微内核 + 几何插槽保证了借用组件与外壳的**绝对绝缘**——拔除、重写或替换任意组件，微内核与其他模块零改动。
 
 Nyxuri Shell 绝非特权单体，其内部亦彻底单元化。Shell 本身蜕变为极致精简的**微内核宿主（Micro-Kernel Host）**，仅保留动作网关（`ActionGateway`）、会话协议（`NiriService`）、主题代币（`ThemeTokens`）与插槽宿主（`SlotHost`），其内部功能域全部升格为平等的 Shell 单元。
@@ -172,8 +207,8 @@ Nyxuri Shell 绝非特权单体，其内部亦彻底单元化。Shell 本身蜕�
 ### 3. 横向解耦与单一开关真相
 * **横向零依赖**：Shell 单元之间严禁跨域调用，跨域桌面意图唯一路由至 `ActionGateway.executeIntent()`；
 * **双向单一真相**：Shell 设置面板拨动开关仅通过 `ActionGateway` 派发 `nyxuri on/off` 调用内核事务，Shell 永远只是账本在屏幕上的**只读投影**；
-* **单向 IPC 刷新**：内核事务落账后仅执行 `quickshell ipc unit reload`，Shell 热拉取账本重绘，零闪烁、不重启进程；
-* **统一命名空间**：Shell 单元一律以 `shell.<domain>` 统一挂入 `state.json` 与 4 大动词管辖（如 `nyxuri off shell.dock`）。
+* **单向事件通知**：事务落账后只发一次 `unit-changed` 事件。这是抽象端口，不是内核命令——当前唯一投递实现是 `quickshell ipc unit reload`，由外层注入，内核不 import、不 subprocess quickshell；无订阅者时为 no-op（测试与无 Shell 环境零负担）；
+* **点分 ID 约定**：Shell 域单元以 `shell.<domain>` 命名（如 `nyxuri off shell.dock`），统一挂入 `state.json` 与 4 大动词管辖。内核只认点分 ID 本身，不特判任何前缀。
 
 ---
 
@@ -182,6 +217,17 @@ Nyxuri Shell 绝非特权单体，其内部亦彻底单元化。Shell 本身蜕�
 1. **包管理非对称**：`disable` 只撤回配置与桌面集成，绝不私自调用 sudo 卸载系统包，以避免打断和破坏系统依赖；结果在执行报告中如实写明。
 2. **单文件特例一律铲除**：全库 100% 目录平铺化。`configs/starship.toml` 升格为 `configs/starship/`，消灭 sidecar 机制。
 3. **Vault 纯文件平铺**：`~/.local/state/nyxuri/vault/<unit>/` 保持目录镜像平铺，不建数据库，不打包压缩，用户肉眼直观可见。
-4. **代码级死刑断言**：在契约测试 `tests/test_ai_specs.py` 中写死断言：
-   - 到达 **KM1** 时，`.optional-apps.toml` 与 `starship.toml` 必须物理删除；
-   - 到达 **KM5** 时，`nyxuri/cli.py` 内部所有硬编码的专用命令必须物理删除。
+4. **死刑清单与两步执法**：所有过渡物登记在下方清单（名字 + 死刑阶段），契约测试分两步执法：
+   - **登记步（KM0 已生效）**：`tests/test_ai_specs.py` 断言清单条目齐全；
+   - **执法步**：对应阶段收口时，断言升级为物理删除。升级动作写进该阶段验收步骤（见 ROADMAP），届时登记步对该条目退役。
+
+| 死刑对象 | 死刑阶段 |
+|---|---|
+| `.optional-apps.toml`（axis-B sidecar） | KM1 |
+| `configs/starship.toml` + `starship.toml.module.toml`（单文件特例） | KM1 |
+| `*.module.toml` sidecar 机制（统一收敛为目录内 `manifest.toml`） | KM1 |
+| `tests/test_unit_model.py` 的 Kahn 拓扑参考副本（`nyxuri.resolver` 落地后改测真实内核） | KM1 |
+| `nyxuri/modules/` 专用业务模块 | KM3 |
+| 旧 CLI 命令兼容别名（KM3 设倒计时） | KM5 |
+| `nyxuri/cli.py` 硬编码专用命令 | KM5 |
+| `install.sh` 安装器职责（退役为一次性引导） | KM5 |

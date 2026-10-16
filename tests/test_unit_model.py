@@ -4,11 +4,17 @@ import tomllib
 import unittest
 from pathlib import Path
 
+from tests.utils import TempEnv
+
 
 def resolve_unit_dependencies(graph: dict[str, list[str]]) -> list[str]:
     """Pure stdlib Kahn's algorithm for unit dependency resolution.
 
     Returns topological order of units to enable. Raises ValueError on cycle.
+
+    Death-row reference copy (unit-model.md §7): this implementation lives in
+    the test only because the kernel does not exist yet. Once `nyxuri.resolver`
+    lands (KM1), delete this copy and point these tests at the real module.
     """
     in_degree = {u: 0 for u in graph}
     for u, deps in graph.items():
@@ -59,12 +65,21 @@ class TestUnitModelContract(unittest.TestCase):
         self.assertIn("纯文件平铺", content)
 
     def test_zero_config_defaults(self):
-        """By convention, directory name drives target and package defaults."""
-        unit_name = "kitty"
-        default_target = unit_name
-        default_packages = [unit_name]
-        self.assertEqual(default_target, "kitty")
-        self.assertEqual(default_packages, ["kitty"])
+        """Zero-config convention is engine behavior, not prose: a bare app
+        dir with no manifest derives identity and packages from its name."""
+        from nyxuri.deploy.manifest import load_manifest
+
+        with TempEnv() as ctx:
+            bare = ctx.home / "bare-unit"
+            bare.mkdir()
+            m = load_manifest(bare)
+            self.assertEqual(m.name, "bare-unit")
+            self.assertEqual(m.packages_repo, ["bare-unit"])
+            self.assertEqual(m.preserve, [])
+            self.assertEqual(m.chmod, [])
+        # A real repo unit resolves by directory name the same way.
+        kitty = load_manifest(self.root_dir / "configs" / "kitty")
+        self.assertEqual(kitty.name, "kitty")
 
     def test_minimal_manifest_parsing(self):
         """Minimal manifest only overrides declared fields, zero boilerplate required."""

@@ -30,7 +30,7 @@ P6（整体验收与未来移植）保持在 KM5 之后，台账见 [shell/ROADM
 KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此为唯一权威；下方为各阶段实施要点：
 
 - **KM0 内核契约冻结**：四大法定术语（单元 / 内核 / 源 / manifest）；正交状态机（开关与外观严格正交，禁止折叠为互斥假单元）；约定优于配置（无 manifest = 全默认，最小仅 1 行）；Vault 纯文件平铺镜像归档；四大核心动词（`list`, `on`, `off`, `doctor`）；代码级死刑清单制。验收：契约测试 `tests/test_unit_model.py` 全绿。
-- **KM1 内核落地**：单源内核落地，坚持减法推迟网络多源；纯标库 `UnitRegistry`、`UnitResolver`、`UnitLedger`；`configs/` 纯平铺化，拆解退役 `.optional-apps.toml`，升格 `starship.toml` 为目录。验收：新单元接入 = 加目录 + 可选 manifest，零内核代码改动。
+- **KM1 内核落地**：单源内核落地，坚持减法推迟网络多源；纯标库 `UnitRegistry`、`UnitResolver`、`UnitLedger`（分层契约见 [unit-model](llms-wiki/unit-model.md)）。分两步验收，**删除不寄生于新增**：① registry 落地——新单元接入 = 加目录 + 可选 manifest，零内核代码改动，契约测试改测真实内核（Kahn 参考副本退役）；② v1 物理删除——`.optional-apps.toml`、`starship.toml`、全部 `*.module.toml` 清零，`configs/` 纯平铺，死刑断言升级生效。
 - **KM2 开关事务**：`on / off` 原子闭环；反向依赖强阻断与级联关闭；Vault 进出与实机抹白；doctor 对账（`Synced` / `Drifted` / `Ghost` 三态审计）。验收：任一单元停用实机 100% 白纸零残留，自定义文件入 Vault 零丢失。
 - **KM3 命令行与 TUI**：4 动词接管全库（`list`, `on`, `off`, `doctor`），旧命令设别名与死刑倒计时；TUI 双栏零件台；退役 `nyxuri/modules/` 专用业务模块。验收：所有能力通用动词闭环，双语文案全量覆盖。
 - **KM4 Shell 彻底模块化 + 运行态直通**（吸收原 Shell P5）：Shell 蜕变为纯宿主，业务全部模块化；单一开关真相，Shell 运行态仅为账本投影；单向 IPC 信号触发重绘；原 P5 验收标准平移。验收记录归 shell 台账。
@@ -46,12 +46,7 @@ KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此�
 
 ### 已确认的设计定论（KM0 决议）
 
-- **动词体系**：核心采用 `list` / `on` / `off` / `doctor` 4 个直觉动词（等价长动词 `enable` / `disable`）；单源阶段不设独立 `refresh` 动词。
-- **外部源节奏**：坚持减法，KM1 仅建本地单一内置源抽象（`local:builtin`），网络多源推迟至整体系统稳固后。
-- **依赖关闭语义**：反向依赖 DAG 强阻断，有下游依赖时默认报错拒绝，显式 `--cascade` 方可级联停用。
-- **Vault 归档与纯白实机**：停用单元时，`__custom__` 与 `preserve` 文件原子镜像归档至 `~/.local/state/nyxuri/vault/<unit>/`，实机空间 100% 抹净纯白，零数据库、零压缩包，肉眼直观可见。
-- **正交模型（证明正交，不予折叠）**：单元（开关轴，用不用）与预设/零件（变体轴，长啥样）完全垂直解耦，禁止折叠为互斥假单元，系统零互斥锁代码。
-- **单文件特例一律清除**：全库 100% 目录平铺化，彻底消灭 sidecar manifest 机制。
+全部决议已上收 [unit-model](llms-wiki/unit-model.md)（分层契约、账本记录形状、事件通道、无 `refresh` 动词、死刑清单与两步执法），此处不再复述。仅存一条节奏定论：外部源 KM1 仅建 `local:builtin` 单一本地抽象，网络多源推迟至整体系统稳固后。
 
 ### 储备（不承诺）
 

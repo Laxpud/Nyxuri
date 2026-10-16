@@ -7,6 +7,7 @@
 | 事项 | 触发条件 | 当前决策 |
 |---|---|---|
 | **硬件适配 Overlay**（NVIDIA / AMD / 多显示器…） | 出现多个明确的硬件适配需求 | 当前无自动驱动补丁，不引入硬件 overlay；应用预设底版继承（Base Overlay）保持独立。详见 [nvidia-patch](nvidia-patch.md) |
+| **单元服务声明字段**（manifest 声明 systemd unit 等服务副作用） | 出现跨单元或系统级服务效果的真实需求 | 服务启停属单元内部行为，随单元自身脚本处理；KM2 前不发明字段。详见 [unit-model](unit-model.md) §4 声明边界 |
 
 ## 这次重构已落地（主动覆盖延迟）
 

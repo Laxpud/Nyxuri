@@ -157,6 +157,34 @@ class TestAISpecs(unittest.TestCase):
             self.assertIn(status, allowed, f"Non-canonical status for {stage}: {status}")
 
     # ------------------------------------------------------------------
+    # Unit-model death registry (unit-model.md §7, two-step enforcement)
+    # ------------------------------------------------------------------
+
+    def test_death_registry_fully_registered(self):
+        """KM0 registration step: every death-row object must be registered
+        in unit-model.md §7 with name and stage on the same table row.
+
+        Upgrade path (per ROADMAP): when a stage closes, its rows upgrade to
+        physical-deletion assertions — KM1: sidecars gone, Kahn copy gone;
+        KM5: cli hardcoded commands gone, installer demoted to bootstrap.
+        """
+        content = (self.wiki_dir / "unit-model.md").read_text(encoding="utf-8")
+        rows = [line for line in content.splitlines() if line.startswith("|")]
+        for name, stage in (
+            (".optional-apps.toml", "KM1"),
+            ("starship.toml.module.toml", "KM1"),
+            ("manifest.toml", "KM1"),
+            ("Kahn", "KM1"),
+            ("nyxuri/modules/", "KM3"),
+            ("nyxuri/cli.py", "KM5"),
+            ("install.sh", "KM5"),
+        ):
+            self.assertTrue(
+                any(name in row and stage in row for row in rows),
+                f"death-row object '{name}' must be registered with stage {stage} in unit-model.md §7",
+            )
+
+    # ------------------------------------------------------------------
     # CLI command mapping
     # ------------------------------------------------------------------
 
