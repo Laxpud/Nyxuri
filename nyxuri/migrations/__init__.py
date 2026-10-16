@@ -1,9 +1,7 @@
 """Linear, idempotent cleanup migrations for managed user state."""
 
-import json
-from pathlib import Path
-
 from nyxuri.core import get_env
+from nyxuri.ledger import read_ledger, update_ledger
 
 MIGRATION_LEVEL = 2
 # Deprecated paths cleaned during linear migration.
@@ -13,21 +11,10 @@ TOMBSTONES: tuple[str, ...] = (
     ".config/noctalia/templates/nyxniri-palette.toml",
 )
 
-def _ledger_path() -> Path:
-    return get_env().state_dir / "state.json"
-
-def _read() -> dict:
-    try:
-        value = json.loads(_ledger_path().read_text(encoding="utf-8"))
-        return value if isinstance(value, dict) else {}
-    except (OSError, ValueError, TypeError):
-        return {}
-
 def run() -> bool:
     env = get_env()
-    ledger = _read()
     try:
-        level = int(ledger.get("migration_level", 0) or 0)
+        level = int(read_ledger().get("migration_level", 0) or 0)
     except (ValueError, TypeError):
         level = 0
     if level >= MIGRATION_LEVEL:
@@ -43,11 +30,8 @@ def run() -> bool:
                 target.unlink()
         except OSError:
             return False
-    ledger["migration_level"] = MIGRATION_LEVEL
-    path = _ledger_path()
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(ledger, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        update_ledger(migration_level=MIGRATION_LEVEL)
     except OSError:
         return False
     return True

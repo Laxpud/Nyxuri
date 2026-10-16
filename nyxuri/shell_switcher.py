@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 from typing import Optional, Tuple
 
-from nyxuri.state.ledger import active_shell, custom_shell_bin, set_shell
+from nyxuri.ledger import active_shell, custom_shell_bin, set_shell
 
 
 def normalize_shell_name(name: str) -> str:

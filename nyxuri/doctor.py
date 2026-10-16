@@ -43,7 +43,7 @@ def _check_wayland_session(env) -> None:
         print(msg("doctor_warn", text(f"会话: 缺少 {sess_file}", f"Session: {sess_file} is missing")))
 
 def _check_shell_provider(env) -> None:
-    from nyxuri.state.ledger import active_shell, nyxuri_shell_bin
+    from nyxuri.ledger import active_shell, nyxuri_shell_bin
     current = active_shell()
     if current == "noctalia":
         if shutil.which(THEME_ENGINE):
@@ -61,7 +61,7 @@ def _check_shell_provider(env) -> None:
             )))
 
 def _check_noctalia(env) -> None:
-    from nyxuri.state.ledger import active_shell
+    from nyxuri.ledger import active_shell
     if active_shell() != "noctalia":
         return
     if not shutil.which(THEME_ENGINE):
@@ -154,7 +154,7 @@ def _check_scratchpad(env) -> None:
         print(msg("doctor_warn", text("Scratchpad: 缺少 tmux", "Scratchpad: tmux is missing")))
 
 def _check_orbit(env) -> None:
-    from nyxuri.state.ledger import active_shell
+    from nyxuri.ledger import active_shell
     if active_shell() != "noctalia":
         return
     launcher = env.config_dir / THEME_ENGINE / "tools" / "orbit-launcher.py"

@@ -110,6 +110,9 @@ transaction（编排：唯一可触碰副作用的模块）
 | `vault` | `路径?` | 停用时自定义文件的 Vault 归档位置，`disabled` 时必填 |
 | `updated` | `ISO 时间戳` | 最近一次事务落账时间 |
 
+单元记录统一挂在 `state.json` 顶层的 `units` 键下，以单元 ID 为键；`updated` 为带时区的
+ISO 8601 时间戳。单元记录的读写只经 `nyxuri.ledger`，任何内核模块不得绕过。
+
 ---
 
 ## 4. Manifest Schema v2 极简规范
@@ -226,7 +229,6 @@ Nyxuri Shell 绝非特权单体，其内部亦彻底单元化。Shell 本身蜕�
 | `.optional-apps.toml`（axis-B sidecar） | KM1 |
 | `configs/starship.toml` + `starship.toml.module.toml`（单文件特例） | KM1 |
 | `*.module.toml` sidecar 机制（统一收敛为目录内 `manifest.toml`） | KM1 |
-| `tests/test_unit_model.py` 的 Kahn 拓扑参考副本（`nyxuri.resolver` 落地后改测真实内核） | KM1 |
 | `nyxuri/modules/` 专用业务模块 | KM3 |
 | 旧 CLI 命令兼容别名（KM3 设倒计时） | KM5 |
 | `nyxuri/cli.py` 硬编码专用命令 | KM5 |

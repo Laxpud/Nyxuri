@@ -112,8 +112,8 @@ engine_is_complete() {
     [ -f "$target_dir/install.sh" ] || return 1
     [ -f "$target_dir/nyxuri/translations.toml" ] || return 1
     [ -f "$target_dir/nyxuri/migrations/__init__.py" ] || return 1
-    # Top-level engine modules (infrastructure + entrypoints, §13)
-    for module in __init__ __main__ clean cli constants core deps doctor i18n menus network shell_switcher template_registry theme tui workflows; do
+    # Top-level engine modules (infrastructure + kernel + entrypoints, §13)
+    for module in __init__ __main__ clean cli constants core deps doctor i18n ledger menus network registry resolver shell_switcher template_registry theme tui workflows; do
         [ -f "$target_dir/nyxuri/$module.py" ] || return 1
     done
     # deploy/ subpackage (atomic · manifest · templates · assets · hardware · preset · deploy)
@@ -124,8 +124,8 @@ engine_is_complete() {
     for module in __init__ cli detection; do
         [ -f "$target_dir/nyxuri/pkg/$module.py" ] || return 1
     done
-    # state/ subpackage (backup · ledger · uninstall)
-    for module in __init__ backup ledger uninstall; do
+    # state/ subpackage (backup · uninstall; ledger is a kernel module at nyxuri/ledger.py)
+    for module in __init__ backup uninstall; do
         [ -f "$target_dir/nyxuri/state/$module.py" ] || return 1
     done
     # modules/ subpackage (fcitx · fisher · greeter · gtktheme)

@@ -41,13 +41,13 @@ class TestMigrationsResilience(unittest.TestCase):
             self.assertFalse(link.is_symlink())
 
     def test_corrupt_migration_level_does_not_raise(self):
-        from nyxuri import migrations
+        from nyxuri import ledger, migrations
         with TempEnv() as ctx:
-            path = migrations._ledger_path()
+            path = ledger.ledger_path()
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text('{"migration_level": "abc"}', encoding="utf-8")
             self.assertTrue(_quiet(migrations.run))
-            self.assertEqual(migrations._read()["migration_level"], migrations.MIGRATION_LEVEL)
+            self.assertEqual(ledger.read_ledger()["migration_level"], migrations.MIGRATION_LEVEL)
 
     def test_traversal_tombstone_is_rejected(self):
         from nyxuri import migrations
@@ -336,14 +336,14 @@ class TestNaturalSort(unittest.TestCase):
 class TestLedgerResilience(unittest.TestCase):
 
     def test_unhashable_active_shell_falls_back_to_default(self):
-        from nyxuri.state import ledger
+        from nyxuri import ledger
         with TempEnv():
             for bad in ([], {}, ["a"], 5, None, "weird"):
                 ledger.update_ledger(active_shell=bad)
                 self.assertEqual(ledger.active_shell(), "noctalia")
 
     def test_concurrent_updates_do_not_lose_keys(self):
-        from nyxuri.state import ledger
+        from nyxuri import ledger
         with TempEnv():
             ledger.update_ledger(seed="x")
             read_fd, write_fd = os.pipe()
@@ -394,7 +394,7 @@ class TestShellSwitcherClassification(unittest.TestCase):
 
     def test_already_active_keeps_the_running_bin(self):
         from nyxuri import shell_switcher
-        from nyxuri.state.ledger import custom_shell_bin, set_shell
+        from nyxuri.ledger import custom_shell_bin, set_shell
         with TempEnv():
             old_bin = str(Path(tempfile.mkdtemp()) / "old-shell")
             new_bin = str(Path(tempfile.mkdtemp()) / "new-shell")
@@ -500,7 +500,7 @@ class TestPresetDurability(unittest.TestCase):
 
     def test_active_file_is_authoritative_and_syncs_the_ledger(self):
         from nyxuri.deploy import preset
-        from nyxuri.state.ledger import read_ledger
+        from nyxuri.ledger import read_ledger
         with TempEnv() as ctx:
             src = self._sandbox(ctx)
             self._app(src, "demo", "[packages]\n", {"config.kdl": "// b"})
@@ -608,7 +608,7 @@ class TestDeployRobustness(unittest.TestCase):
 
     def test_unrealizable_part_variant_is_reported(self):
         import nyxuri.deploy.deploy as deploy
-        from nyxuri.state.ledger import update_ledger
+        from nyxuri.ledger import update_ledger
         with TempEnv() as ctx:
             src = self._sandbox(ctx)
             root = self._app(

@@ -143,7 +143,7 @@ def _remove_tree_at(parent_fd: int, name: str) -> None:
 
 
 def _ledger_active_preset(app: str) -> str:
-    from nyxuri.state.ledger import read_ledger
+    from nyxuri.ledger import read_ledger
     ledger_presets = read_ledger().get("presets", {})
     if isinstance(ledger_presets, dict) and isinstance(ledger_presets.get(app), str):
         return ledger_presets[app]
@@ -154,7 +154,7 @@ def read_active_preset(app: str) -> str:
     """Return the active preset or raise instead of silently deploying defaults."""
     if not _is_deployable_app(app):
         raise InvalidActivePresetError("invalid preset app")
-    from nyxuri.state.ledger import read_ledger
+    from nyxuri.ledger import read_ledger
     presets_fd: Optional[int] = None
     try:
         presets_fd = _open_presets_dir()
@@ -184,7 +184,7 @@ def read_active_preset(app: str) -> str:
         raise InvalidActivePresetError("invalid active preset state") from exc
     if len(content) > 4096 or not _is_safe_component(name):
         raise InvalidActivePresetError("invalid active preset state")
-    from nyxuri.state.ledger import update_ledger
+    from nyxuri.ledger import update_ledger
     ledger = read_ledger()
     presets = ledger.get("presets", {})
     update_ledger(presets={**(presets if isinstance(presets, dict) else {}), app: name})
@@ -222,7 +222,7 @@ def write_active_preset(app: str, name: str) -> None:
         finally:
             os.close(fd)
         os.replace(tmp, f"{app}.active", src_dir_fd=presets_fd, dst_dir_fd=presets_fd)
-        from nyxuri.state.ledger import read_ledger, update_ledger
+        from nyxuri.ledger import read_ledger, update_ledger
         presets = read_ledger().get("presets", {})
         update_ledger(presets={**(presets if isinstance(presets, dict) else {}), app: name})
     finally:
@@ -844,7 +844,7 @@ def apply_part(app: str, slot: str, variant: str) -> bool:
     """Hot-swap a specific declared component part of an app."""
     from nyxuri.deploy.manifest import load_manifest_for
     from nyxuri.deploy.atomic import atomic_replace_item
-    from nyxuri.state.ledger import read_ledger, update_ledger
+    from nyxuri.ledger import read_ledger, update_ledger
 
     try:
         manifest = load_manifest_for(app)
@@ -900,7 +900,7 @@ def apply_part(app: str, slot: str, variant: str) -> bool:
 
 def get_active_part(app: str, slot: str) -> str:
     """Return the currently active variant for an app's part slot."""
-    from nyxuri.state.ledger import read_ledger
+    from nyxuri.ledger import read_ledger
     ledger = read_ledger()
     parts = ledger.get("parts", {})
     if isinstance(parts, dict) and f"{app}:{slot}" in parts:

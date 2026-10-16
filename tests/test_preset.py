@@ -1247,7 +1247,7 @@ default = "default"
         self.assertEqual(sorted(eff["variants"]), ["default", "xray"])
 
     def test_apply_part_success(self):
-        from nyxuri.state.ledger import read_ledger
+        from nyxuri.ledger import read_ledger
         target_file = self.dest / "effects_normal.kdl"
         target_file.write_text("// initial")
 

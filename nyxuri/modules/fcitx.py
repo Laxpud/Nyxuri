@@ -56,7 +56,7 @@ def noctalia_available() -> bool:
 def fcitx_enabled() -> bool:
     """Check if user consent marker exists."""
     _, _, _, _, _, _, enabled_marker, _ = _fcitx_paths()
-    from nyxuri.state.ledger import read_ledger
+    from nyxuri.ledger import read_ledger
     modules = read_ledger().get("modules", {})
     if isinstance(modules, dict) and "fcitx" in modules:
         return bool(modules["fcitx"])
@@ -320,7 +320,7 @@ def fcitx_activate() -> bool:
     fcitx_reload()
     enabled_marker.parent.mkdir(parents=True, exist_ok=True)
     enabled_marker.touch()
-    from nyxuri.state.ledger import update_ledger
+    from nyxuri.ledger import update_ledger
     update_ledger(modules={"fcitx": True})
     log_msg("INFO", "Activated NyxMellow fcitx5 skin as default theme")
     return True
@@ -596,7 +596,7 @@ def fcitx_uninstall() -> bool:
     )
 
     enabled_marker.unlink(missing_ok=True)
-    from nyxuri.state.ledger import update_ledger
+    from nyxuri.ledger import update_ledger
     update_ledger(modules={"fcitx": False})
     fcitx_reload()
     print(msg("fcitx_uninstall_done"))

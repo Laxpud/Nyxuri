@@ -15,10 +15,8 @@ from nyxuri.state.backup import (
     get_backup_base_dir,
 )
 from nyxuri.state.uninstall import uninstall_nyxuri, uninstall_nyxniri
-from nyxuri.state.ledger import active_shell, ledger_path, read_ledger, update_ledger
 
 __all__ = [
     "backup_configs", "rollback_configs", "list_backups", "delete_backup",
     "get_all_backups", "get_backup_base_dir", "uninstall_nyxuri", "uninstall_nyxniri",
-    "active_shell", "ledger_path", "read_ledger", "update_ledger",
 ]

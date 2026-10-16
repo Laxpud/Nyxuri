@@ -143,7 +143,7 @@ def _reconcile_active_parts(app: str, manifest: ModuleManifest) -> List[str]:
     """Ensure ledger-recorded active parts are realized in dest."""
     if not manifest.parts:
         return []
-    from nyxuri.state.ledger import read_ledger
+    from nyxuri.ledger import read_ledger
     from nyxuri.deploy.preset import apply_part
     parts_state = read_ledger().get("parts", {})
     if not isinstance(parts_state, dict):

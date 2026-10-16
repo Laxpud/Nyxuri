@@ -56,6 +56,7 @@ class ModuleManifest:
     label: str
     category: str
     detect: str
+    dependencies: List[str]  # other Nyxuri units this unit depends on
     is_deployable: bool
     is_optional: bool = False  # True iff listed in .optional-apps.toml (§2 axis B)
     post_install: str = ""     # Optional lifecycle hook spec (e.g. "fcitx:setup_rime_ice")
@@ -170,6 +171,7 @@ def load_manifest(app_src: Path, is_optional: bool = False) -> ModuleManifest:
         label=packages.get("label", name),
         category=packages.get("category", ""),
         detect=packages.get("detect", name),
+        dependencies=_as_str_list(data.get("dependencies")),
         is_deployable=_is_deployable(app_src),
         is_optional=is_optional,
         post_install=str(packages.get("post_install", "")),
@@ -215,6 +217,7 @@ def _manifest_from_optional(name: str, entry: dict) -> ModuleManifest:
     return ModuleManifest(
         name=name,
         packages_repo=_as_str_list(entry.get("repo", [name])),
+        dependencies=[],
         packages_aur=_as_str_list(entry.get("aur")),
         packages_flatpak=_as_str_list(entry.get("flatpak")),
         preserve=[],
@@ -239,6 +242,7 @@ def _merge_optional_entry(m: ModuleManifest, entry: dict) -> ModuleManifest:
     return ModuleManifest(
         name=m.name,
         packages_repo=_as_str_list(entry.get("repo", m.packages_repo)),
+        dependencies=m.dependencies,
         packages_aur=_as_str_list(entry.get("aur", m.packages_aur)),
         packages_flatpak=_as_str_list(entry.get("flatpak", m.packages_flatpak)),
         preserve=m.preserve,

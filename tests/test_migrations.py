@@ -36,7 +36,7 @@ class TestMigrations(unittest.TestCase):
         self.assertFalse(outside.exists())
 
     def test_update_ledger_merges_nested_dicts(self):
-        from nyxuri.state.ledger import read_ledger, update_ledger
+        from nyxuri.ledger import read_ledger, update_ledger
 
         update_ledger(modules={"fcitx": True})
         update_ledger(modules={"fisher": True})

@@ -171,7 +171,7 @@ def _cmd_preset(sub_args: List[str]) -> int:
         if len(sub_args) > 2:
             exit_usage(f"{CLI_CMD} preset {app} parts")
         from nyxuri.deploy.preset import list_parts
-        from nyxuri.state.ledger import read_ledger
+        from nyxuri.ledger import read_ledger
         slots = list_parts(app)
         if not slots:
             print(f"[!] {app} 暂无可用零件插槽")
@@ -267,7 +267,7 @@ _SHELL_EXPERIMENTAL_NOTE = (
 def _cmd_shell(sub_args: List[str]) -> int:
     sub = sub_args[0] if sub_args else "status"
     usage = f"{CLI_CMD} shell [get|set <noctalia|nyxuri-shell> [bin_path]|switch [<noctalia|nyxuri-shell> [bin_path]]|status] [EXPERIMENTAL]"
-    from nyxuri.state.ledger import active_shell, nyxuri_shell_bin
+    from nyxuri.ledger import active_shell, nyxuri_shell_bin
     from nyxuri.shell_switcher import normalize_shell_name, probe_running_shell, resolve_custom_bin, hot_switch_shell
     if sub == "get":
         if len(sub_args) > 1:
@@ -350,7 +350,7 @@ def _cmd_update(sub_args: List[str]) -> int:
             capture_output=True, text=True, check=False,
         )
         if head.returncode == 0 and head.stdout.strip():
-            from nyxuri.state.ledger import update_ledger
+            from nyxuri.ledger import update_ledger
             update_ledger(last_update_head=head.stdout.strip())
         from nyxuri.migrations import run as run_migrations
         if not run_migrations():
