@@ -252,6 +252,13 @@ index = 6
 input_path = "/home/user/.config/noctalia/templates/palette.toml"
 output_path = "/home/user/.cache/nyxuri/palette.toml"
 
+# Mango Material You 主题配色（适配 MangoWM >= 0.18.0 snake_case 语法）
+[theme.templates.user.nyxuri_mango]
+index = 7
+input_path = "/home/user/.config/noctalia/templates/mango.conf"
+output_path = "/home/user/.config/mango/noctalia.conf"
+post_hook = "mmsg dispatch reload_config 2>/dev/null || true"
+
 [wallpaper]
 directory = "/home/user/图片/Wallpapers"
 fill_mode = "crop"
