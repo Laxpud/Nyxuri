@@ -3,7 +3,7 @@
 repo = []
 aur = ["mangowm"]
 preserve = ["monitors.conf", "noctalia.conf"]
-chmod = ["scripts/*.sh"]
+chmod = ["scripts/*.sh", "scripts/*.py"]
 label = "Mango WM"
 detect = "mango"
 
