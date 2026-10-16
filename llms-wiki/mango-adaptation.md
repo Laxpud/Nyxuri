@@ -70,7 +70,6 @@ python3 -m unittest discover -s tests -q
 | --- | --- | --- |
 | `SUPPORTED_WMS` 硬编码元组 + `detect_preferred_wm()` | `nyxuri/constants.py` | KM1 `UnitRegistry`（合成器类别改由单元 manifest 声明） |
 | 组件菜单 WM/应用分部与 radio 单选 | `nyxuri/menus.py`、`nyxuri/tui.py` | KM3 TUI 工坊（4 动词接管后重审） |
-| 安装流「至多一个 WM」钳制 | `nyxuri/workflows.py` | KM2 开关事务（会话互斥收编进事务层表达） |
 | doctor 三处 `("mango", "niri")` 字面量 | `nyxuri/doctor.py` | Shell 后生态 `CompositorDriver` 驱动抽象层 |
 | greeter 会话参数 WM 特判 | `nyxuri/modules/greeter.py` | 同上（`greeter` 会话自适应） |
 

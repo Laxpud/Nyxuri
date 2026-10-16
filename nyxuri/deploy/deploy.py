@@ -25,6 +25,7 @@ from nyxuri.deploy.assets import WallpaperDeployResult, deploy_wallpapers, wallp
 from nyxuri.deploy.manifest import ModuleManifest, discover_deployable_apps, load_manifest
 from nyxuri.deploy.preset import (
     InvalidActivePresetError,
+    PresetSrcResult,
     read_active_preset,
     resolve_preset_src,
     write_active_preset,
@@ -95,6 +96,9 @@ def _phase_atomic_deployment(
                 print(msg("log_deploy_config_failed", item), file=sys.stderr)
                 log_msg("ERROR", f"Missing target file for unit '{item}': {src}")
                 continue
+            # No preset/base resolution applies; a concrete result keeps the
+            # atomic call below bound (a stale loop iteration must never leak).
+            result = PresetSrcResult(src=src, reset_active=None)
         else:
             dest = config_dir / item
 

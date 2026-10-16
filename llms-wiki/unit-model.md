@@ -62,7 +62,9 @@ transaction（编排：唯一可触碰副作用的模块）
 
 * 禁止绕过 ledger 直写账本，禁止绕过 registry 直读蓝图；
 * `resolver` 不 import 任何内核兄弟模块，只做纯计算；
-* deploy.atomic、Vault、事件通知只允许 transaction 触碰。
+* deploy.atomic、Vault、事件通知只允许 transaction 触碰；
+* doctor 三态对账（`audit_units`：`Synced` / `Drifted` / `Ghost`）是只读能力，
+  同样收敛在 transaction（受管文件与哈希知识只此一家），内核保持四模块不变。
 
 ---
 
@@ -87,13 +89,15 @@ transaction（编排：唯一可触碰副作用的模块）
 1. **启用动作 (`on` / `enable`)**：
    - 依赖解析器遍历依赖链：若下游依赖未启用，一同列入启用预检清单；
    - 检查外部包：若缺少 pacman/AUR 包，调用 `nyxuri.pkg` 提示安装；
-   - 从 `vault/<unit>/` 捞回自定义文件与最新蓝图合并；
+   - 从 `vault/<unit>/` 捞回自定义文件与最新蓝图合并（捞回即消费：归档移入实机后
+     Vault 清空，用户已删除的自定义不会被下次启用复活）；
    - 原子置换进 `~/.config/<target>` 并完成模板渲染；
    - 状态经 ledger 落账 `state.json`，随后发出一次 `unit-changed` 事件（见 §6，尽力而为，无订阅者即 no-op）；
 2. **停用动作 (`off` / `disable`)**：
    - 反向依赖检查：若有其他已启用单元依赖它且未带 `--cascade`，强行阻断并报警；
    - 将 `~/.config/<target>` 中的 `__custom__` 与 `preserve` 文件原子移入 `vault/<unit>/`；
-   - 彻底删除受管文件，空目录删除，实机恢复纯白；
+   - 彻底删除受管文件，空目录删除，实机恢复纯白；非受管的外来文件不吞——
+     幸存并在报告中列明（doctor 记 `Ghost`），绝不背地里吃掉用户文件；
    - 状态经 ledger 落账 `state.json`；
    - 真诚报告交底：明确告知配置已归档，二进制包保留在系统（不背着用户 sudo 卸包）；
    - 发出同一 `unit-changed` 事件，Shell 据此摘除挂件。
@@ -112,6 +116,12 @@ transaction（编排：唯一可触碰副作用的模块）
 
 单元记录统一挂在 `state.json` 顶层的 `units` 键下，以单元 ID 为键；`updated` 为带时区的
 ISO 8601 时间戳。单元记录的读写只经 `nyxuri.ledger`，任何内核模块不得绕过。
+
+`files` 快照口径（KM2 落地）：只记受管文件——`__custom__` 与 manifest `preserve`
+文件属用户心血，不入快照、不参与 `Drifted` 判定；`preserve_values` 目标文件计入；
+symlink 记 `link:<目标>`。停用时无受管快照（`files` 空：从未经事务开关，或停用后
+再现内容）的单元按蓝图所有权整域抹白；单文件单元（`target=`）无 Vault 进出，
+其唯一实机文件即全部生活区。
 
 ---
 
