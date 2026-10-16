@@ -35,6 +35,8 @@ from nyxuri.deploy.preset import (
     edit_preset,
 )
 from nyxuri.deploy.deploy import (
+    config_item_dest,
+    config_item_src,
     discover_config_items,
     _phase_atomic_deployment,
     _phase_post_install_services,

@@ -1,0 +1,5 @@
+optional = true
+packages = ["obs-studio"]
+label = "OBS Studio"
+category = "video"
+detect = "obs"

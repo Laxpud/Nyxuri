@@ -46,7 +46,7 @@ def uninstall_nyxuri(mode: str = "") -> bool:
     non-interactive use the same standard scope. Legacy 'restore' rolls back to the origin
     snapshot (folded into `nyxuri rollback`).
     """
-    from nyxuri.deploy.deploy import discover_config_items
+    from nyxuri.deploy.deploy import config_item_dest, discover_config_items
     from nyxuri.modules.fcitx import fcitx5_installed, fcitx_uninstall
     from nyxuri.modules.fisher import fisher_installed, fisher_uninstall
     from nyxuri.modules.greeter import greeter_installed, greeter_uninstall
@@ -181,7 +181,7 @@ def uninstall_nyxuri(mode: str = "") -> bool:
                     archive_dir = env.config_dir / f"{base_name}_{suffix}"
                     suffix += 1
         for item in items:
-            p = env.config_dir / item
+            p = config_item_dest(item)
             if p.exists() or p.is_symlink():
                 if archive_dir is not None:
                     copy_path(p, archive_dir / item)

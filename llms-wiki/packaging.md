@@ -6,8 +6,7 @@
 ## 单真值依赖原则
 
 为了避免在多个地方维护重复的软件包列表，依赖关系遵循**单一真值**：
-- 桌面组件的具体包依赖写在各自的 `configs/<app>/.module.toml` 中。
-- 可选软件的包依赖写在 `configs/.optional-apps.toml` 中。
+- 桌面组件与可选单元的具体包依赖写在各自的 `configs/<unit>/manifest.toml` 中（可选单元声明 `optional = true`）。
 - 基础系统核心包写在 `nyxuri/constants.py` 的 `CORE_DEPS` / `AUR_DEPS` 中。
 
 PKGBUILD **绝不手工硬编码维护依赖数组**，而是由生成脚本统一计算。
@@ -21,7 +20,7 @@ PKGBUILD **绝不手工硬编码维护依赖数组**，而是由生成脚本统�
    - ∪ 系统核心依赖 `CORE_DEPS`（如 Python 3.11+、git、rsync、fish 等）
    - ∪ 必需 AUR 依赖 `AUR_DEPS`（如 niri、noctalia 等）
 2. **`optdepends`（可选依赖）**：
-   - 所有声明为可选安装应用（`is_optional=True`，来自 `.optional-apps.toml`）的包，附带其中文/英文 label 说明（如 `fcitx5-rime: 中文输入法 Rime 引擎`）。
+   - 所有声明为可选单元（`is_optional=True`，来自各单元 manifest 的 `optional = true`）的包，附带其中文/英文 label 说明（如 `fcitx5-rime: 中文输入法 Rime 引擎`）。
 
 ## 自动更新契约
 

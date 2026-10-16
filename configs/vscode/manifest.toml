@@ -1,0 +1,7 @@
+# Visual Studio Code — AUR-only; binary name differs from unit name
+optional = true
+packages = []
+packages_aur = ["visual-studio-code-bin"]
+label = "Visual Studio Code"
+category = "dev"
+detect = "code"

@@ -1,0 +1,5 @@
+optional = true
+packages = []
+packages_flatpak = ["com.qq.QQ"]
+label = "QQ"
+category = "social"

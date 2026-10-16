@@ -33,7 +33,7 @@ nyxuri/
 │
 ├── deploy/                             部署子包
 │   ├── atomic.py                       atomic_replace_item（swap+preserve）+ Dunder walk + manifest preserve 快照
-│   ├── manifest.py                     .module.toml + .optional-apps.toml 解析、app 发现（两轴解耦，见下页）
+│   ├── manifest.py                     manifest.toml 解析、单元发现（两轴解耦，见下页）
 │   ├── templates.py                    _phase_render_templates（/home/user → $HOME、screenshot 路径）
 │   ├── assets.py                       壁纸部署（WallpaperDeployResult、no-clobber 同步 + 外部包下载 + managed 账本）
 │   ├── hardware.py                     classify_gpu_devices（诊断报告的纯文本 PCI 设备分类）

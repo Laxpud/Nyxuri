@@ -33,8 +33,8 @@ class TestMangoAdaptation(unittest.TestCase):
         res = subprocess.run(["mango", "-c", str(conf_path), "-p"], capture_output=True, text=True)
         self.assertEqual(res.returncode, 0, f"mango -p failed: {res.stderr}")
     def test_mango_manifest_contract(self):
-        """Verify .module.toml parameters for mango."""
-        m = load_manifest(self.mango_src, is_optional=True)
+        """Verify manifest.toml parameters for mango."""
+        m = load_manifest(self.mango_src)
         self.assertEqual(m.name, "mango")
         self.assertEqual(m.packages_repo, ["mangowm"])
         self.assertEqual(m.packages_aur, [])

@@ -1,6 +1,4 @@
 # kitty terminal emulator manifest
-[packages]
-repo = ["kitty"]
 preserve = ["current-theme.conf", "themes/noctalia.conf"]
 
 [presets]

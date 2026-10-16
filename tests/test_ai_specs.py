@@ -160,21 +160,18 @@ class TestAISpecs(unittest.TestCase):
     # Unit-model death registry (unit-model.md §7, two-step enforcement)
     # ------------------------------------------------------------------
 
-    def test_death_registry_fully_registered(self):
-        """KM0 registration step: every death-row object must be registered
-        in unit-model.md §7 with name and stage on the same table row.
+    def test_death_registry_open_rows_registered(self):
+        """KM0 registration step: every not-yet-enforced death-row object must
+        be registered in unit-model.md §7 with name and stage on the same row.
 
         Upgrade path (per ROADMAP): when a stage closes, its rows upgrade to
-        physical-deletion assertions — KM1: sidecars gone (the Kahn copy row
-        was enforced and retired at KM1 step ① when nyxuri.resolver landed);
+        physical-deletion assertions and retire from this registration list —
+        KM1's three rows were enforced (see test_km1_death_row_enforced);
         KM5: cli hardcoded commands gone, installer demoted to bootstrap.
         """
         content = (self.wiki_dir / "unit-model.md").read_text(encoding="utf-8")
         rows = [line for line in content.splitlines() if line.startswith("|")]
         for name, stage in (
-            (".optional-apps.toml", "KM1"),
-            ("starship.toml.module.toml", "KM1"),
-            ("manifest.toml", "KM1"),
             ("nyxuri/modules/", "KM3"),
             ("nyxuri/cli.py", "KM5"),
             ("install.sh", "KM5"),
@@ -183,6 +180,35 @@ class TestAISpecs(unittest.TestCase):
                 any(name in row and stage in row for row in rows),
                 f"death-row object '{name}' must be registered with stage {stage} in unit-model.md §7",
             )
+
+    def test_km1_death_row_enforced(self):
+        """KM1 enforcement step: the three sidecar mechanisms are physically
+        deleted — their registration rows are retired, §7 marks them enforced,
+        the blueprint carries no trace, and the engine holds zero references.
+        """
+        # 1. §7 rows marked enforced.
+        content = (self.wiki_dir / "unit-model.md").read_text(encoding="utf-8")
+        rows = [line for line in content.splitlines() if line.startswith("|")]
+        for name in (".optional-apps.toml", "starship.toml.module.toml", "*.module.toml"):
+            self.assertTrue(
+                any(name in row and "KM1（已执法" in row for row in rows),
+                f"death-row object '{name}' must be marked KM1（已执法） in unit-model.md §7",
+            )
+
+        # 2. Physical absence in the blueprint.
+        configs = self.root_dir / "configs"
+        self.assertFalse((configs / ".optional-apps.toml").exists())
+        self.assertFalse((configs / "starship.toml").exists())
+        self.assertEqual(list(configs.glob("**/*.module.toml")), [])
+        # The single-file degenerate was upgraded to a proper unit directory.
+        self.assertTrue((configs / "starship" / "starship.toml").is_file())
+        self.assertTrue((configs / "starship" / "manifest.toml").is_file())
+
+        # 3. Engine source holds zero references to the dead names.
+        for py in sorted((self.root_dir / "nyxuri").rglob("*.py")):
+            text = py.read_text(encoding="utf-8")
+            for dead in (".module.toml", ".optional-apps.toml"):
+                self.assertNotIn(dead, text, f"{py.relative_to(self.root_dir)} still references {dead}")
 
     # ------------------------------------------------------------------
     # CLI command mapping

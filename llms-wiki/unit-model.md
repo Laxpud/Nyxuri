@@ -160,7 +160,7 @@ system_paths = []
 
 ### 声明边界
 
-manifest 只声明上述字段，不追求覆盖一切。服务启停（systemd unit 等）**暂不进 manifest**：属单元内部行为，随单元自身脚本处理；KM2 前不发明新字段，出现跨单元或系统级服务效果的真实需求再议（登记于 [delayed-decisions](delayed-decisions.md)）。
+manifest 只声明上述字段，不追求覆盖一切。服务启停（systemd unit 等）**暂不进 manifest**：属单元内部行为，随单元自身脚本处理；KM2 前不发明新字段，出现跨单元或系统级服务效果的真实需求再议（登记于 [delayed-decisions](delayed-decisions.md)）。完整字段参考（含 `label` / `category` / `detect` / `optional` / `post_install` / `preserve_values` 等展示与包元数据字段）见 [manifest-schema](manifest-schema.md)。
 
 ---
 
@@ -226,9 +226,9 @@ Nyxuri Shell 绝非特权单体，其内部亦彻底单元化。Shell 本身蜕�
 
 | 死刑对象 | 死刑阶段 |
 |---|---|
-| `.optional-apps.toml`（axis-B sidecar） | KM1 |
-| `configs/starship.toml` + `starship.toml.module.toml`（单文件特例） | KM1 |
-| `*.module.toml` sidecar 机制（统一收敛为目录内 `manifest.toml`） | KM1 |
+| `.optional-apps.toml`（axis-B sidecar） | KM1（已执法） |
+| `configs/starship.toml` + `starship.toml.module.toml`（单文件特例） | KM1（已执法，升格为 `configs/starship/` + `target`） |
+| `*.module.toml` sidecar 机制（已统一收敛为目录内 `manifest.toml`） | KM1（已执法） |
 | `nyxuri/modules/` 专用业务模块 | KM3 |
 | 旧 CLI 命令兼容别名（KM3 设倒计时） | KM5 |
 | `nyxuri/cli.py` 硬编码专用命令 | KM5 |

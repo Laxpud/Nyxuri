@@ -651,8 +651,8 @@ def apply_preset(app: str, name: str) -> bool:
 
 
 def _ignore_custom_and_manifest(_src_dir, names):
-    """copytree ignore: drop __custom__ entries (any depth) and .module.toml."""
-    return {n for n in names if "__custom__" in n or n == ".module.toml"}
+    """copytree ignore: drop __custom__ entries (any depth) and manifest.toml."""
+    return {n for n in names if "__custom__" in n or n == "manifest.toml"}
 
 
 def _discard_staging_preset(app: str, staging: str) -> None:

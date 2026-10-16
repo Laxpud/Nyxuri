@@ -96,7 +96,7 @@ Key 经 stdin 传递，不进 argv 或日志；钱包不可用时安全失败，
 
 ## 依赖
 
-`configs/noctalia/.module.toml` 声明 `python-gobject`、`gtk-layer-shell`、`wl-clipboard`（`wl-paste`），
+`configs/noctalia/manifest.toml` 声明 `python-gobject`、`gtk-layer-shell`、`wl-clipboard`（`wl-paste`），
 PKGBUILD 由 `gen-deps.py --update` 汇聚（见 [packaging](packaging.md)）。`kwallet-query` /
 `secret-tool` / Ollama 为可选。
 

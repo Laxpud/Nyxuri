@@ -8,13 +8,13 @@ Mango (`mangowm`) 是一款现代、轻量、基于 wlroots 的 Wayland 合成�
 
 遵循 Nyxuri 的 [two-axis-config](two-axis-config.md)（双轴解耦）设计：
 - **配置轴（Axis A）**：`configs/mango/` 目录存在，由部署引擎原子复制到 `~/.config/mango/`。
-- **可选轴（Axis B）**：登记在 `configs/.optional-apps.toml` 中，声明为可选桌面组件（`repo = ["mangowm"]`），不强占系统硬依赖，不破坏 PKGBUILD 纯度。
+- **可选轴（Axis B）**：在 `configs/mango/manifest.toml` 声明 `optional = true`，为可选桌面组件（`packages = ["mangowm"]`），不强占系统硬依赖，不破坏 PKGBUILD 纯度。
 
 ## 2. 目录结构与配置文件分工
 
 ```
 configs/mango/
-├── .module.toml        # 模块清单（preserve、chmod、reload 钩子）
+├── manifest.toml       # 单元清单（preserve、chmod、reload 钩子、optional）
 ├── config.conf         # 核心合成器配置
 ├── monitors.conf       # 显示器配置（由 Noctalia 生成，动态保留）
 ├── __custom__.conf     # 用户自定义配置（Dunder 保护）
@@ -28,7 +28,7 @@ configs/mango/
 ## 3. 核心设计契约与不变量
 
 ### 3.1 Dunder 与 Preserve 双机制保障
-- **`monitors.conf` 与 `noctalia.conf`**：在 `configs/mango/.module.toml` 中声明为 `preserve`，更新与部署时不覆盖运行时状态。
+- **`monitors.conf` 与 `noctalia.conf`**：在 `configs/mango/manifest.toml` 中声明为 `preserve`，更新与部署时不覆盖运行时状态。
 - **`__custom__.conf`**：命名遵循 Dunder 协议，由部署引擎 `atomic_replace_item` 自动继承，用户在其中添加的自定义按键与窗口规则永久生效。
 - **优雅包含**：在 `config.conf` 中统一使用 `source_optional=` 语法（如 `source_optional=~/.config/mango/noctalia.conf`），即使外部文件尚未生成也不会导致合成器报错或中断。
 

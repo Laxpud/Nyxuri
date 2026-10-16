@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Generate the AUR PKGBUILD depends/optdepends arrays from .module.toml.
+"""Generate the AUR PKGBUILD depends/optdepends arrays from unit manifests.
 
-Single source of truth (§5.7): adding a config app only touches configs/ (its
-.manifest declares packages); this script regenerates the PKGBUILD's depends.
-Run `python3 nyxuri/packaging/gen-deps.py --update` to rewrite the generated
-blocks, or without --update to print them.
+Single source of truth (§5.7): adding a unit only touches configs/ (its
+manifest.toml declares packages); this script regenerates the PKGBUILD's
+depends. Run `python3 nyxuri/packaging/gen-deps.py --update` to rewrite the
+generated blocks, or without --update to print them.
 
-  depends    = deployable apps' packages ∪ CORE_DEPS ∪ AUR_DEPS
-  optdepends = manifest-only apps' packages (optional installable apps)
+  depends    = deployable units' packages ∪ CORE_DEPS ∪ AUR_DEPS
+  optdepends = optional units' packages (menu-installable, not hard deps)
 """
 
 import argparse
@@ -26,9 +26,10 @@ _OEND = "# <<< optdepends <<<"
 def compute_depends(repo_root: Path):
     """Return (depends: list[str], optdepends: list[tuple[pkg, label]])).
 
-    Deployable apps' packages feed `depends`; manifest-only apps (optional
-    installable, e.g. nautilus/missioncenter/fcitx5-rime) feed `optdepends`.
-    Base system deps not tied to an app come from CORE_DEPS/AUR_DEPS.
+    Deployable units' packages feed `depends`; optional units (declared
+    `optional = true`, e.g. nautilus/missioncenter/fcitx5-rime) feed
+    `optdepends`. Base system deps not tied to a unit come from
+    CORE_DEPS/AUR_DEPS.
     """
     sys.path.insert(0, str(repo_root))
     from nyxuri.deploy.manifest import discover_manifest_apps
@@ -38,8 +39,8 @@ def compute_depends(repo_root: Path):
     optdepends = []
     seen_optional = set()
     for _name, m in discover_manifest_apps():
-        # Axis B (optional, .optional-apps.toml) wins → optdepends, even if the
-        # app also ships a config dir (optional + config coexist, §2).
+        # Optional units land in optdepends even if they also ship config
+        # (optional + config coexist — the user may add configs at will).
         if m.is_optional:
             for pkg in list(m.packages_repo) + list(m.packages_aur):
                 if pkg not in seen_optional:
@@ -86,7 +87,7 @@ def update_pkgbuild(depends, optdepends) -> bool:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Generate AUR depends from .module.toml")
+    ap = argparse.ArgumentParser(description="Generate AUR depends from unit manifests")
     ap.add_argument("--update", action="store_true", help="rewrite PKGBUILD in place")
     args = ap.parse_args()
 

@@ -90,9 +90,9 @@ class NyxuriTemplateTests(unittest.TestCase):
         self.assertIn("repeat=false", lines[0])
 
     def test_runtime_packages_are_declared_in_the_noctalia_manifest(self) -> None:
-        manifest = tomllib.loads((TOOLS.parent / ".module.toml").read_text(encoding="utf-8"))
+        manifest = tomllib.loads((TOOLS.parent / "manifest.toml").read_text(encoding="utf-8"))
         for package in ("python-gobject", "gtk-layer-shell", "wl-clipboard"):
-            self.assertIn(package, manifest["packages"]["repo"])
+            self.assertIn(package, manifest["packages"])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,4 @@
+optional = true
+packages = ["libreoffice-fresh"]
+label = "LibreOffice"
+category = "office"

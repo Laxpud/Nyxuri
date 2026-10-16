@@ -1,0 +1,5 @@
+optional = true
+packages = ["mission-center"]
+label = "Mission Center"
+category = "system"
+detect = "mission-center"

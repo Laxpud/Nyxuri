@@ -45,4 +45,4 @@ def module_action(action):
 为捍卫知情权与零强加原则，复杂模块将“素材部署”与“设为默认”解耦：
 - `fcitx_deploy_assets()` / `nyxuri fcitx deploy`：仅释放皮肤素材并注册模板，不静默改写当前主题；
 - `fcitx_activate()` / `nyxuri fcitx activate`：显式将已部署的主题设为活动主题；
-- `setup_rime_ice()`：由 `.optional-apps.toml` 的 `post_install` 钩子自动触发，挂载雾凇拼音方案、预编译 schema 并写入 profile。
+- `setup_rime_ice()`：由 `configs/fcitx5-rime/manifest.toml` 的 `post_install` 钩子自动触发，挂载雾凇拼音方案、预编译 schema 并写入 profile。

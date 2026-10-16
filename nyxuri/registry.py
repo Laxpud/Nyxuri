@@ -12,15 +12,15 @@ from pathlib import Path
 from nyxuri.core import get_env
 from nyxuri.deploy.manifest import ModuleManifest, load_manifest
 
-_METADATA_NAMES = frozenset({"__pycache__", ".optional-apps.toml"})
+_METADATA_NAMES = frozenset({"__pycache__"})
 
 
 def unit_ids() -> list[str]:
     """Sorted ids of every directory unit under the source blueprint.
 
     A unit is a directory: ``configs/<unit>/``. Metadata entries are not
-    units; the single-file degenerate (``starship.toml`` + sidecar) dies
-    at KM1 and is not scanned here.
+    units; the single-file degenerate (``starship.toml`` + sidecar) was
+    physically deleted at KM1 ② and no longer exists.
     """
     src = get_env().configs_src
     if not src.is_dir():

@@ -1,0 +1,6 @@
+optional = true
+packages = ["fcitx5", "fcitx5-gtk", "fcitx5-qt", "fcitx5-configtool", "fcitx5-rime"]
+packages_aur = ["rime-ice-git"]
+label = "Fcitx5 Rime"
+category = "system"
+post_install = "fcitx:setup_rime_ice"

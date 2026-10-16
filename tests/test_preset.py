@@ -170,16 +170,16 @@ class TestCustomSurvivesPresetSwitch(unittest.TestCase):
         self.assertTrue((dest / "__custom__.conf").exists())
         self.assertEqual((dest / "__custom__.conf").read_text(), "# my overrides")
 
-    def test_module_toml_not_shipped_to_dest(self):
-        # §10.4 boundary: .module.toml is repo metadata, must not land in dest.
+    def test_manifest_not_shipped_to_dest(self):
+        # §10.4 boundary: manifest.toml is repo metadata, must not land in dest.
         app = "kitty"
         root = self.env.configs_src / app
         root.mkdir(parents=True)
         (root / "kitty.conf").write_text("# conf")
-        (root / ".module.toml").write_text('[packages]\nrepo = ["kitty"]\n')
+        (root / "manifest.toml").write_text('packages = ["kitty"]\n')
         dest = self.env.config_dir / app
         atomic_replace_item(root, dest)
-        self.assertFalse((dest / ".module.toml").exists())
+        self.assertFalse((dest / "manifest.toml").exists())
         # The real kitty.conf did ship.
         self.assertTrue((dest / "kitty.conf").exists())
 
@@ -423,7 +423,7 @@ class TestPresetSwitchPreservesManifestFiles(unittest.TestCase):
     Regression guard: applying a preset must not wipe runtime-managed files the
     new variant doesn't ship — specifically niri/effects.kdl (a symlink whose
     target encodes EyeCare on/off) and niri/monitor.kdl (user-generated). Both
-    are declared in niri/.module.toml preserve and must survive a switch.
+    are declared in niri/manifest.toml preserve and must survive a switch.
     """
 
     def setUp(self):
@@ -1103,7 +1103,7 @@ class TestPresetInheritance(unittest.TestCase):
         self.assertEqual(exc, [])
 
     def test_inheritance_allow_whitelist(self):
-        (self.app_root / ".module.toml").write_text("""
+        (self.app_root / "manifest.toml").write_text("""
 [presets]
 allow = ["glow"]
 include = ["scripts/**", "*.kdl"]
@@ -1120,7 +1120,7 @@ exclude = ["*.bak"]
         self.assertIsNone(base_src_other)
 
     def test_inheritance_standalone_blacklist(self):
-        (self.app_root / ".module.toml").write_text("""
+        (self.app_root / "manifest.toml").write_text("""
 [presets]
 inherit = true
 standalone = ["isolated"]
@@ -1132,7 +1132,7 @@ standalone = ["isolated"]
         self.assertIsNone(base_src_iso)
 
     def test_inheritance_simultaneous_whitelist_and_blacklist(self):
-        (self.app_root / ".module.toml").write_text("""
+        (self.app_root / "manifest.toml").write_text("""
 [presets]
 allow = ["style-*"]
 standalone = ["style-dark"]
@@ -1174,8 +1174,7 @@ exclude = ["scripts/debug.bak"]
         self.assertFalse((self.dest / "unwanted.txt").exists())
 
     def test_apply_sparse_preset_end_to_end(self):
-        (self.app_root / ".module.toml").write_text("""
-[packages]
+        (self.app_root / "manifest.toml").write_text("""
 preserve = ["monitor.kdl"]
 
 [presets]
@@ -1218,8 +1217,7 @@ class TestPartsMechanism(unittest.TestCase):
         self.dest.mkdir(parents=True)
 
         # Setup manifest
-        (self.app_root / ".module.toml").write_text("""
-[packages]
+        (self.app_root / "manifest.toml").write_text("""
 preserve = ["monitor.kdl"]
 
 [parts.effects]

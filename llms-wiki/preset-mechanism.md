@@ -72,12 +72,12 @@ theme-sync / gtk 重渲染）。切个 kitty 预设不该顺带跑 fisher，无�
 
 - **通用零件插槽 (`preset <app> part <slot> <name>`)**：
   - 核心逻辑由 `nyxuri.deploy.preset` 提供（`list_parts`、`apply_part`、`get_active_part`）。
-  - 元数据在应用配置根目录 `configs/<app>/.module.toml` 的 `[parts.<slot>]` 声明（如 Niri 声明了 `[parts.effects]` 与 `[parts.glow]`）。
+  - 元数据在单元根目录 `configs/<unit>/manifest.toml` 的 `[parts.<slot>]` 声明（如 Niri 声明了 `[parts.effects]` 与 `[parts.glow]`）。
   - 零件源模板存放于 `configs/<app>/__presets__/<source_dir>/`，目标为具体的配置零件（如 `target = "effects_normal.kdl"` 或 `target = "glow.kdl"`）。
   - 声明在 `[parts.<slot>]` 的 `target` 在解析 manifest 时会自动追加至受保护清单（`preserve`），避免全量替换时被覆盖。
   - **防覆写自愈（commit `db289bd`）**：在部署与重载流水线中，`_reconcile_active_parts` 机制会自动读取 `state.json` 账本中已激活的非默认变体并对齐应用，确保配置重新应用时零件插槽目标不被默认模板回退。
 - **稀疏预设 (Sparse Presets)**：应用级整包预设目录仅存放与底版有差异的文件，未重写的文件自动从底版继承。
-  - **白名单保障**：由 `.module.toml` 中的 `allow` 与 `include` 控制继承白名单与匹配范围。
+  - **白名单保障**：由 `manifest.toml` 中的 `allow` 与 `include` 控制继承白名单与匹配范围。
 - **动态光晕模板解耦**：Niri 的 `glow-material-you` 由 Noctalia 原生渲染输出为独立的 `~/.config/niri/colors.kdl`，不再覆写核心布局 `layout.kdl`；`config.kdl` 中在 `layout.kdl` 之后通过 `include optional=true "colors.kdl"` 引入。
 
 ## CLI

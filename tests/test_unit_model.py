@@ -96,8 +96,8 @@ class TestKernelRegistry(unittest.TestCase):
         """Create unit dirs under a temp configs_src and point the env at it.
 
         spec maps unit id -> manifest TOML text (None = bare dir, no manifest).
-        The sidecar name ``.module.toml`` is the current engine truth; the
-        rename to ``manifest.toml`` is the KM1 step-② cutover.
+        The manifest name is ``manifest.toml`` (KM1 step-② cutover: the
+        ``.module.toml`` sidecar is physically gone).
         """
         configs = ctx.home / "configs-src"
         configs.mkdir()
@@ -105,7 +105,7 @@ class TestKernelRegistry(unittest.TestCase):
             unit = configs / uid
             unit.mkdir()
             if toml_text is not None:
-                (unit / ".module.toml").write_text(toml_text, encoding="utf-8")
+                (unit / "manifest.toml").write_text(toml_text, encoding="utf-8")
         ctx.env.configs_src = configs
 
     def test_zero_config_discovery(self):

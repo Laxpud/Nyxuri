@@ -45,6 +45,23 @@ def discover_config_items() -> List[str]:
     _CONFIG_ITEMS_CACHE = discover_deployable_apps()
     return _CONFIG_ITEMS_CACHE
 
+
+def config_item_dest(item: str) -> Path:
+    """Living-space path for a unit: ``~/.config/<target>`` for single-file
+    units, else ``~/.config/<item>`` (unit-model.md §4 target exception)."""
+    from nyxuri.core import get_env
+    m = load_manifest(get_env().configs_src / item)
+    return get_env().config_dir / (m.target or item)
+
+
+def config_item_src(item: str) -> Path:
+    """Blueprint payload path for a unit: the target file itself for
+    single-file units, else the unit directory."""
+    from nyxuri.core import get_env
+    m = load_manifest(get_env().configs_src / item)
+    src = get_env().configs_src / item
+    return src / m.target if m.target else src
+
 def _phase_atomic_deployment(
     items_to_deploy: List[str],
     keep_preserved: bool = True,
@@ -63,42 +80,55 @@ def _phase_atomic_deployment(
 
     failed_items: List[str] = []
     for item in items_to_deploy:
-        dest = config_dir / item
-
-        # Resolve which source tree to deploy: default config, an official
-        # preset, or a user preset — based on the app's active state file.
-        try:
-            active = read_active_preset(item)
-        except InvalidActivePresetError:
-            print(msg("preset_warn_invalid_active", item))
-            log_msg("WARN", f"Invalid active preset state for {item}; dest frozen, skipped")
-            continue
-        result = resolve_preset_src(item, active, dest)
-        for w in result.warnings:
-            print(w)
-        if result.src is None:
-            # Preset not found anywhere — freeze dest, do not fall back to
-            # default (would silently wipe the user's config). §3.2
-            log_msg("WARN", f"Preset '{active}' for {item} not found; dest frozen, skipped")
-            continue
-        src = result.src
-        # dest-missing reset: sanctioned write-before-deploy (dest is empty,
-        # so a half-written state self-heals next run). §3.2
-        if result.reset_active is not None:
-            try:
-                write_active_preset(item, result.reset_active)
-            except Exception as e:
-                log_msg("ERROR", f"Failed to write active preset for {item}: {e}")
-
-        if not src.exists():
-            failed_items.append(item)
-            print(msg("log_deploy_config_failed", item), file=sys.stderr)
-            log_msg("ERROR", f"Missing config source: {src}")
-            continue
-
         # Manifest always loaded from the app root (not the preset dir):
         # preserve/chmod describe the app, independent of which variant ships.
         manifest = load_manifest(env.configs_src / item)
+
+        if manifest.target:
+            # Single-file unit (§4 target exception): one file inside the
+            # unit dir lands at ~/.config/<target>. Presets and parts are
+            # directory affordances and do not apply.
+            src = env.configs_src / item / manifest.target
+            dest = config_dir / manifest.target
+            if not src.is_file():
+                failed_items.append(item)
+                print(msg("log_deploy_config_failed", item), file=sys.stderr)
+                log_msg("ERROR", f"Missing target file for unit '{item}': {src}")
+                continue
+        else:
+            dest = config_dir / item
+
+            # Resolve which source tree to deploy: default config, an official
+            # preset, or a user preset — based on the app's active state file.
+            try:
+                active = read_active_preset(item)
+            except InvalidActivePresetError:
+                print(msg("preset_warn_invalid_active", item))
+                log_msg("WARN", f"Invalid active preset state for {item}; dest frozen, skipped")
+                continue
+            result = resolve_preset_src(item, active, dest)
+            for w in result.warnings:
+                print(w)
+            if result.src is None:
+                # Preset not found anywhere — freeze dest, do not fall back to
+                # default (would silently wipe the user's config). §3.2
+                log_msg("WARN", f"Preset '{active}' for {item} not found; dest frozen, skipped")
+                continue
+            src = result.src
+            # dest-missing reset: sanctioned write-before-deploy (dest is empty,
+            # so a half-written state self-heals next run). §3.2
+            if result.reset_active is not None:
+                try:
+                    write_active_preset(item, result.reset_active)
+                except Exception as e:
+                    log_msg("ERROR", f"Failed to write active preset for {item}: {e}")
+
+            if not src.exists():
+                failed_items.append(item)
+                print(msg("log_deploy_config_failed", item), file=sys.stderr)
+                log_msg("ERROR", f"Missing config source: {src}")
+                continue
+
         preserve = manifest.preserve if keep_preserved else None
         preserve_values = manifest.preserve_values if keep_preserved else None
 
@@ -134,7 +164,7 @@ def _phase_atomic_deployment(
             print(msg("log_part_reconcile_failed", item, ", ".join(reconcile_failures)), file=sys.stderr)
 
         print(msg("log_deploy_config_item", item))
-        log_msg("INFO", f"Deployed config ~/.config/{item}")
+        log_msg("INFO", f"Deployed config {dest.relative_to(config_dir).as_posix()} (unit {item})")
 
     return failed_items
 

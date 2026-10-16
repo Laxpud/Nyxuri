@@ -1,0 +1,5 @@
+optional = true
+packages = []
+packages_flatpak = ["com.spotify.Client"]
+label = "Spotify"
+category = "media"

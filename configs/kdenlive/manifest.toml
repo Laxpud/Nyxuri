@@ -1,0 +1,4 @@
+optional = true
+packages = ["kdenlive"]
+label = "Kdenlive"
+category = "video"

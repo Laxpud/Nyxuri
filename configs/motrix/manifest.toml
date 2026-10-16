@@ -1,0 +1,5 @@
+optional = true
+packages = []
+packages_aur = ["motrix"]
+label = "Motrix"
+category = "download"

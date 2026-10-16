@@ -8,6 +8,8 @@ from typing import List
 from nyxuri.constants import FCITX_THEME, GREETER_PKG, SUPPORTED_WMS, detect_preferred_wm
 from nyxuri.core import get_env, log_msg
 from nyxuri.deploy import (
+    config_item_dest,
+    config_item_src,
     deploy_selected_configs,
     deploy_wallpapers,
     discover_config_items,
@@ -258,8 +260,8 @@ def offer_overwrite_upgrade(flag: str = "") -> bool:
         config_items = discover_config_items()
         diff_cmds = []
         for it in config_items:
-            src = env.configs_src / it
-            dest = env.config_dir / it
+            src = config_item_src(it)
+            dest = config_item_dest(it)
             if src.exists() and dest.exists():
                 diff_cmds.append(["diff", "-urN", "--color=always", str(dest), str(src)])
         if diff_cmds:

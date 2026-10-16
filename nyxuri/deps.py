@@ -11,7 +11,6 @@ from nyxuri.i18n import msg
 from nyxuri.deploy.manifest import (
     discover_manifest_apps,
     discover_optional_apps,
-    load_optional_apps,
 )
 from nyxuri.tui import (
     CategoryAppEntry,
@@ -229,7 +228,6 @@ def run_optional_apps_menu_loop() -> bool:
     manifests = dict(discover_manifest_apps())
     probe = DependencyProbe()
     grouped: Dict[str, List[CategoryAppEntry]] = {}
-    order = {name: i for i, name in enumerate(load_optional_apps())}
     for app in discover_optional_apps():
         manifest = manifests.get(app)
         if manifest is None:
@@ -246,19 +244,9 @@ def run_optional_apps_menu_loop() -> bool:
         )
         grouped.setdefault(manifest.category or "other", []).append(entry)
 
-    # Discovery is name-sorted; restore the toml's registration order for both
-    # categories (first appearance) and the apps inside each group.
-    cat_order: List[str] = []
-    for name in load_optional_apps():
-        m = manifests.get(name)
-        cat = (m.category if m else "") or "other"
-        if cat not in cat_order:
-            cat_order.append(cat)
-    for cat in grouped:
-        if cat not in cat_order:
-            cat_order.append(cat)
-    for entries in grouped.values():
-        entries.sort(key=lambda e: order.get(e.key, len(order)))
+    # Discovery is name-sorted: categories and entries inside each group
+    # are both plain alphabetical — zero curated order to maintain.
+    cat_order = sorted(grouped)
 
     cat_groups = [
         CategoryGroup(key=cat, label=msg(f"apps_cat_{cat}"), entries=grouped[cat])

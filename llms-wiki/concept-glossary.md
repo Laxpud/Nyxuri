@@ -39,7 +39,7 @@
 ## 边界规则
 
 - Nyxuri 元数据**只许在 `~/.config/nyxuri/`**，不许往 `~/.config/<app>/` 里塞 Nyxuri 自己
-  的东西（`__custom__` 是约定保留名，属 app 配置一部分，不算"拉屎"；`.module.toml` 是仓库
+  的东西（`__custom__` 是约定保留名，属 app 配置一部分，不算"拉屎"；`manifest.toml` 是仓库
   元数据，deploy 时被跳过，不进 dest）。
 - `~/.config/nyxuri/` 放用户数据（backups、presets）；`~/.local/state/nyxuri/` 放运行时
   状态账本（`state.json`，记录活动外壳与零件状态）及瞬态（lock、log）。不混用。

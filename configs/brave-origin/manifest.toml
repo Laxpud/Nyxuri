@@ -1,0 +1,6 @@
+# Brave Origin — AUR-only browser, no config shipped
+optional = true
+packages = []
+packages_aur = ["brave-origin-bin"]
+label = "Brave Origin"
+category = "browser"

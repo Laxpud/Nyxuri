@@ -173,8 +173,9 @@ class TestManifestCoercion(unittest.TestCase):
         with TempEnv() as ctx:
             src = self._sandbox(ctx) / "demo"
             src.mkdir(parents=True)
-            (src / ".module.toml").write_text(
-                '[packages]\nrepo = "kitty"\naur = "foo-bar"\npreserve = "single.conf"\n',
+            (src / "config.conf").write_text("# conf\n", encoding="utf-8")
+            (src / "manifest.toml").write_text(
+                'packages = "kitty"\npackages_aur = "foo-bar"\npreserve = "single.conf"\n',
                 encoding="utf-8",
             )
             m = _quiet(load_manifest, src)
@@ -187,24 +188,37 @@ class TestManifestCoercion(unittest.TestCase):
         with TempEnv() as ctx:
             src = self._sandbox(ctx) / "demo2"
             src.mkdir(parents=True)
-            (src / ".module.toml").write_text(
+            (src / "config.conf").write_text("# conf\n", encoding="utf-8")
+            (src / "manifest.toml").write_text(
                 '[parts]\ngood = { target = "a.conf" }\nbad = "oops"\n', encoding="utf-8"
             )
             m = _quiet(load_manifest, src)
             self.assertEqual(sorted(m.parts), ["good"])
 
-    def test_wrong_shaped_optional_apps_does_not_break_discovery(self):
-        from nyxuri.deploy.manifest import discover_manifest_apps, load_optional_apps
+    def test_empty_packages_list_stays_empty(self):
+        from nyxuri.deploy.manifest import load_manifest
         with TempEnv() as ctx:
-            self._sandbox(ctx).joinpath(".optional-apps.toml").write_text('app = "nope"\n', encoding="utf-8")
-            self.assertEqual(_quiet(load_optional_apps), {})
-            self.assertIsInstance(_quiet(discover_manifest_apps), list)
+            src = self._sandbox(ctx) / "flatpak-only"
+            src.mkdir(parents=True)
+            (src / "manifest.toml").write_text(
+                'packages = []\npackages_flatpak = ["com.example.App"]\n', encoding="utf-8"
+            )
+            m = _quiet(load_manifest, src)
+            self.assertEqual(m.packages_repo, [])
 
-    def test_corrupt_optional_apps_is_ignored(self):
-        from nyxuri.deploy.manifest import load_optional_apps
+    def test_malformed_manifest_does_not_break_discovery(self):
+        from nyxuri.deploy.manifest import discover_manifest_apps
         with TempEnv() as ctx:
-            self._sandbox(ctx).joinpath(".optional-apps.toml").write_text("not = = toml\n", encoding="utf-8")
-            self.assertEqual(_quiet(load_optional_apps), {})
+            sandbox = self._sandbox(ctx)
+            bad = sandbox / "bad-unit"
+            bad.mkdir()
+            (bad / "manifest.toml").write_text("not = = toml\n", encoding="utf-8")
+            good = sandbox / "good-unit"
+            good.mkdir()
+            (good / "config.conf").write_text("# conf\n", encoding="utf-8")
+            apps = _quiet(discover_manifest_apps)
+            self.assertIsInstance(apps, list)
+            self.assertEqual([n for n, _ in apps], ["good-unit"])
 
 
 class TestDepsMenuReportsFailure(unittest.TestCase):
@@ -445,20 +459,20 @@ class TestPresetDurability(unittest.TestCase):
         manifest._MANIFEST_CACHE = None
         return ctx.env.configs_src
 
-    def _app(self, src, name, module_toml, files):
+    def _app(self, src, name, manifest_toml, files):
         root = src / name
         for rel, content in files.items():
             path = root / rel
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
-        (root / ".module.toml").write_text(module_toml, encoding="utf-8")
+        (root / "manifest.toml").write_text(manifest_toml, encoding="utf-8")
         return root
 
     def test_failed_save_keeps_the_existing_preset(self):
         from nyxuri.deploy import preset
         with TempEnv() as ctx:
             src = self._sandbox(ctx)
-            self._app(src, "kitty", "[packages]\n", {"kitty.conf": "# conf"})
+            self._app(src, "kitty", "", {"kitty.conf": "# conf"})
             dest = ctx.env.config_dir / "kitty"
             dest.mkdir(parents=True)
             (dest / "kitty.conf").write_text("# live", encoding="utf-8")
@@ -474,7 +488,7 @@ class TestPresetDurability(unittest.TestCase):
         from nyxuri.deploy import preset
         with TempEnv() as ctx:
             src = self._sandbox(ctx)
-            self._app(src, "kitty", "[packages]\n", {"kitty.conf": "# base"})
+            self._app(src, "kitty", "", {"kitty.conf": "# base"})
             user = ctx.env.presets_dir / "kitty" / "mine"
             user.mkdir(parents=True)
             (user / "kitty.conf").write_text("# mine", encoding="utf-8")
@@ -487,7 +501,7 @@ class TestPresetDurability(unittest.TestCase):
         from nyxuri.deploy import preset
         with TempEnv() as ctx:
             src = self._sandbox(ctx)
-            root = self._app(src, "kitty", "[packages]\n", {"kitty.conf": "# base"})
+            root = self._app(src, "kitty", "", {"kitty.conf": "# base"})
             official = root / "__presets__" / "shared"
             official.mkdir(parents=True)
             (official / "kitty.conf").write_text("# official", encoding="utf-8")
@@ -503,7 +517,7 @@ class TestPresetDurability(unittest.TestCase):
         from nyxuri.ledger import read_ledger
         with TempEnv() as ctx:
             src = self._sandbox(ctx)
-            self._app(src, "demo", "[packages]\n", {"config.kdl": "// b"})
+            self._app(src, "demo", "", {"config.kdl": "// b"})
             preset.write_active_preset("demo", "A")
             self.assertEqual(preset.read_active_preset("demo"), "A")
             (ctx.env.presets_dir / "demo.active").write_text("B", encoding="utf-8")
@@ -550,7 +564,7 @@ class TestPresetDurability(unittest.TestCase):
         with TempEnv() as ctx:
             src = self._sandbox(ctx)
             root = self._app(src, "demo",
-                             '[packages]\nchmod = ["scripts/*.sh"]\n[presets]\ninherit = true\n',
+                             'chmod = ["scripts/*.sh"]\n[presets]\ninherit = true\n',
                              {"config.kdl": "// c", "scripts/run.sh": "#!/bin/sh\n"})
             os.chmod(root / "scripts" / "run.sh", 0o644)
             slot = root / "__presets__" / "A"
@@ -597,13 +611,13 @@ class TestDeployRobustness(unittest.TestCase):
         deploy._CONFIG_ITEMS_CACHE = []
         return ctx.env.configs_src
 
-    def _app(self, src, name, module_toml, files):
+    def _app(self, src, name, manifest_toml, files):
         root = src / name
         for rel, content in files.items():
             path = root / rel
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
-        (root / ".module.toml").write_text(module_toml, encoding="utf-8")
+        (root / "manifest.toml").write_text(manifest_toml, encoding="utf-8")
         return root
 
     def test_unrealizable_part_variant_is_reported(self):
@@ -613,7 +627,7 @@ class TestDeployRobustness(unittest.TestCase):
             src = self._sandbox(ctx)
             root = self._app(
                 src, "demo",
-                '[packages]\npreserve = ["part.kdl"]\n[parts.effects]\ntarget = "part.kdl"\n'
+                'preserve = ["part.kdl"]\n\n[parts.effects]\ntarget = "part.kdl"\n'
                 'source_dir = "effects"\ndefault = "default"\n',
                 {"part.kdl": "// default-part\n"},
             )
@@ -629,7 +643,7 @@ class TestDeployRobustness(unittest.TestCase):
         import nyxuri.deploy.deploy as deploy
         with TempEnv() as ctx:
             src = self._sandbox(ctx)
-            self._app(src, "demo", '[packages]\nchmod = ["/etc/*", ""]\n', {"config.kdl": "// c\n"})
+            self._app(src, "demo", 'chmod = ["/etc/*", ""]\n', {"config.kdl": "// c\n"})
             with patch.object(deploy, "_phase_post_install_services"):
                 failed = _quiet(deploy.deploy_selected_configs, items_to_deploy=["demo"], preserved_log=[])
             self.assertEqual(failed, [])
@@ -639,7 +653,7 @@ class TestDeployRobustness(unittest.TestCase):
         import nyxuri.deploy.deploy as deploy
         with TempEnv() as ctx:
             src = self._sandbox(ctx)
-            self._app(src, "demo", "[packages]\n", {"config.kdl": "// c\n"})
+            self._app(src, "demo", "", {"config.kdl": "// c\n"})
             with patch.object(deploy, "_phase_post_install_services"):
                 failed = _quiet(deploy.deploy_selected_configs, items_to_deploy="demo", preserved_log=[])
             self.assertEqual(failed, [])
@@ -724,7 +738,7 @@ class TestScriptContracts(unittest.TestCase):
         self.assertIn("${THUMB_PATH%.jpg}.tmp.$$.jpg", source)
 
     def test_eyecare_temp_is_preserved_across_deploys(self):
-        manifest = Path(__file__).resolve().parent.parent / "configs" / "niri" / ".module.toml"
+        manifest = Path(__file__).resolve().parent.parent / "configs" / "niri" / "manifest.toml"
         self.assertIn("eyecare_temp", manifest.read_text(encoding="utf-8"))
 
     def test_set_temp_rejects_out_of_range_values(self):
