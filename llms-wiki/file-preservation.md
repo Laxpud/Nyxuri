@@ -36,6 +36,12 @@ effects.kdl 是脚本动态管理的软链接，同样需要固定文件名。�
 > **竞态消除**：旧实现先 rename 整目录、再事后拷回 monitor.kdl，Niri 的 inotify 会在恢复前
 > 读到仓库默认的空 monitor.kdl 导致闪屏。现在注入在 rename 前完成，inotify 看到的就是最终态。
 
+**按键级保留 `preserve_values`**：文件级 preserve 的同族扩展，声明形如
+`preserve_values = { "noctalia-config.toml" = ["enable_ddcutil"] }`。换入新目录前从旧文件
+按段读出这些键的原始写法写进暂存新文件，再整体 rename——swap 完成即最终态，没有
+「先覆盖再恢复」的中间窗口。键按所在段匹配，旧文件里没有的键不携带（沿用新模板值），
+路径越界检查与 preserve 走同一套。
+
 ## 机制 3：预设底版继承（Base Overlay）
 
 若当前部署的预设开启了继承，`atomic_replace_item` 接收可选的 `base_src`、`base_include` 与 `base_exclude` 参数：

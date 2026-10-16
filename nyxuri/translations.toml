@@ -1659,7 +1659,7 @@ zh = "  {Colors.BOLD_RED}[✗]{Colors.RESET} 保存 {0} 预设 '{1}' 失败（�
 en = "  {Colors.BOLD_RED}[✗]{Colors.RESET} Failed to save preset '{1}' for {0} (existing preset left untouched)"
 
 [log_part_reconcile_failed]
-zh = "  {Colors.BOLD_RED}[✗]{Colors.RESET} {0}: 已记录的部件变体未能落盘（{1}）"
+zh = "  {Colors.BOLD_RED}[✗]{Colors.RESET} {0}: 已记录的零件变体未能落盘（{1}）"
 en = "  {Colors.BOLD_RED}[✗]{Colors.RESET} {0}: recorded part variant could not be realized ({1})"
 
 [preset_delete_official_denied]

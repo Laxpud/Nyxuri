@@ -7,9 +7,11 @@
 
 `~/.config/nyxuri/presets/<app>.active`——一行，内容是预设名或 `default`。不占配置槽
 （这是扔掉 include 间接层、扔掉 `__preset__` 保留名的关键简化：一个概念减两份复杂度）。
-同时同步记录至 `~/.local/state/nyxuri/state.json` 账本（`presets` 字典），`read_active_preset` 优先读账本并双向自愈。
+同时同步记录至 `~/.local/state/nyxuri/state.json` 账本（`presets` 字典）。
+`read_active_preset` 以**文件为权威**：读到合法值即回写账本自愈；文件（或其所在目录）
+缺失时兜底读账本，账本同样没有才回落 `"default"`。
 
-- `read_active_preset(app)` → 文件不存在时返回 `"default"`，空白、读失败或非法内容会抛出 `InvalidActivePresetError` 并冻结部署
+- `read_active_preset(app)` → 文件缺失走账本兜底，仍无则返回 `"default"`；空白、读失败或非法内容会抛出 `InvalidActivePresetError` 并冻结部署
 - `write_active_preset(app, name)` → **原子写**（temp + `os.replace`）并同步更新 `state.json`。半写空文件会被
   拒绝并冻结部署——原子写堵死这条故障路径
 

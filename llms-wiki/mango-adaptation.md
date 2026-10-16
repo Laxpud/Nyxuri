@@ -60,3 +60,20 @@ python3 -m unittest tests/test_mango_adaptation.py
 # 3. 全局单测与文档闭包验证
 python3 -m unittest discover -s tests -q
 ```
+
+## 5. 过渡债务与收编路线 (Transitional Debt)
+
+> 按 ROADMAP「退役清单制」登记：下列引擎特判是多合成器适配的**过渡形态**。
+> 第三个合成器（Hyprland/Sway）接入前必须收编，禁止再往元组里加第三个字面量。
+
+| 过渡物 | 位置 | 收编阶段 |
+| --- | --- | --- |
+| `SUPPORTED_WMS` 硬编码元组 + `detect_preferred_wm()` | `nyxuri/constants.py` | KM1 `UnitRegistry`（合成器类别改由单元 manifest 声明） |
+| 组件菜单 WM/应用分部与 radio 单选 | `nyxuri/menus.py`、`nyxuri/tui.py` | KM3 TUI 工坊（4 动词接管后重审） |
+| 安装流「至多一个 WM」钳制 | `nyxuri/workflows.py` | KM2 开关事务（会话互斥收编进事务层表达） |
+| doctor 三处 `("mango", "niri")` 字面量 | `nyxuri/doctor.py` | Shell 后生态 `CompositorDriver` 驱动抽象层 |
+| greeter 会话参数 WM 特判 | `nyxuri/modules/greeter.py` | 同上（`greeter` 会话自适应） |
+
+不属于债务的部分：`configs/mango/` 整目录（单元形态，KM1 后原样存活）、
+`nyxuri/theme.py` 的 `mmsg` 探针（与既有 `pkill`/`kitty` 探针同模式）、
+`nyxuri/deploy/templates.py` 的 `/home/user` 占位符渲染（不变量 5 的既有实现）。

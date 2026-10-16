@@ -69,5 +69,5 @@ KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此�
 ## Shell 后生态
 
 - [ ] **TUI 视觉风格化与纯净感 (Terminal Rice)**：Alternate Screen Buffer 保护终端历史，DEC 2025 协议消除高刷频闪，单行微动 Zen Spinner 就地收拢滚屏日志。
-- [ ] **多合成器 (Multi-WM) 架构解耦**：`CompositorDriver` 驱动抽象层，热重载、浮动便签与屏幕探测跨合成器适配（Hyprland/Sway 按需扩展），`doctor` 诊断与 `greeter` 会话自适应。
+- [ ] **多合成器 (Multi-WM) 架构解耦**：`CompositorDriver` 驱动抽象层，热重载、浮动便签与屏幕探测跨合成器适配（Hyprland/Sway 按需扩展），`doctor` 诊断与 `greeter` 会话自适应。现状：niri + mango 双合成器已以过渡形态落地（引擎特判与收编清单见 [mango-adaptation](llms-wiki/mango-adaptation.md) 债务登记），第三个合成器接入前必须收编为驱动抽象。
 - [ ] **安全 Downdate 体系（高级储备）**：现场快照优先还原 + Git 逆向检出的安全版本回退。
