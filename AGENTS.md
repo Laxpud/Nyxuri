@@ -19,9 +19,7 @@
 - **真值分工 (Source of Truth)**：运行时行为与实现细节以**源码（`configs/` + `nyxuri/`）与契约测试（`tests/`）**为准；架构契约、设计决策与原因意图以 [llms-wiki/llms.txt](llms-wiki/llms.txt) 为准。
 - **改动范围 ➔ 必读 Wiki 契约**：拒绝盲目全库勘探，按改动范围查阅对应契约：
 
-| 改动范围 / 目标路径 | 必读 Wiki 契约 | 推荐验证命令 |
-|---|---|---|
-| 部署引擎 / 文件写入 (`nyxuri/deploy/`, `configs/`) | `overview.md`, `file-preservation.md`, `preset-mechanism.md` | `python3 -m unittest tests/test_deploy.py` + 沙箱部署 |
+| 部署引擎 / 单元模型 (`nyxuri/deploy/`, `configs/`) | `overview.md`, `unit-model.md`, `file-preservation.md` | `python3 -m unittest tests/test_deploy.py tests/test_unit_model.py` + 沙箱部署 |
 | 包管理 / 软件依赖 (`nyxuri/pkg/`, `nyxuri/deps.py`) | `subpackages.md`, `delayed-decisions.md` | `python3 -m unittest tests/test_pkg.py tests/test_deps.py` |
 | 状态 / 快照 / 迁移 (`nyxuri/state/`, `migrations/`) | `backup-snapshot.md`, `uninstall.md` | `python3 -m unittest tests/test_backup.py tests/test_migrations.py` |
 | CLI 命令 / 流程编排 (`cli.py`, `workflows.py`, `menus.py`) | `operation-map.md`, `manifest-schema.md` | `python3 -m unittest tests/test_cli.py tests/test_ai_specs.py` |

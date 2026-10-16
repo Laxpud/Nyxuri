@@ -13,6 +13,7 @@
 
 - [overview](overview.md): 精神、三概念（Configs / Presets / Customs）、叠加规则
 - [vision](vision.md): 五条简洁标准（透明/主权/包容/轻盈/自然）与桌面插件市场终态哲学
+- [unit-model](unit-model.md): 单元模型、内核架构、正交状态机、纯文件 Vault 与极简 manifest 契约
 - [preset-mechanism](preset-mechanism.md): active 状态文件、通用零件插槽体系（Parts Slots）、防覆盖自愈、写时序铁律、原子写
 - [file-preservation](file-preservation.md): Dunder __custom__ walk + manifest preserve（两套刻意不合并）
 - [install-modes](install-modes.md): standalone / repo / system 三模式、.system-install marker、软链、PATH 遮蔽、update 分支、AUR

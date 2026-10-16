@@ -2,6 +2,7 @@
 
 > 两个 manifest 文件，**全字段可选、无文件 = 全默认**。约定自描述：目录名驱动所有默认值。
 > 源码：`nyxuri/deploy/manifest.py`（`load_manifest`、`load_optional_apps`）。
+> 演进提示：插件市场化改造（KM0–KM5）终态将统一收敛为自描述单元的单一 `manifest.toml`，详见 [unit-model](unit-model.md)。
 
 ## `.module.toml`（有配置的 app）
 

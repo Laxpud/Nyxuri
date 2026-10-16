@@ -73,9 +73,11 @@ hooks 的实机行为证据与视觉验收待作者确认。镜像色板是否�
   launcher、session、settings、clipboard、lock、wallpaper-random 六动作；按原子复制、
   Dunder、manifest、快照、回滚和卸载契约接入部署；共享池位置中立化与双 Shell 输出
   仲裁（kitty 双 include、gtk.css 交替写残留）随部署接入处理；切换失败不损失配置、
-  不留受管残留。同时交付「Shell 彻底模块化 + 市场直通运行态」：内核（装配 / 生命周期 /
-  Action Gateway / IPC）零业务、一切功能域成模块、部署 → IPC → 热加载。
-  阶段状态在根 ROADMAP 台账，验收记录归本台账。
+  不留受管残留。同时交付「Shell 内部完全单元化 + 微内核插槽架构」（详见
+  [unit-model](../llms-wiki/unit-model.md)）：Shell 内核（装配 / 生命周期 / Action Gateway /
+  IPC）零业务；六大几何插槽独占；动态 Loader 启动闭包审计（未启用模块零读文件、零实例化、
+  内存 100% 释放）；借用组件与外壳绝对绝缘，随时可拔除推倒重写。阶段状态在根 ROADMAP 台账，
+  验收记录归本台账。
 - **P6 整体验收与未来移植**（前置：主线 KM5）：固定机器与版本基线，验收离线、缺插件/设备、锁屏、SIGTERM、目标崩溃和失败恢复；视觉、行为、资源和文档证据齐备后才接纳封存功能或多合成器移植。
 
 ## 已确认的历史决策

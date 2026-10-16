@@ -1,6 +1,7 @@
 # Operation Map — 全部 CLI 命令
 
 > 命令分发在 `nyxuri/cli.py` 的 `COMMANDS` dict。退出码自动传播。aliases 并列。
+> 演进提示：插件市场化改造（KM3 阶段）将把本命令表收敛为 4 个通用动词（list / on / off / doctor），详见 [unit-model](unit-model.md)。
 
 ## 管"配置内容"的
 
