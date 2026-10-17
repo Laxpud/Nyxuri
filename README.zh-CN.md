@@ -30,9 +30,17 @@
 
 </div>
 
+> ⚠️ **开发警告**：当前 `main` 主分支正在经历**非常激进的架构重构与特性迭代**（代码与配置结构随时可能快速演进）。如果你追求绝对稳定，建议检出最新 Release 标签使用。
+>
 > 从原 **NyxNiri** 迁移？项目现已更名为 **Nyxuri**（/nɪkˈsuːri/），因为我们计划接入自研桌面 Shell 并支持更多窗口管理器。运行 `nyxuri` 会自动搬迁原有配置、历史快照与状态，并安全清理旧目录。
 >
 > **注意：** 自研的 **Nyxuri Shell** 目前是实验性功能——完全处于开发阶段、已知问题较多、外观尚未开发，暂不推荐日常使用。日常请留在 Noctalia，`nyxuri shell` 仅供测试。已知问题见 [shell/KNOWN-ISSUES.md](shell/KNOWN-ISSUES.md)。
+
+### 名字的由来 (Why Nyxuri)
+
+- **URI**：**U**nified **R**untime **I**nterface（统一运行时接口）
+- **Yukkuri**：源自「ゆっくり」（Yukkuri / にゅっくり）
+- **Yuri**：源自「百合」（Yuri / ゆり）
 
 ## 特性
 
@@ -78,24 +86,27 @@ cd ~/Nyxuri && ./install.sh
 ```
 </details>
 
-## 包含配置
+## 架构与单元
 
 ```text
 Nyxuri
 ├── install.sh                  # 极简引导入口
+├── catalog.toml                # 软件目录清单（17 款日常软件同源依赖）
 ├── nyxuri/                     # Python 核心引擎（零 pip 依赖）
-├── assets/                     # 静态资产（壁纸、fcitx5 皮肤模板）
-└── configs/
-    ├── niri/                   # 窗口管理器（.kdl、.toml）
-    │   └── scripts/            # 胶水脚本与快捷网关
-    ├── noctalia/               # 桌面 Shell 与主题同步
-    │   └── tools/              # Orbit 星环启动器、壁纸选择器
+├── shell/                      # Nyxuri Shell（自研 QML/Qt6 桌面外壳，实验性）
+└── units/                      # 12 个独立原子桌面能力单元
+    ├── fastfetch/              # 系统信息展示
+    ├── fcitx5-rime/            # 动态 Material You 输入法皮肤与配置
+    ├── fish/                   # Shell 别名与实用函数
+    ├── greeter/                # Noctalia Greeter 登录界面集成
+    ├── kitty/                  # 终端模拟器与透明度预设
+    ├── mango/                  # Mango HUD 性能监测悬浮层
+    ├── niri/                   # 窗口管理器与动作调度脚本
+    ├── noctalia/               # 桌面外壳、主题同步、Orbit 星环与壁纸选择器
+    ├── starship/               # 终端提示符
+    ├── wallpapers/             # 配套壁纸与动态视频包下载钩子
     ├── xdg-desktop-portal/     # Portal 路由（主题与录屏分流）
-    ├── kitty/                  # 终端
-    ├── fish/                   # 别名与函数
-    ├── fastfetch/              # 系统信息
-    ├── zed/                    # 编辑器
-    └── starship.toml           # 提示符
+    └── zed/                    # 代码编辑器配置
 ```
 
 配置采用原子物理替换。个人改动通过 Dunder 协议保留：任何文件名或目录名含 `__custom__` 的文件（如 `__custom__.kdl`、`__custom__.conf`）与 `monitor.kdl` 在更新时自动保留。
@@ -114,11 +125,11 @@ Nyxuri
 
 完整窗口控制、多屏漫游按键表与全屏覆盖层见 [快捷键全景图 (Wiki)](https://github.com/ech678/Nyxuri/wiki/Keybindings-zh)。
 
-## 扩展
+## 单元能力
 
-可选扩展包含动态取色 Fcitx5 皮肤（NyxMellow）、配套高清壁纸与动态视频包，以及和桌面主题一致的 Noctalia Greeter 登录界面。
+桌面上一切能力皆为可独立开关的原子单元。可选单元包括动态取色 Fcitx5 皮肤（`fcitx5-rime`）、配套壁纸与视频包（`wallpapers`），以及一致视觉的 Noctalia Greeter 登录界面（`greeter`）。随时单键启闭：`nyxuri on <unit>` / `nyxuri off <unit>`。
 
-扩展模块安装与生命周期管理见 [扩展模块指南 (Wiki)](https://github.com/ech678/Nyxuri/wiki/CLI-Reference-zh#扩展)。
+单元生命周期管理详见 [CLI 命令手册 (Wiki)](https://github.com/ech678/Nyxuri/wiki/CLI-Reference-zh#单元市场动词)。
 
 ## 工具
 

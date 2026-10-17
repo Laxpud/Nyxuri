@@ -18,7 +18,6 @@
 - [preset-mechanism](preset-mechanism.md): active 状态文件、通用零件插槽体系（Parts Slots）、防覆盖自愈、写时序铁律、原子写
 - [file-preservation](file-preservation.md): Dunder __custom__ walk + manifest preserve（两套刻意不合并）
 - [state-ops](state-ops.md): 快照生命周期（30 个滚动 prune）与勾选式卸载、执行时序铁律
-- [niri-session](../shell/AGENTS.md): 自研 Shell 开发契约（见 Nyxuri Shell 区）
 
 ## Nyxuri Shell
 

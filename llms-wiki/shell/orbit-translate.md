@@ -1,8 +1,8 @@
 # Orbit Translate — 划词翻译浮窗与渠道设置
 
 > 一次性（one-shot）划词翻译工具：读取 Wayland PRIMARY 选区，在指针下方弹出 Material 3 色调浮窗，
-> 并行展示多个翻译渠道的结果。入口：`configs/noctalia/tools/orbit-translate.py`；实现：
-> `configs/noctalia/tools/orbit_translate/`（`ui.py` 浮窗、`widgets.py` 自适应滚动与语言菜单、
+> 并行展示多个翻译渠道的结果。入口：`units/noctalia/tools/orbit-translate.py`；实现：
+> `units/noctalia/tools/orbit_translate/`（`ui.py` 浮窗、`widgets.py` 自适应滚动与语言菜单、
 > `geometry.py` 定位、`engine.py` 并发调度、`providers.py` 渠道协议、`tui.py` 设置界面、`theme.py` 调色）。
 > 调色与 Orbit 启动器共用 `~/.cache/nyxuri/palette.toml`。
 
@@ -96,13 +96,13 @@ Key 经 stdin 传递，不进 argv 或日志；钱包不可用时安全失败，
 
 ## 依赖
 
-`configs/noctalia/manifest.toml` 声明 `python-gobject`、`gtk-layer-shell`、`wl-clipboard`（`wl-paste`），
+`units/noctalia/manifest.toml` 声明 `python-gobject`、`gtk-layer-shell`、`wl-clipboard`（`wl-paste`），
 PKGBUILD 由 `gen-deps.py --update` 汇聚（见 [packaging](../archive/packaging.md)）。`kwallet-query` /
 `secret-tool` / Ollama 为可选。
 
 ## 测试
 
-`tests/test_translate_*.py`（194 项）经 `tests/translate_support.py` 把 `configs/noctalia/tools`
+`tests/tools/translate/`（194 项）经 `tests/tools/translate/support.py` 把 `units/noctalia/tools`
 放入 `sys.path`，并让每个模块运行在 `TempEnv` 内。涵盖配置校验、渠道协议与解析、定位几何、
 ResultRelay、凭据脱敏、models.dev 目录、TUI（含 PTY 实测）与浮窗交互。真实 GTK surface 测试需
 显式开启：`ORBIT_GTK_ACCEPTANCE=1 python3 -m unittest tests.test_translate_popup_native`。

@@ -173,6 +173,4 @@ system_paths = ["/etc/greetd/config.toml", "/etc/polkit-1/rules.d/50-noctalia-gr
 `atomic_replace_item` = 对账器，Dunder = 增量保留，snapshot/rollback = 状态存取，
 active 预设名 = state 文件里的显式期望——这半边是声明式。依赖安装、主题同步、
 输入法重载是命令式副作用，由对应入口负责；安装可选软件只装包，不自动激活单元。
-明确不做（避免熵增）：用户 drop-in app 目录、manifest 声明 doctor 项、stable+git 双
-AUR 包、Nix 式纯函数引擎、按 PCI 设备选驱动变量、`.nyxignore`、`preset diff`、
-`detect` 前缀 DSL、安装方式优先级表。
+明确拒绝的规则清单（避免熵增）详见 [delayed-decisions](delayed-decisions.md) 与 [archive/agent-rules-provenance](archive/agent-rules-provenance.md)。

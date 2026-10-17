@@ -28,7 +28,7 @@ user-domain content installed via `units/wallpapers/hooks/install-pack`.
 | `nyxuri preset <app> [list\|apply <name>\|save <name>\|edit <name>\|delete <name>]` | Switch / manage presets |
 | `nyxuri preset <app> [parts\|part <slot> <name>]` | Inspect / hot-swap component parts (effects, glow, …) |
 | `nyxuri theme [toggle\|dark\|light\|sync\|status]` | Switch or sync the dark/light axis |
-| `nyxuri shell [get\|set <noctalia\|nyxuri-shell> [bin_path]\|switch\|status]` | Inspect or hot-switch the desktop shell slot (experimental) |
+| `nyxuri shell [get\|set <noctalia\|nyxuri-shell> [bin_path]\|switch [<target> [bin_path]]\|status]` | Inspect or hot-switch the desktop shell slot (experimental) |
 
 ---
 
@@ -48,7 +48,7 @@ user-domain content installed via `units/wallpapers/hooks/install-pack`.
 | :--- | :--- |
 | `nyxuri snapshot [note]` | Save current config state |
 | `nyxuri snapshot list` | List snapshots |
-| `nyxuri snapshot delete [idx]` | Delete snapshots (multi-select if no index) |
+| `nyxuri snapshot delete [index]` | Delete snapshots (multi-select if no index) |
 | `nyxuri rollback [index]` | Restore a snapshot |
 
 ---
@@ -57,10 +57,11 @@ user-domain content installed via `units/wallpapers/hooks/install-pack`.
 
 | Command | Description |
 | :--- | :--- |
-| `nyxuri doctor` | Unit reconciliation + dependency and system health check |
+| `nyxuri doctor [unit]` | Unit reconciliation + dependency and system health check |
 | `nyxuri bug` | Export a diagnostic report |
 | `nyxuri test` | Developer sandbox deploy (no backup, keeps monitor.kdl) |
-| `nyxuri uninstall [--all\|standard\|restore\|purge]` | Checkbox uninstall — pick what gets cleaned |
+| `nyxuri uninstall [--all\|standard\|restore\|purge]` | Checkbox uninstall — pick what gets cleaned (or run standard, restore, purge, --all directly) |
+| `nyxuri help` | Show CLI help and usage |
 
 ---
 

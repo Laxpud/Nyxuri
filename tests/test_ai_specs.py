@@ -6,6 +6,10 @@ Gate set for llms-wiki/docs-charter.md:
   - Live-area relative links resolve (upstream/ + archive/ are frozen and exempt)
   - ROADMAP status vocabulary stays canonical
   - CLI commands stay documented in operation-map.md
+  - Humans-wiki and README links resolve and anchors are valid
+  - Dissolved paths (configs/, assets/wallpapers) banned from docs
+  - CLI help text clean of retired commands
+  - Presets and modular Parts match declared contract
 """
 
 import re
@@ -89,13 +93,10 @@ class TestAISpecs(unittest.TestCase):
         """Bidirectional index closure: every live wiki page is indexed in llms.txt."""
         content = self.llms_txt.read_text(encoding="utf-8")
         for page in self._live_md_files():
-            if page == self.llms_txt or page.parent != self.wiki_dir:
+            if page == self.llms_txt or not page.is_relative_to(self.wiki_dir):
                 continue
             name = page.relative_to(self.wiki_dir).as_posix()
-            if name == "docs-charter.md":
-                self.assertIn("(docs-charter.md)", content, f"Live page not indexed: {name}")
-            else:
-                self.assertIn(f"({name})", content, f"Live page not indexed: {name}")
+            self.assertIn(f"({name})", content, f"Live page not indexed: {name}")
 
     def test_new_domain_topics_indexed(self):
         """Ensure domain topics and guidelines are strictly indexed in llms.txt."""
@@ -143,15 +144,35 @@ class TestAISpecs(unittest.TestCase):
                     f"{page.relative_to(self.root_dir)} still references retired path: {fragment}",
                 )
 
+        # Stricter checks for paths retired in KM3.5 (exempting unit-model.md §7 death registry and ROADMAP ledger)
+        km35_banned = ("configs/", "template_registry")
+        for page in self._live_md_files():
+            if page.name in ("unit-model.md", "ROADMAP.md"):
+                continue
+            text = page.read_text(encoding="utf-8")
+            for fragment in km35_banned:
+                self.assertNotIn(
+                    fragment,
+                    text,
+                    f"{page.relative_to(self.root_dir)} still references retired path: {fragment}",
+                )
+
     # ------------------------------------------------------------------
     # ROADMAP status vocabulary (docs-charter: canonical status words)
     # ------------------------------------------------------------------
 
-    def test_shell_roadmap_status_vocabulary(self):
-        """shell/ROADMAP.md ledger rows may only use the five canonical statuses."""
-        roadmap = (self.root_dir / "shell" / "ROADMAP.md").read_text(encoding="utf-8")
+    def test_roadmap_status_vocabulary(self):
+        """ROADMAP.md ledger rows may only use the five canonical statuses."""
         allowed = {"待开始", "进行中", "阻断", "待验收", "已完成"}
-        for match in re.findall(r"^\| (R[^|*]+) \| ([^|]+) \| ([^|]+) \|$", roadmap, re.MULTILINE):
+        # 1. shell/ROADMAP.md
+        shell_roadmap = (self.root_dir / "shell" / "ROADMAP.md").read_text(encoding="utf-8")
+        for match in re.findall(r"^\| (R[^|*]+) \| ([^|]+) \| ([^|]+) \|$", shell_roadmap, re.MULTILINE):
+            stage, _, status = (part.strip() for part in match)
+            self.assertIn(status, allowed, f"Non-canonical status for {stage}: {status}")
+
+        # 2. root ROADMAP.md
+        root_roadmap = (self.root_dir / "ROADMAP.md").read_text(encoding="utf-8")
+        for match in re.findall(r"^\| (KM[^|*]+) \| ([^|]+) \| ([^|]+) \|$", root_roadmap, re.MULTILINE):
             stage, _, status = (part.strip() for part in match)
             self.assertIn(status, allowed, f"Non-canonical status for {stage}: {status}")
 
@@ -329,6 +350,131 @@ class TestAISpecs(unittest.TestCase):
                 op_map,
                 f"CLI command '{cmd}' is implemented in cli.py but missing from operation-map.md",
             )
+
+    # ------------------------------------------------------------------
+    # Humans-wiki and README integrity gates
+    # ------------------------------------------------------------------
+
+    def test_human_docs_and_readme_links_resolve(self):
+        """Relative links in humans-wiki/ and READMEs must resolve (with .md fallback)."""
+        doc_files = [
+            self.root_dir / "README.md",
+            self.root_dir / "README.zh-CN.md",
+        ] + list((self.root_dir / "humans-wiki").glob("*.md"))
+
+        for doc in doc_files:
+            text = doc.read_text(encoding="utf-8")
+            for link in self._relative_links(text):
+                target = (doc.parent / link).resolve()
+                target_md = (doc.parent / f"{link}.md").resolve()
+                self.assertTrue(
+                    target.exists() or target_md.exists(),
+                    f"Broken relative link in {doc.relative_to(self.root_dir)}: {link}",
+                )
+
+    def test_readme_wiki_anchors_valid(self):
+        """GitHub Wiki URLs with anchors in READMEs must match actual heading slugs."""
+        humans_wiki = self.root_dir / "humans-wiki"
+
+        def _slugify(heading: str) -> str:
+            slug = heading.strip().lower()
+            slug = re.sub(r"[^\w\s\u4e00-\u9fff-]", "", slug)
+            return re.sub(r"\s+", "-", slug)
+
+        for readme in (self.root_dir / "README.md", self.root_dir / "README.zh-CN.md"):
+            content = readme.read_text(encoding="utf-8")
+            wiki_links = re.findall(
+                r"https://github\.com/[^/]+/Nyxuri/wiki/([A-Za-z0-9_-]+)(?:#([^\s\)\"]+))?",
+                content,
+            )
+            for page_name, anchor in wiki_links:
+                page_file = humans_wiki / f"{page_name}.md"
+                self.assertTrue(
+                    page_file.is_file(),
+                    f"README references non-existent wiki page: {page_name} ({page_file})",
+                )
+                if anchor:
+                    headings = re.findall(
+                        r"^#+\s+(.+)$",
+                        page_file.read_text(encoding="utf-8"),
+                        re.MULTILINE,
+                    )
+                    slugs = [_slugify(h) for h in headings]
+                    self.assertIn(
+                        anchor,
+                        slugs,
+                        f"Anchor #{anchor} not found in headings of {page_name}.md (valid: {slugs})",
+                    )
+
+    def test_docs_banned_dissolved_paths(self):
+        """Humans-wiki, READMEs, and unit READMEs must not reference dissolved paths."""
+        banned = ("configs/", "assets/wallpapers", "template_registry", "modules/gtktheme")
+        doc_files = [
+            self.root_dir / "README.md",
+            self.root_dir / "README.zh-CN.md",
+            self.root_dir / "units" / "noctalia" / "README.md",
+        ] + list((self.root_dir / "humans-wiki").glob("*.md"))
+
+        for doc in doc_files:
+            text = doc.read_text(encoding="utf-8")
+            for fragment in banned:
+                self.assertNotIn(
+                    fragment,
+                    text,
+                    f"{doc.relative_to(self.root_dir)} still references dissolved path: {fragment}",
+                )
+
+    def test_cli_help_no_retired_commands(self):
+        """CLI help in translations.toml must not advertise retired commands."""
+        import tomllib
+
+        data = tomllib.loads(
+            (self.root_dir / "nyxuri" / "translations.toml").read_text(encoding="utf-8")
+        )
+        cli_help = data.get("cli_help", {})
+        retired = (
+            "nyxuri purge",
+            "nyxuri apps",
+            "nyxuri wallpapers",
+            "nyxuri report",
+            "  purge ",
+            "  apps ",
+            "  wallpapers ",
+            "  report ",
+        )
+
+        for lang in ("zh", "en"):
+            help_text = cli_help.get(lang, "")
+            for cmd in retired:
+                self.assertNotIn(
+                    cmd,
+                    help_text,
+                    f"cli_help[{lang}] contains retired command reference: '{cmd}'",
+                )
+
+    def test_documented_presets_and_parts_contract(self):
+        """Presets and modular Parts must adhere to the documented contract."""
+        from nyxuri.desktop.presets import collect_presets
+        from nyxuri.deploy.preset import list_parts
+
+        kitty_presets = [name for name, _, _ in collect_presets("kitty")]
+        self.assertIn("default", kitty_presets)
+        self.assertIn("transparent", kitty_presets)
+
+        niri_presets = [name for name, _, _ in collect_presets("niri")]
+        self.assertEqual(niri_presets, ["default"])
+
+        parts = list_parts("niri")
+        self.assertIn("glow", parts)
+        self.assertIn("effects", parts)
+        self.assertEqual(
+            set(parts["glow"]["variants"]),
+            {"default", "glow", "glow-material-you"},
+        )
+        self.assertEqual(
+            set(parts["effects"]["variants"]),
+            {"default", "xray-blur"},
+        )
 
 
 if __name__ == "__main__":

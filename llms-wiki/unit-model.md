@@ -256,7 +256,7 @@ Nyxuri Shell 绝非特权单体，其内部亦彻底单元化。Shell 本身蜕�
 | 死刑对象 | 死刑阶段 |
 |---|---|
 | `.optional-apps.toml`（axis-B sidecar） | KM1（已执法） |
-| `configs/starship.toml` + `starship.toml.module.toml`（单文件特例） | KM1（已执法，升格为 `configs/starship/` + `target`） |
+| `configs/starship.toml` + `starship.toml.module.toml`（单文件特例） | KM1（已执法，升格为 `units/starship/` + `target`） |
 | `*.module.toml` sidecar 机制（已统一收敛为目录内 `manifest.toml`） | KM1（已执法） |
 | `nyxuri/modules/` 专用业务模块（能力并入 `units/` 单元 + 钩子脚本） | KM3（已执法） |
 | 旧 CLI 命令兼容别名 ×12 与 `RETIREMENTS` 倒计时表（`deploy/backup/restore/remove/purge/recommended/wp/report` + 幽灵指针 `greeter/fcitx/gtk/fisher`） | KM3.5（已执法，旧名 = 普通 unknown command） |
@@ -264,7 +264,6 @@ Nyxuri Shell 绝非特权单体，其内部亦彻底单元化。Shell 本身蜕�
 | 17 个零文件假单元（`configs/` 下仅 manifest 的包目录）→ 根 `catalog.toml` | KM3.5（已执法，包目录清单不是单元） |
 | `assets/` + `nyxuri/deploy/assets.py`（壁纸旁路）→ `units/wallpapers/` 单元 + `hooks/install-pack` | KM3.5（已执法，`wallpapers` 动词处决 → `on wallpapers`） |
 | 蓝图正名 `configs/` → `units/`、引擎物理分层（`kernel/` `desktop/` `installer/` `pkg/` 收编、`sysdoctor` 正名、`packaging/` 迁仓库根、测试镜像树） | KM3.5（已执法，文件树即架构） |
-| `nyxuri/cli.py` 硬编码专用命令 | KM5 |
 | `nyxuri/cli.py` 硬编码专用命令 | KM5 |
 | `install.sh` 安装器职责（退役为一次性引导） | KM5 |
 

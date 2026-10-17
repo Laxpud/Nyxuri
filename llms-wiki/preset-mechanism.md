@@ -1,7 +1,7 @@
 # Preset Mechanism — active 状态、src 四分支、写时序、原子写、同步语义
 
 > 预设机制的核心：活动选择存 state 文件（不占配置槽），deploy 时读它决定 src 是哪个目录。
-> 写时序铁律 + 原子写堵死所有"半途崩溃留下错乱态"的故障路径。源码：`nyxuri/deploy/preset.py`。
+> 写时序铁律 + 原子写堵死所有"半途崩溃留下错乱态"的故障路径。源码：`nyxuri/deploy/preset.py`（底层引擎）+ `nyxuri/desktop/presets.py`（工作流动词）。
 
 ## active 状态文件
 

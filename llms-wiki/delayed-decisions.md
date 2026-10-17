@@ -19,11 +19,9 @@
 | **子目录分组**（deploy/state/modules 子包） | >28 文件 或 某子领域 >5 文件 | **已做**。重构前 17 个 .py（< 28 触发未到），但为贯彻子包架构目标主动拆了四个子包。详见 [archive/subpackages](archive/subpackages.md) |
 | **doctor 预设漂移检查** | preset 系统落地后即加 | **已加** `_check_preset_drift`：扫所有 app 的 active 预设是否还在仓库/用户预设目录，给汇总。平时不 update 也能在 doctor 撞见"你的 kitty 透明预设已不在上游"。符合扩展指南（写 `_check_xxx` append 到 `DOCTOR_CHECKS`，不碰 `run_doctor`） |
 
-## `manifest.toml` schema（字段全可选，无文件 = 全默认）
+## `manifest.toml` 字段契约
 
-详见 [manifest-schema](manifest-schema.md)。如 fastfetch 这种"目录名=二进制名=单包=无例外"的直接不写 manifest。kitty 仅声明 `[presets] reload` 信号。niri 声明 `preserve` 与 `[parts.*]` 零件插槽。fcitx5-rime 在自己的 `manifest.toml` 里声明包名与 `post_install` 单元钩子（KM3 起 `module:function` 旧形态退役，钩子只执行单元目录内脚本；旧 `.optional-apps.toml` 中心登记簿已随 KM1 ② 物理删除）。
-
-不放进 manifest 的：doctor 检查项、i18n 键（防 manifest 膨胀成 DSL）。
+全可选字段参考与边界契约见唯一权威页 [manifest-schema](manifest-schema.md)。
 
 ## 被拒绝的规则（原 agent-rules-provenance 页收录，拒绝即决策）
 

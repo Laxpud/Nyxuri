@@ -24,7 +24,7 @@ GTK3 热重载，GTK4 靠 `@media (prefers-color-scheme)` 实时切换。
 ## 2. 组件清单 (Components)
 
 ```
-configs/noctalia/
+units/noctalia/
 ├── README.md              ← 本文档
 ├── noctalia-config.toml   ← hook + user template 注册
 ├── wallpaper-hook.sh      ← 壁纸切换 hook（视频缩略图）
@@ -38,7 +38,7 @@ configs/noctalia/
 ### 系统级深浅同步 — `nyxuri theme`（CLI，唯一写手）
 
 深浅切换的系统级写入（gsettings、GTK INI、Kvantum、kitty 信号、glow 布局、
-Noctalia IPC）由 `nyxuri/theme.py` 唯一承担（P4 契约）。旧的
+Noctalia IPC）由 `nyxuri/desktop/theme.py` 唯一承担（P4 契约）。旧的
 `theme-sync.sh` 调度脚本已清算；Shell 侧只保留内部模式、色板再生、IPC
 端点与 gsettings 只读观察回路。本节列出它的职责（对应旧脚本 step 1-9）：
 
@@ -85,7 +85,7 @@ portal `color-scheme` 选择。
 
 ### niri config.kdl 中的主题相关配置
 
-`configs/niri/config.kdl` 的 `spawn-at-startup` 中有一项与主题相关：
+`units/niri/config.kdl` 的 `spawn-at-startup` 中有一项与主题相关：
 
 - **`spawn-at-startup "bash" "-c" "sleep 8; ..."`**
   冷启动后 Noctalia 需要时间算壁纸调色板。8 秒后强制重新渲染 gtk.css，
@@ -286,8 +286,8 @@ GTK3 跳过第二行用 flat 色，GTK4 用第二行覆盖。`@define-color` 中
 ### 6.6 部署与渲染流程
 
 ```
-configs/noctalia/templates/gtk-3.0.css / gtk-4.0.css  (模板源)
-  ↓ nyxuri deploy（atomic_replace_item，随 noctalia 目录部署）
+units/noctalia/templates/gtk-3.0.css / gtk-4.0.css  (模板源)
+  ↓ nyxuri install / on noctalia（atomic_replace_item，随 noctalia 单元部署）
 ~/.config/noctalia/templates/gtk-3.0.css / gtk-4.0.css
 ~/.config/noctalia/noctalia-config.toml  (/home/user → $HOME 替换)
   ↓ Noctalia 壁纸/明暗切换时自动渲染
@@ -309,13 +309,12 @@ input_path = "/home/user/.config/noctalia/templates/gtk-4.0.css"
 output_path = "/home/user/.config/gtk-4.0/gtk.css"
 ```
 
-模板部署后由 `nyxuri/modules/gtktheme.py` 的 `gtktheme_trigger_render()` 调用
-`noctalia msg config-reload && noctalia msg templates-apply` 触发渲染；安装时
-`nyxuri/deploy/deploy.py:_phase_post_install_services()` 自动调用，手动触发用 `nyxuri gtk install`。
+模板部署后由部署引擎在部署阶段触发 Noctalia IPC：
+`noctalia msg config-reload && noctalia msg templates-apply` 触发渲染；手动同步可用 `nyxuri theme sync`。
 
 ### 6.7 系统写手（原 theme-sync.sh）关系
 
-`theme-sync.sh` 已于 P4 清算，职责并入 `nyxuri/theme.py`（见 §2）。它与
+`theme-sync.sh` 已于 P4 清算，职责并入 `nyxuri/desktop/theme.py`（见 §2）。它与
 GTK 相关的两件事不变：
 
 1. **gsettings / INI**：设 `gtk-theme = adw-gtk3(-dark)` 与 `color-scheme`。
@@ -621,13 +620,12 @@ nyxuri theme light
 
 | 文件 / 模块 | 职责 |
 |---|---|
-| `nyxuri/theme.py` | 深浅切换系统写手（唯一） |
-| `configs/noctalia/noctalia-config.toml` | hook + user template 注册 |
-| `configs/noctalia/templates/gtk-3.0.css` | GTK3 M3 模板 |
-| `configs/noctalia/templates/gtk-4.0.css` | GTK4 M3 模板（双 @media） |
-| `configs/noctalia/wallpaper-hook.sh` | 壁纸切换 hook |
-| `configs/noctalia/mpvpaper-sync.sh` | mpvpaper 同步 |
-| `nyxuri/modules/gtktheme.py` | `nyxuri gtk install\|status\|uninstall` |
+| `nyxuri/desktop/theme.py` | 深浅切换系统写手（唯一） |
+| `units/noctalia/noctalia-config.toml` | hook + user template 注册 |
+| `units/noctalia/templates/gtk-3.0.css` | GTK3 M3 模板 |
+| `units/noctalia/templates/gtk-4.0.css` | GTK4 M3 模板（双 @media） |
+| `units/noctalia/wallpaper-hook.sh` | 壁纸切换 hook |
+| `units/noctalia/mpvpaper-sync.sh` | mpvpaper 同步 |
 | `nyxuri/cli.py` | `nyxuri theme` 子命令 |
 | `nyxuri/deploy/deploy.py` | 部署 + 模板渲染触发 |
 

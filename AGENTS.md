@@ -27,8 +27,8 @@
 | 终端 UI / 桌面能力 (`tui.py`, `nyxuri/desktop/`) | `tui-charter.md` | 交互冒烟，检查退出 trap |
 | 预设机制 (`deploy/preset.py` + `desktop/presets.py`) | `preset-mechanism.md` | `python3 -m unittest tests/deploy/test_preset.py` |
 | 双语文案 / 提示信息 (`translations.toml`, `core.py`) | `i18n.md`, `writing-voice.md` | `python3 -m unittest tests/test_i18n.py` |
-| 文档体系 (`llms-wiki/`, `notes/`, `ROADMAP*`) | `docs-charter` | `python3 -m unittest tests/test_ai_specs.py` |
-| Nyxuri Shell (`shell/`) | `shell-rules` (`shell/AGENTS.md`), `shell-roadmap`, `llms-wiki/shell/` | `python3 -m unittest tests/shell/` + `compileall` |
+| 文档体系 (`llms-wiki/`, `notes/`, `ROADMAP*`) | `docs-charter.md` | `python3 -m unittest tests/test_ai_specs.py` |
+| Nyxuri Shell (`shell/`) | `shell-rules` (`shell/AGENTS.md`), `shell/ROADMAP.md`, `llms-wiki/shell/` | `python3 -m unittest tests/shell/` + `compileall` |
 | AUR 打包 (`packaging/`) | `overview.md`（仓库地图） | `python3 -m unittest tests/pkg/test_packaging.py` |
 | 版本发布 / 变更记录 (`CHANGELOG.md`) | `changelog-spec.md` | `git log <last-release-tag>..HEAD` 对齐净变更 |
 

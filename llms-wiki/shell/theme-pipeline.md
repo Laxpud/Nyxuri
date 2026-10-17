@@ -2,7 +2,7 @@
 
 > 本页是壁纸取色到应用模板渲染的管线契约与渲染队列不变量，以
 > `shell/scripts/theme/`、`shell/app/services/TemplateService.qml` 与
-> `tests/test_shell_runtime.py` 的真实行为为准。
+> `tests/shell/test_shell_runtime.py` 的真实行为为准。
 
 ## 管线
 
@@ -43,7 +43,7 @@
 
 ## 验收方式
 
-`tests/test_shell_runtime.py::test_template_render_queue_writes_outputs_and_hooks`
+`tests/shell/test_shell_runtime.py::test_template_render_queue_writes_outputs_and_hooks`
 在私有合成器里跑真实 QML：palette-modes 热重载必须渲染 kitty/btop/starship
 并运行 hook；同色板重渲染必须排空队列且 hook 照跑；随后的色板改写必须仍被
 跟随；`renderErrors` 保持为空；不得出现 QML 诊断。

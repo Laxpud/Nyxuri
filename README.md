@@ -30,9 +30,17 @@
 
 </div>
 
+> ⚠️ **Under Heavy Development**: The `main` branch is currently undergoing **very aggressive development and architectural refactoring** (interfaces and configs evolve rapidly). For a stable experience, checking out the latest release tag is recommended.
+>
 > Upgrading from **NyxNiri**? The project is rebranded to **Nyxuri** (/nɪkˈsuːri/) as we expand toward a custom desktop shell and multi-window manager support. Running `nyxuri` automatically migrates your existing configs, snapshots, and state, then safely cleans up legacy paths.
 >
 > **Note:** the built-in **Nyxuri Shell** is experimental — fully in development, known to be buggy, its look is unfinished, and it is not recommended for daily use yet. Stay on Noctalia; `nyxuri shell` is for testing only. Known issues: [shell/KNOWN-ISSUES.md](shell/KNOWN-ISSUES.md).
+
+### Why "Nyxuri"?
+
+- **URI**: **U**nified **R**untime **I**nterface
+- **Yukkuri**: From 「ゆっくり」(Yukkuri / にゅっくり — *take it easy*)
+- **Yuri**: From 「百合」(Yuri / ゆり)
 
 ## Features
 
@@ -78,28 +86,32 @@ cd ~/Nyxuri && ./install.sh
 ```
 </details>
 
-## Included Configs
+## Architecture & Units
 
 ```text
 Nyxuri
 ├── install.sh                  # lightweight bootstrap entrypoint
+├── catalog.toml                # package catalogue (17 standalone apps without dotfiles)
 ├── nyxuri/                     # Python core engine (zero pip dependencies)
-├── assets/                     # static assets (wallpapers, fcitx5 skin templates)
-└── configs/
-    ├── niri/                   # window manager (.kdl, .toml)
-    │   └── scripts/            # glue scripts & action gateways
-    ├── noctalia/               # shell + theme sync & companion tools (Orbit, wallpaper picker)
-    ├── xdg-desktop-portal/     # portal routing (Settings / screencast)
-    ├── kitty/                  # terminal
-    ├── fish/                   # aliases + functions
-    ├── fastfetch/              # system info
-    ├── zed/                    # editor
-    └── starship.toml           # prompt
+├── shell/                      # Nyxuri Shell (QML/Qt6 desktop shell, experimental)
+└── units/                      # 12 modular desktop capability units
+    ├── fastfetch/              # system information
+    ├── fcitx5-rime/            # dynamic Material You input skin & Rime config
+    ├── fish/                   # shell aliases & functions
+    ├── greeter/                # Noctalia Greeter login integration
+    ├── kitty/                  # terminal emulator & opacity presets
+    ├── mango/                  # Mango HUD overlay
+    ├── niri/                   # window manager & session scripts
+    ├── noctalia/               # desktop shell, theme sync, Orbit & wallpaper picker
+    ├── starship/               # prompt styling
+    ├── wallpapers/             # companion wallpapers & video pack hooks
+    ├── xdg-desktop-portal/     # portal routing (theme sync, screencast)
+    └── zed/                    # editor configuration
 ```
 
 Configs deploy atomically. Personal tweaks survive updates via the Dunder protocol: any file or folder containing `__custom__` (e.g. `__custom__.kdl`, `__custom__.conf`) and `monitor.kdl` are preserved.
 
-For detailed customization rules and post-deploy hooks, see [Configuration Guide (Wiki)](https://github.com/ech678/Nyxuri/wiki/Configuration).
+For detailed customization rules and hooks, see [Configuration Guide (Wiki)](https://github.com/ech678/Nyxuri/wiki/Configuration).
 
 ## Presets
 
@@ -113,11 +125,11 @@ Core keybindings dispatch through `shell-action.sh`. Quick reference: `nyxhelp k
 
 See complete window navigation and monitor moving shortcuts in [Keybindings (Wiki)](https://github.com/ech678/Nyxuri/wiki/Keybindings).
 
-## Extensions
+## Units & Capabilities
 
-Optional extensions include dynamic Material You fcitx5 skin (NyxMellow), companion wallpaper and video pack, and greetd login screen matching Noctalia.
+Desktop capabilities are atomic, modular units. Optional units include dynamic Material You fcitx5 input skin (`fcitx5-rime`), companion wallpaper and video pack (`wallpapers`), and Noctalia Greeter login screen (`greeter`). Toggle them on or off anytime: `nyxuri on <unit>` / `nyxuri off <unit>`.
 
-For extension setup and lifecycle commands, see [Extensions Guide (Wiki)](https://github.com/ech678/Nyxuri/wiki/CLI-Reference#extensions).
+For unit lifecycle commands, see [CLI Reference (Wiki)](https://github.com/ech678/Nyxuri/wiki/CLI-Reference#units-the-market-verbs).
 
 ## Tooling
 

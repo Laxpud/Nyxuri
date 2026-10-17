@@ -27,7 +27,7 @@
 | `nyxuri preset <app> [list\|apply <name>\|save <name>\|edit <name>\|delete <name>]` | 切换 / 管理预设 |
 | `nyxuri preset <app> [parts\|part <slot> <name>]` | 查看 / 热切零件插槽（effects、glow 等） |
 | `nyxuri theme [toggle\|dark\|light\|sync\|status]` | 切换或同步系统深浅主题 |
-| `nyxuri shell [get\|set <noctalia\|nyxuri-shell> [bin_path]\|switch\|status]` | 查看或热切换桌面外壳插槽（实验性） |
+| `nyxuri shell [get\|set <noctalia\|nyxuri-shell> [bin_path]\|switch [<目标> [bin_path]]\|status]` | 查看或热切换桌面外壳插槽（实验性） |
 
 ---
 
@@ -56,10 +56,11 @@
 
 | 指令 | 作用 |
 | :--- | :--- |
-| `nyxuri doctor` | 单元对账 + 依赖与系统健康检查 |
+| `nyxuri doctor [unit]` | 单元对账 + 依赖与系统健康检查 |
 | `nyxuri bug` | 生成诊断报告 |
 | `nyxuri test` | 开发者沙箱测试部署（不备份、保留 monitor.kdl） |
-| `nyxuri uninstall [--all\|standard\|restore\|purge]` | 勾选式卸载——逐项选择清理内容，默认勾选等同标准范围 |
+| `nyxuri uninstall [--all\|standard\|restore\|purge]` | 勾选式卸载——逐项选择清理内容（亦可直接传入 standard、restore、purge、--all 直达） |
+| `nyxuri help` | 显示命令行帮助与用法 |
 
 ---
 
