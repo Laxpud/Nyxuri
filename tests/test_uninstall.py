@@ -1,11 +1,12 @@
-"""Contract tests for the checkbox uninstall + 5 gap fixes (§8, §14 B3/D1).
+"""Contract tests for the checkbox uninstall (KM3 unit-model edition).
 
-Covers: only-installed modules are shown/uninstalled; execution order (module
-uninstallers before state_dir deletion); NyxNiri_archive_* glob cleanup (gap #1);
-fisher uninstall incl. fish-absent degrade (gap #3); quickphrase.conf restore
-(gap #5); greeter /var/lib removal (gap #2).
+Covers: only ledger-enabled hook units are offered and switched off; execution
+order (unit off before state_dir deletion); archive glob cleanup; the fish
+unit's pinned Fisher hooks (lockfile guard, pin argv, unowned-fisher refusal,
+legacy ownership record cleanup).
 """
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -16,60 +17,71 @@ from unittest.mock import patch, MagicMock
 
 from tests.utils import TempEnv
 
+REPO = Path(__file__).resolve().parent.parent
 
-class TestUninstallModuleVisibility(unittest.TestCase):
-    """§14 B3: only installed modules are uninstalled (all_keys reflects install)."""
+
+def _load_hook(unit: str, name: str):
+    """Import a unit hook script as a module (scripts guard on __main__)."""
+    from importlib.machinery import SourceFileLoader
+
+    path = REPO / "configs" / unit / "hooks" / name
+    name = f"hook_{unit}_{name}"
+    spec = importlib.util.spec_from_file_location(name, path, loader=SourceFileLoader(name, str(path)))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class TestUninstallUnitVisibility(unittest.TestCase):
+    """KM3: only ledger-enabled hook units are offered and switched off."""
 
     def setUp(self):
         self._ctx = TempEnv()
         self._ctx.__enter__()
+        self.env = self._ctx.env
 
     def tearDown(self):
         self._ctx.__exit__()
 
-    def test_only_installed_module_uninstallers_run(self):
-        from nyxuri.state.uninstall import uninstall_nyxuri
+    def _stage_enabled(self, uid: str):
+        from nyxuri import ledger
+        dest = self.env.config_dir / uid
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / "marker.conf").write_text("x", encoding="utf-8")
+        ledger.set_unit(uid, state="enabled", files={}, vault=None)
 
-        fcitx_u = MagicMock()
-        gtk_u = MagicMock()
-        greeter_u = MagicMock()
-        fisher_u = MagicMock()
+    def test_only_enabled_units_are_switched_off(self):
+        from nyxuri.state.uninstall import uninstall_nyxuri
+        self._stage_enabled("fish")
+
+        off = MagicMock(return_value=[])
         with patch("sys.stdin.isatty", return_value=False), patch("builtins.print"), \
              patch("nyxuri.state.uninstall.copy_path"), patch("nyxuri.state.uninstall.remove_path"), \
-             patch("nyxuri.state.uninstall.get_pics_dir", return_value=self._ctx.env.home / "Pictures"), \
-             patch("nyxuri.modules.fcitx.fcitx5_installed", return_value=True), \
-             patch("nyxuri.modules.gtktheme.gtktheme_registered", return_value=False), \
-             patch("nyxuri.modules.greeter.greeter_installed", return_value=False), \
-             patch("nyxuri.modules.fcitx.fcitx_uninstall", side_effect=fcitx_u), \
-             patch("nyxuri.modules.gtktheme.gtktheme_uninstall", side_effect=gtk_u), \
-             patch("nyxuri.modules.greeter.greeter_uninstall", side_effect=greeter_u), \
-             patch("nyxuri.modules.fisher.fisher_uninstall", side_effect=fisher_u):
+             patch("nyxuri.state.uninstall.get_pics_dir", return_value=self.env.home / "Pictures"), \
+             patch("nyxuri.transaction.unit_off", side_effect=off):
             result = uninstall_nyxuri("")
 
         self.assertTrue(result)
-        fcitx_u.assert_called_once()   # installed → uninstalled
-        gtk_u.assert_not_called()
-        greeter_u.assert_not_called()
-        fisher_u.assert_not_called()  # fisher.fish absent → not shown → not called
+        # Only the enabled hook unit goes through the transaction; greeter is
+        # not enabled → never offered, never switched.
+        self.assertEqual([c.args[0] for c in off.call_args_list], ["fish"])
 
-    def test_greeter_uninstall_failure_propagates(self):
+    def test_unit_off_failure_propagates(self):
         from nyxuri.state.uninstall import uninstall_nyxuri
+        self._stage_enabled("greeter")
 
         with patch("sys.stdin.isatty", return_value=False), patch("builtins.print"), \
              patch("nyxuri.state.uninstall.copy_path"), patch("nyxuri.state.uninstall.remove_path"), \
-             patch("nyxuri.state.uninstall.get_pics_dir", return_value=self._ctx.env.home / "Pictures"), \
-             patch("nyxuri.modules.fcitx.fcitx5_installed", return_value=False), \
-             patch("nyxuri.modules.gtktheme.gtktheme_registered", return_value=False), \
-             patch("nyxuri.modules.greeter.greeter_installed", return_value=True), \
-             patch("nyxuri.modules.greeter.greeter_uninstall", return_value=False), \
-             patch("nyxuri.modules.fisher.fisher_installed", return_value=False):
+             patch("nyxuri.state.uninstall.get_pics_dir", return_value=self.env.home / "Pictures"), \
+             patch("nyxuri.transaction.unit_off",
+                   return_value=[MagicMock(ok=False, unit="greeter", detail="boom")]):
             result = uninstall_nyxuri("")
 
         self.assertFalse(result)
 
 
 class TestUninstallExecutionOrder(unittest.TestCase):
-    """§14 B3: module uninstallers run BEFORE nyx_dir/state_dir deletion."""
+    """Unit offs run BEFORE nyx_dir/state_dir deletion."""
 
     def setUp(self):
         self._ctx = TempEnv()
@@ -81,25 +93,27 @@ class TestUninstallExecutionOrder(unittest.TestCase):
     def tearDown(self):
         self._ctx.__exit__()
 
-    def test_fcitx_runs_before_state_dir_deleted(self):
+    def test_unit_off_runs_before_state_dir_deleted(self):
         from nyxuri.state.uninstall import uninstall_nyxuri
+        from nyxuri import ledger
 
-        state_at_fcitx = {}
+        dest = self.env.config_dir / "fish"
+        dest.mkdir(parents=True, exist_ok=True)
+        ledger.set_unit("fish", state="enabled", files={}, vault=None)
 
-        def fcitx_side():
-            # When fcitx runs, state_dir (holding its .prev) must still exist.
-            state_at_fcitx["exists"] = self.env.state_dir.exists()
+        state_at_off = {}
+
+        def off_side(uid, *, cascade=False):
+            state_at_off["exists"] = self.env.state_dir.exists()
+            return []
 
         with patch("sys.stdin.isatty", return_value=False), patch("builtins.print"), \
              patch("nyxuri.state.uninstall.copy_path"), \
              patch("nyxuri.state.uninstall.get_pics_dir", return_value=self.env.home / "Pictures"), \
-             patch("nyxuri.modules.fcitx.fcitx5_installed", return_value=True), \
-             patch("nyxuri.modules.gtktheme.gtktheme_registered", return_value=False), \
-             patch("nyxuri.modules.greeter.greeter_installed", return_value=False), \
-             patch("nyxuri.modules.fcitx.fcitx_uninstall", side_effect=fcitx_side):
+             patch("nyxuri.transaction.unit_off", side_effect=off_side):
             uninstall_nyxuri("")
 
-        self.assertTrue(state_at_fcitx.get("exists"), "state_dir must outlive module uninstallers")
+        self.assertTrue(state_at_off.get("exists"), "state_dir must outlive unit offs")
 
 
 class TestUninstallArchiveGlob(unittest.TestCase):
@@ -125,10 +139,7 @@ class TestUninstallArchiveGlob(unittest.TestCase):
         (self.env.config_dir / "niri" / "config.kdl").write_text("current")
 
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.print"), \
-             patch("nyxuri.state.uninstall.CheckboxList") as checklist, \
-             patch("nyxuri.modules.fcitx.fcitx5_installed", return_value=False), \
-             patch("nyxuri.modules.gtktheme.gtktheme_registered", return_value=False), \
-             patch("nyxuri.modules.greeter.greeter_installed", return_value=False):
+             patch("nyxuri.state.uninstall.CheckboxList") as checklist:
             checklist.return_value.run.return_value = ["configs", "archives"]
             uninstall_nyxuri("")
 
@@ -155,25 +166,17 @@ class TestUninstallHookPreservation(unittest.TestCase):
         hook.parent.mkdir(parents=True)
         hook.write_text("#!/bin/sh\n")
 
-        common = {
-            "sys.stdin.isatty": patch("sys.stdin.isatty", return_value=False),
-            "builtins.print": patch("builtins.print"),
-            "fcitx": patch("nyxuri.modules.fcitx.fcitx5_installed", return_value=False),
-            "gtk": patch("nyxuri.modules.gtktheme.gtktheme_registered", return_value=False),
-            "greeter": patch("nyxuri.modules.greeter.greeter_installed", return_value=False),
-            "fisher": patch("nyxuri.modules.fisher.fisher_installed", return_value=False),
-        }
-        with common["sys.stdin.isatty"], common["builtins.print"], common["fcitx"], common["gtk"], common["greeter"], common["fisher"]:
+        with patch("sys.stdin.isatty", return_value=False), patch("builtins.print"):
             self.assertTrue(uninstall_nyxuri(""))
         self.assertTrue(hook.exists())
 
-        with common["sys.stdin.isatty"], common["builtins.print"], common["fcitx"], common["gtk"], common["greeter"], common["fisher"]:
+        with patch("sys.stdin.isatty", return_value=False), patch("builtins.print"):
             self.assertTrue(uninstall_nyxuri("all"))
         self.assertFalse(hook.exists())
 
 
-class TestFisherOwnership(unittest.TestCase):
-    """Fisher cleanup is limited to the files recorded by Nyxuri."""
+class TestFisherHookLockfile(unittest.TestCase):
+    """The fish unit's install hook refuses anything but the reviewed lockfile."""
 
     def setUp(self):
         self._ctx = TempEnv()
@@ -182,74 +185,32 @@ class TestFisherOwnership(unittest.TestCase):
         self.fish_dir = self.env.config_dir / "fish"
         (self.fish_dir / "functions").mkdir(parents=True)
         (self.fish_dir / "conf.d").mkdir(parents=True)
+        self.hook = _load_hook("fish", "install-fisher")
 
     def tearDown(self):
         self._ctx.__exit__()
 
-    def _write_lockfile(self, content=None):
-        from nyxuri.modules.fisher import FISHER_PLUGINS
-
-        (self.fish_dir / "fish_plugins").write_text(
-            content if content is not None else "\n".join(FISHER_PLUGINS) + "\n",
-            encoding="utf-8",
-        )
-
-    def test_uninstall_without_ownership_preserves_existing_fisher(self):
-        from nyxuri.modules.fisher import fisher_uninstall
-
-        fisher_file = self.fish_dir / "functions" / "fisher.fish"
-        unrelated = self.fish_dir / "conf.d" / "user-plugin.fish"
-        fisher_file.write_text("user fisher", encoding="utf-8")
-        unrelated.write_text("user plugin", encoding="utf-8")
-
-        with patch("nyxuri.modules.fisher.shutil.which", return_value=None):
-            self.assertFalse(fisher_uninstall())
-
-        self.assertEqual(fisher_file.read_text(encoding="utf-8"), "user fisher")
-        self.assertEqual(unrelated.read_text(encoding="utf-8"), "user plugin")
-
-    def test_fish_absent_removes_only_recorded_files(self):
-        from nyxuri.modules.fisher import _ownership_path, fisher_uninstall
-
-        owned = self.fish_dir / "conf.d" / "autopair.fish"
-        unrelated = self.fish_dir / "conf.d" / "user-plugin.fish"
-        owned.write_text("managed", encoding="utf-8")
-        unrelated.write_text("user plugin", encoding="utf-8")
-        _ownership_path().write_text(
-            json.dumps({"files": ["conf.d/autopair.fish"], "complete": True, "fisher_preexisting": False}),
-            encoding="utf-8",
-        )
-
-        with patch("nyxuri.modules.fisher.shutil.which", return_value=None):
-            self.assertTrue(fisher_uninstall())
-
-        self.assertFalse(owned.exists())
-        self.assertEqual(unrelated.read_text(encoding="utf-8"), "user plugin")
-        self.assertTrue((self.fish_dir / "conf.d").is_dir())
+    def _write_lockfile(self, content):
+        (self.fish_dir / "fish_plugins").write_text(content, encoding="utf-8")
 
     def test_install_rejects_mutable_lock_before_running_fish(self):
-        from nyxuri.modules.fisher import fisher_install
-
         self._write_lockfile("jorgebucaran/fisher@main\n")
-        with patch("nyxuri.modules.fisher.shutil.which", return_value="/usr/bin/fish"), \
-             patch("nyxuri.modules.fisher.fetch_raw_with_fallback") as fetch, \
-             patch("nyxuri.modules.fisher.subprocess.run") as run, \
+        with patch.object(self.hook.shutil, "which", return_value="/usr/bin/fish"), \
+             patch.object(self.hook, "fetch_raw_with_fallback") as fetch, \
+             patch.object(self.hook.subprocess, "run") as run, \
              patch("builtins.print"):
-            self.assertFalse(fisher_install())
+            self.assertNotEqual(self.hook.main(), 0)
 
         fetch.assert_not_called()
         run.assert_not_called()
 
-    def test_install_passes_only_pinned_sources_and_records_new_files(self):
-        from nyxuri.modules.fisher import (
-            FISHER_BOOTSTRAP_COMMIT,
-            FISHER_BOOTSTRAP_SHA256,
-            FISHER_PLUGINS,
-            _ownership_path,
-            fisher_install,
-        )
+    def test_install_noop_when_fish_absent(self):
+        self._write_lockfile("\n".join(self.hook.PLUGINS) + "\n")
+        with patch.object(self.hook.shutil, "which", return_value=None), patch("builtins.print"):
+            self.assertNotEqual(self.hook.main(), 0)
 
-        self._write_lockfile()
+    def test_install_passes_only_pinned_sources(self):
+        self._write_lockfile("\n".join(self.hook.PLUGINS) + "\n")
         calls = []
 
         def fake_run(cmd, *args, **kwargs):
@@ -257,345 +218,111 @@ class TestFisherOwnership(unittest.TestCase):
             (self.fish_dir / "functions" / "fisher.fish").write_text("managed", encoding="utf-8")
             return MagicMock(returncode=0)
 
-        with patch("nyxuri.modules.fisher.shutil.which", return_value="/usr/bin/fish"), \
-             patch("nyxuri.modules.fisher.fetch_raw_with_fallback", return_value=True) as fetch, \
-             patch("nyxuri.modules.fisher.subprocess.run", side_effect=fake_run), \
+        with patch.object(self.hook.shutil, "which", return_value="/usr/bin/fish"), \
+             patch.object(self.hook, "fetch_raw_with_fallback", return_value=True) as fetch, \
+             patch.object(self.hook.subprocess, "run", side_effect=fake_run), \
              patch("builtins.print"):
-            self.assertTrue(fisher_install())
+            self.assertEqual(self.hook.main(), 0)
 
         bootstrap = fetch.call_args.args[3]
         fetch.assert_called_once_with(
             "jorgebucaran/fisher",
-            FISHER_BOOTSTRAP_COMMIT,
+            self.hook.BOOTSTRAP_COMMIT,
             "functions/fisher.fish",
             bootstrap,
-            FISHER_BOOTSTRAP_SHA256,
+            self.hook.BOOTSTRAP_SHA256,
         )
-        self.assertEqual(
-            calls,
-            [["fish", "-c", "set --global fisher_path $argv[2]; source -- $argv[1]; fisher install $argv[3..-1]",
-              "--", str(bootstrap), str(self.fish_dir), *FISHER_PLUGINS]],
-        )
-        state = json.loads(_ownership_path().read_text(encoding="utf-8"))
-        self.assertTrue(state["complete"])
-        self.assertEqual(state["files"], ["functions/fisher.fish"])
-        self.assertFalse(state["fisher_preexisting"])
-        self.assertEqual(state["plugins"], list(FISHER_PLUGINS))
+        self.assertEqual(calls[0][6:], list(self.hook.PLUGINS))
 
-    def test_partial_install_is_owned_and_retryable(self):
-        from nyxuri.modules.fisher import _ownership_path, fisher_install
-
-        self._write_lockfile()
-        autopair_file = self.fish_dir / "conf.d" / "autopair.fish"
-
-        def failed_run(*args, **kwargs):
-            autopair_file.write_text("managed", encoding="utf-8")
-            return MagicMock(returncode=1)
-
-        with patch("nyxuri.modules.fisher.shutil.which", return_value="/usr/bin/fish"), \
-             patch("nyxuri.modules.fisher.fetch_raw_with_fallback", return_value=True), \
-             patch("nyxuri.modules.fisher.subprocess.run", side_effect=failed_run), \
-             patch("builtins.print"):
-            self.assertFalse(fisher_install())
-
-        state = json.loads(_ownership_path().read_text(encoding="utf-8"))
-        self.assertFalse(state["complete"])
-        self.assertEqual(state["files"], ["conf.d/autopair.fish"])
-
-        fzf_file = self.fish_dir / "conf.d" / "fzf.fish"
-
-        def completed_run(*args, **kwargs):
-            fzf_file.write_text("managed", encoding="utf-8")
-            return MagicMock(returncode=0)
-
-        with patch("nyxuri.modules.fisher.shutil.which", return_value="/usr/bin/fish"), \
-             patch("nyxuri.modules.fisher.fetch_raw_with_fallback", return_value=True), \
-             patch("nyxuri.modules.fisher.subprocess.run", side_effect=completed_run), \
-             patch("builtins.print"):
-            self.assertTrue(fisher_install())
-
-        state = json.loads(_ownership_path().read_text(encoding="utf-8"))
-        self.assertTrue(state["complete"])
-        self.assertEqual(state["files"], ["conf.d/autopair.fish", "conf.d/fzf.fish"])
-
-    def test_timeout_records_only_files_created_before_timeout(self):
-        from nyxuri.modules.fisher import _ownership_path, fisher_install
-
-        self._write_lockfile()
-        autopair_file = self.fish_dir / "conf.d" / "autopair.fish"
-
-        def timeout_run(*args, **kwargs):
-            autopair_file.write_text("managed", encoding="utf-8")
-            raise subprocess.TimeoutExpired(args[0], kwargs["timeout"])
-
-        with patch("nyxuri.modules.fisher.shutil.which", return_value="/usr/bin/fish"), \
-             patch("nyxuri.modules.fisher.fetch_raw_with_fallback", return_value=True), \
-             patch("nyxuri.modules.fisher.subprocess.run", side_effect=timeout_run), \
-             patch("builtins.print"):
-            self.assertFalse(fisher_install())
-
-        state = json.loads(_ownership_path().read_text(encoding="utf-8"))
-        self.assertFalse(state["complete"])
-        self.assertEqual(state["files"], ["conf.d/autopair.fish"])
-
-    def test_preexisting_fisher_skips_install_without_ownership_state(self):
-        from nyxuri.modules.fisher import _ownership_path, fisher_install
-
+    def test_install_refuses_unowned_fisher(self):
+        """A fisher.fish that is neither pin-content nor legacy-recorded is hands-off."""
+        self._write_lockfile("\n".join(self.hook.PLUGINS) + "\n")
         fisher_file = self.fish_dir / "functions" / "fisher.fish"
-        autopair_file = self.fish_dir / "conf.d" / "autopair.fish"
         fisher_file.write_text("user fisher", encoding="utf-8")
-        autopair_file.write_text("user autopair", encoding="utf-8")
-        self._write_lockfile()
 
-        with patch("nyxuri.modules.fisher.shutil.which", return_value="/usr/bin/fish"), \
-             patch("nyxuri.modules.fisher.fetch_raw_with_fallback") as fetch, \
-             patch("nyxuri.modules.fisher.subprocess.run") as run:
-            self.assertFalse(fisher_install())
+        with patch.object(self.hook.shutil, "which", return_value="/usr/bin/fish"), \
+             patch.object(self.hook, "fetch_raw_with_fallback") as fetch, \
+             patch.object(self.hook.subprocess, "run") as run, \
+             patch("builtins.print"):
+            self.assertNotEqual(self.hook.main(), 0)
 
         fetch.assert_not_called()
         run.assert_not_called()
-        self.assertFalse(_ownership_path().exists())
         self.assertEqual(fisher_file.read_text(encoding="utf-8"), "user fisher")
-        self.assertEqual(autopair_file.read_text(encoding="utf-8"), "user autopair")
 
-    def test_legacy_preexisting_ownership_state_skips_install(self):
-        from nyxuri.modules.fisher import _ownership_path, fisher_install
-
-        fisher_file = self.fish_dir / "functions" / "fisher.fish"
-        autopair_file = self.fish_dir / "conf.d" / "autopair.fish"
-        fisher_file.write_bytes(b"user fisher\x00")
-        autopair_file.write_bytes(b"user autopair\x00")
-        _ownership_path().write_text(
-            json.dumps({
-                "files": ["conf.d/autopair.fish"],
-                "complete": False,
-                "fisher_preexisting": True,
-            }),
-            encoding="utf-8",
+    def test_legacy_ownership_record_still_proves_ownership(self):
+        """Module-era machines carry fisher.json; it authorizes a refresh."""
+        self._write_lockfile("\n".join(self.hook.PLUGINS) + "\n")
+        (self.fish_dir / "functions" / "fisher.fish").write_text("old install", encoding="utf-8")
+        state_dir = self.env.home / ".local" / "state" / "nyxuri"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        (state_dir / "fisher.json").write_text(
+            json.dumps({"files": ["functions/fisher.fish"], "complete": True}), encoding="utf-8"
         )
-        self._write_lockfile()
 
-        with patch("nyxuri.modules.fisher.shutil.which", return_value="/usr/bin/fish"), \
-             patch("nyxuri.modules.fisher.fetch_raw_with_fallback") as fetch, \
-             patch("nyxuri.modules.fisher.subprocess.run") as run:
-            self.assertFalse(fisher_install())
-
-        fetch.assert_not_called()
-        run.assert_not_called()
-        self.assertEqual(fisher_file.read_bytes(), b"user fisher\x00")
-        self.assertEqual(autopair_file.read_bytes(), b"user autopair\x00")
-
-    def test_complete_current_install_is_idempotent(self):
-        from nyxuri.modules.fisher import FISHER_PLUGINS, _ownership_path, fisher_install
-
-        self._write_lockfile()
-        (self.fish_dir / "conf.d" / "autopair.fish").write_text("managed", encoding="utf-8")
-        _ownership_path().write_text(
-            json.dumps({
-                "files": ["conf.d/autopair.fish"],
-                "complete": True,
-                "fisher_preexisting": False,
-                "plugins": list(FISHER_PLUGINS),
-            }),
-            encoding="utf-8",
-        )
-        with patch("nyxuri.modules.fisher.shutil.which", return_value="/usr/bin/fish"), \
-             patch("nyxuri.modules.fisher.fetch_raw_with_fallback") as fetch, \
-             patch("nyxuri.modules.fisher.subprocess.run") as run:
-            self.assertTrue(fisher_install())
-
-        fetch.assert_not_called()
-        run.assert_not_called()
-
-    def test_old_lock_fingerprint_runs_current_pinned_command(self):
-        from nyxuri.modules.fisher import FISHER_PLUGINS, _ownership_path, fisher_install
-
-        self._write_lockfile()
-        (self.fish_dir / "conf.d" / "autopair.fish").write_text("managed", encoding="utf-8")
-        _ownership_path().write_text(
-            json.dumps({
-                "files": ["conf.d/autopair.fish"],
-                "complete": True,
-                "fisher_preexisting": False,
-                "plugins": ["old-lock"],
-            }),
-            encoding="utf-8",
-        )
-        calls = []
-
-        def fake_run(command, **kwargs):
-            calls.append(command)
-            return MagicMock(returncode=0)
-
-        with patch("nyxuri.modules.fisher.shutil.which", return_value="/usr/bin/fish"), \
-             patch("nyxuri.modules.fisher.fetch_raw_with_fallback", return_value=True), \
-             patch("nyxuri.modules.fisher.subprocess.run", side_effect=fake_run), \
+        with patch.object(self.hook.shutil, "which", return_value="/usr/bin/fish"), \
+             patch.object(self.hook, "fetch_raw_with_fallback", return_value=True), \
+             patch.object(self.hook.subprocess, "run", return_value=MagicMock(returncode=0)), \
              patch("builtins.print"):
-            self.assertTrue(fisher_install())
-
-        self.assertEqual(calls[0][6:], list(FISHER_PLUGINS))
-        self.assertEqual(json.loads(_ownership_path().read_text(encoding="utf-8"))["plugins"], list(FISHER_PLUGINS))
-
-    def test_missing_owned_file_runs_repair(self):
-        from nyxuri.modules.fisher import FISHER_PLUGINS, _ownership_path, fisher_install
-
-        self._write_lockfile()
-        missing = self.fish_dir / "conf.d" / "autopair.fish"
-        _ownership_path().write_text(
-            json.dumps({
-                "files": ["conf.d/autopair.fish"],
-                "complete": True,
-                "fisher_preexisting": False,
-                "plugins": list(FISHER_PLUGINS),
-            }),
-            encoding="utf-8",
-        )
-        def repaired_run(*args, **kwargs):
-            missing.write_text("managed", encoding="utf-8")
-            return MagicMock(returncode=0)
-
-        run = MagicMock(side_effect=repaired_run)
-
-        with patch("nyxuri.modules.fisher.shutil.which", return_value="/usr/bin/fish"), \
-             patch("nyxuri.modules.fisher.fetch_raw_with_fallback", return_value=True), \
-             patch("nyxuri.modules.fisher.subprocess.run", run), \
-             patch("builtins.print"):
-            self.assertTrue(fisher_install())
-
-        run.assert_called_once()
-        self.assertTrue(missing.is_file())
-
-    def test_failed_repair_stays_incomplete_after_creating_missing_file(self):
-        from nyxuri.modules.fisher import FISHER_PLUGINS, _ownership_path, fisher_install
-
-        self._write_lockfile()
-        missing = self.fish_dir / "conf.d" / "autopair.fish"
-        _ownership_path().write_text(
-            json.dumps({
-                "files": ["conf.d/autopair.fish"],
-                "complete": True,
-                "fisher_preexisting": False,
-                "plugins": list(FISHER_PLUGINS),
-            }),
-            encoding="utf-8",
-        )
-
-        def failed_run(*args, **kwargs):
-            missing.write_text("managed", encoding="utf-8")
-            return MagicMock(returncode=1)
-
-        fetch = MagicMock(return_value=True)
-        run = MagicMock(side_effect=failed_run)
-        with patch("nyxuri.modules.fisher.shutil.which", return_value="/usr/bin/fish"), \
-             patch("nyxuri.modules.fisher.fetch_raw_with_fallback", fetch), \
-             patch("nyxuri.modules.fisher.subprocess.run", run), \
-             patch("builtins.print"):
-            self.assertFalse(fisher_install())
-            self.assertFalse(fisher_install())
-
-        self.assertFalse(json.loads(_ownership_path().read_text(encoding="utf-8"))["complete"])
-        self.assertEqual(fetch.call_count, 2)
-        self.assertEqual(run.call_count, 2)
-
-    def test_bootstrap_path_is_an_argv_value_not_fish_code(self):
-        from nyxuri.modules.fisher import FISHER_PLUGINS, fisher_install
-
-        self._write_lockfile()
-        special_tmp = self.env.home / "tmp dir; injected"
-        special_tmp.mkdir()
-        calls = []
-
-        def failed_run(command, **kwargs):
-            calls.append(command)
-            return MagicMock(returncode=1)
-
-        old_tempdir = tempfile.tempdir
-        tempfile.tempdir = None
-        try:
-            with patch.dict(os.environ, {"TMPDIR": str(special_tmp)}), \
-                 patch("nyxuri.modules.fisher.shutil.which", return_value="/usr/bin/fish"), \
-                 patch("nyxuri.modules.fisher.fetch_raw_with_fallback", return_value=True), \
-                 patch("nyxuri.modules.fisher.subprocess.run", side_effect=failed_run), \
-                 patch("builtins.print"):
-                self.assertFalse(fisher_install())
-        finally:
-            tempfile.tempdir = old_tempdir
-
-        self.assertEqual(
-            calls,
-            [["fish", "-c", "set --global fisher_path $argv[2]; source -- $argv[1]; fisher install $argv[3..-1]",
-              "--", calls[0][4], str(self.fish_dir), *FISHER_PLUGINS]],
-        )
-        self.assertTrue(str(calls[0][4]).startswith(str(special_tmp)))
+            self.assertEqual(self.hook.main(), 0)
 
 
-class TestQuickphraseRestore(unittest.TestCase):
-    """Gap #5: fcitx_uninstall restores prior quickphrase.conf hotkeys."""
+class TestFisherHookLegacyCleanup(unittest.TestCase):
+    """The fish unit's off-hook retires the module-era ownership record only."""
 
     def setUp(self):
         self._ctx = TempEnv()
         self._ctx.__enter__()
         self.env = self._ctx.env
-        self.qp = self.env.config_dir / "fcitx5" / "conf" / "quickphrase.conf"
-        self.qp.parent.mkdir(parents=True)
-        # Prior user setting (before Nyxuri touched it).
-        self.qp.write_text("[Hotkey]\nTriggerKey=Super+space\n", encoding="utf-8")
+        self.fish_dir = self.env.config_dir / "fish"
+        (self.fish_dir / "conf.d").mkdir(parents=True)
+        self.hook = _load_hook("fish", "remove-fisher")
 
     def tearDown(self):
         self._ctx.__exit__()
 
-    def test_uninstall_restores_prior_quickphrase(self):
-        from nyxuri.modules.fcitx import fcitx_uninstall
+    def test_removes_only_recorded_files_and_the_record(self):
+        owned = self.fish_dir / "conf.d" / "autopair.fish"
+        unrelated = self.fish_dir / "conf.d" / "user-plugin.fish"
+        owned.write_text("managed", encoding="utf-8")
+        unrelated.write_text("user plugin", encoding="utf-8")
+        record = self.env.home / ".local" / "state" / "nyxuri" / "fisher.json"
+        record.parent.mkdir(parents=True, exist_ok=True)
+        record.write_text(
+            json.dumps({"files": ["conf.d/autopair.fish"], "complete": True}), encoding="utf-8"
+        )
 
-        # Nyxuri install overrides the hotkey (and backs up the prior state).
-        self.qp.write_text("[Hotkey]\nTriggerKey=Super+semicolon\nAlternativeTriggerKey=\n")
-        self.env.state_dir.mkdir(parents=True, exist_ok=True)
-        state = self.env.state_dir / "fcitx-nyxmellow-quickphrase.prev"
-        state.write_text("Existed=1\nTriggerKey=Super+space\nAlternativeTriggerKey=\n")
-        self.assertIn("Super+semicolon", self.qp.read_text())
+        with patch("builtins.print"):
+            self.assertEqual(self.hook.main(), 0)
 
-        with patch("nyxuri.modules.fcitx.fcitx_reload"):
-            fcitx_uninstall()
+        self.assertFalse(owned.exists())
+        self.assertEqual(unrelated.read_text(encoding="utf-8"), "user plugin")
+        self.assertFalse(record.exists())
 
-        # Prior hotkey restored, .prev state file consumed.
-        content = self.qp.read_text()
-        self.assertIn("Super+space", content)
-        self.assertNotIn("Super+semicolon", content)
-        self.assertFalse((self.env.state_dir / "fcitx-nyxmellow-quickphrase.prev").exists())
-
-    def test_uninstall_deletes_quickphrase_if_never_existed(self):
-        from nyxuri.modules.fcitx import fcitx_uninstall
-
-        # No prior quickphrase.conf → install creates it, uninstall deletes it.
-        self.qp.unlink()
-        self.qp.write_text("[Hotkey]\nTriggerKey=Super+semicolon\nAlternativeTriggerKey=\n")
-        self.env.state_dir.mkdir(parents=True, exist_ok=True)
-        state = self.env.state_dir / "fcitx-nyxmellow-quickphrase.prev"
-        state.write_text("Existed=0\nTriggerKey=\nAlternativeTriggerKey=\n")
-        self.assertTrue(self.qp.exists())
-        with patch("nyxuri.modules.fcitx.fcitx_reload"):
-            fcitx_uninstall()
-        self.assertFalse(self.qp.exists(), "quickphrase.conf must be deleted if it never existed")
+    def test_no_record_is_a_silent_noop(self):
+        with patch("builtins.print"):
+            self.assertEqual(self.hook.main(), 0)
+        self.assertTrue(self.fish_dir.is_dir())
 
 
 class TestGreeterStateDirRemoval(unittest.TestCase):
-    """Gap #2: greeter_uninstall removes /var/lib/noctalia-greeter."""
+    """The greeter off-hook removes /var/lib/noctalia-greeter via sudo rm -rf."""
 
     def setUp(self):
         self._ctx = TempEnv()
         self._ctx.__enter__()
+        self.hook = _load_hook("greeter", "deactivate")
 
     def tearDown(self):
         self._ctx.__exit__()
 
     def test_var_lib_state_dir_removed(self):
-        from nyxuri.modules.greeter import greeter_uninstall
-
         config = self._ctx.env.home / "greetd" / "config.toml"
         polkit = self._ctx.env.home / "polkit.rules"
         state_dir = self._ctx.env.home / "state-dir"
         dm_state = self._ctx.env.home / "display-manager"
         calls = []
+
         def fake_run(command, **kwargs):
             calls.append(command)
             result = MagicMock()
@@ -603,45 +330,19 @@ class TestGreeterStateDirRemoval(unittest.TestCase):
             result.stdout = ""
             return result
 
-        with patch("nyxuri.modules.greeter.GREETER_ETC_CFG", config), \
-             patch("nyxuri.modules.greeter.GREETER_POLKIT_RULE", polkit), \
-             patch("nyxuri.modules.greeter.GREETER_STATE_DIR", state_dir), \
-             patch("nyxuri.modules.greeter.GREETER_DM_STATE", dm_state), \
-             patch("nyxuri.modules.greeter.shutil.which", return_value="/usr/bin/systemctl"), \
-             patch("nyxuri.modules.greeter.subprocess.run", side_effect=fake_run):
-            greeter_uninstall()
+        with patch.object(self.hook, "GREETER_ETC_CFG", config), \
+             patch.object(self.hook, "GREETER_POLKIT_RULE", polkit), \
+             patch.object(self.hook, "GREETER_STATE_DIR", state_dir), \
+             patch.object(self.hook, "GREETER_DM_STATE", dm_state), \
+             patch.object(self.hook.shutil, "which", return_value="/usr/bin/systemctl"), \
+             patch.object(self.hook.subprocess, "run", side_effect=fake_run), \
+             patch("builtins.print"):
+            self.assertEqual(self.hook.main(), 0)
 
-        # A `sudo rm -rf <state_dir>` command was issued.
         self.assertTrue(
             any("rm" in c and "-rf" in c and str(state_dir) in " ".join(c) for c in calls),
             f"Expected sudo rm -rf {state_dir}, got: {calls}",
         )
-
-
-class TestFisherInstallDetect(unittest.TestCase):
-    """Fisher needs both the host and Nyxuri's ownership record."""
-
-    def setUp(self):
-        self._ctx = TempEnv()
-        self._ctx.__enter__()
-        self.env = self._ctx.env
-
-    def tearDown(self):
-        self._ctx.__exit__()
-
-    def test_installed_requires_ownership_record(self):
-        from nyxuri.modules.fisher import _ownership_path, fisher_installed
-        fish_dir = self.env.config_dir / "fish" / "functions"
-        fish_dir.mkdir(parents=True)
-        (fish_dir / "fisher.fish").write_text("# fisher")
-        self.assertFalse(fisher_installed())
-        _ownership_path().write_text(json.dumps({"files": ["functions/fisher.fish"], "fisher_preexisting": False}), encoding="utf-8")
-        self.assertTrue(fisher_installed())
-
-    def test_install_noop_when_fish_absent(self):
-        from nyxuri.modules.fisher import fisher_install
-        with patch("nyxuri.modules.fisher.shutil.which", return_value=None), patch("builtins.print"):
-            self.assertFalse(fisher_install())
 
 
 if __name__ == "__main__":

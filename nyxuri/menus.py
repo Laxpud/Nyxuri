@@ -26,32 +26,6 @@ from nyxuri.deploy import (
 )
 from nyxuri.deps import is_dep_installed, run_dep_menu_loop, run_optional_apps_menu_loop
 from nyxuri.doctor import generate_bug_report, run_doctor
-from nyxuri.modules.fcitx import (
-    fcitx_activate,
-    fcitx_deploy_assets,
-    fcitx_enabled,
-    fcitx_install,
-    fcitx_status,
-    fcitx_status_label,
-    fcitx_uninstall,
-    fcitx5_installed,
-)
-from nyxuri.modules.greeter import (
-    greeter_install,
-    greeter_status,
-    greeter_status_label,
-    greeter_uninstall,
-)
-from nyxuri.modules import (
-    fisher_install,
-    fisher_status,
-    fisher_status_label,
-    fisher_uninstall,
-    gtktheme_install,
-    gtktheme_status,
-    gtktheme_status_label,
-    gtktheme_uninstall,
-)
 from nyxuri.state import (
     backup_configs,
     delete_backup,
@@ -73,7 +47,7 @@ from nyxuri.tui import (
 )
 
 def run_master_component_menu(is_update: bool = False, mode: str = "full") -> Optional[dict]:
-    """Interactive checklist for choosing configs, wallpapers, modules, and backup behavior."""
+    """Interactive checklist for choosing configs, wallpapers, and backup behavior."""
     items = discover_config_items()
     entries: List[CheckboxEntry] = []
 
@@ -131,22 +105,7 @@ def run_master_component_menu(is_update: bool = False, mode: str = "full") -> Op
             checked=wp_checked,
         ))
 
-        # 3. Fcitx5
-        fcitx_check = fcitx5_installed() and not (is_update and not fcitx_enabled())
-        entries.append(CheckboxEntry(
-            key="module_fcitx",
-            label=msg("master_item_module", f"NyxMellow fcitx5 {fcitx_status_label()}"),
-            checked=fcitx_check,
-        ))
-
-        # 4. Greeter
-        entries.append(CheckboxEntry(
-            key="module_greeter",
-            label=msg("master_item_module", f"Noctalia Greeter {greeter_status_label()}"),
-            checked=False,
-        ))
-
-    # 5. Behavior: Backup
+    # 3. Behavior: Backup
     entries.append(CheckboxEntry(key="sep_behavior", label=msg("master_item_behavior"), is_separator=True))
     entries.append(CheckboxEntry(key="behavior_backup", label=msg("master_item_backup"), checked=True))
 
@@ -157,15 +116,11 @@ def run_master_component_menu(is_update: bool = False, mode: str = "full") -> Op
 
     chosen_configs = [k.removeprefix("config_") for k in chosen_keys if k.startswith("config_")]
     do_wallpapers = "assets_wallpapers" in chosen_keys
-    do_fcitx = "module_fcitx" in chosen_keys
-    do_greeter = "module_greeter" in chosen_keys
     do_backup = "behavior_backup" in chosen_keys
 
     return {
         "configs": chosen_configs,
         "wallpapers": do_wallpapers,
-        "fcitx": do_fcitx,
-        "greeter": do_greeter,
         "backup": do_backup,
     }
 
@@ -202,78 +157,6 @@ def snapshot_menu_loop() -> None:
             break
 
 
-def greeter_menu_loop() -> None:
-    """Noctalia Greeter interactive submenu."""
-    while True:
-        items = [
-            MenuItem(label=msg("greeter_sub_install")),
-            MenuItem(label=msg("greeter_sub_status")),
-            MenuItem(label=msg("greeter_sub_uninstall"), style="warn"),
-            MenuItem(label=msg("greeter_sub_back"), style="subtle"),
-        ]
-        menu = Menu("greeter_menu_title", items, hint_key="submenu_hint", compact=True)
-        choice = menu.run()
-        if choice == 0: greeter_install(); press_any_key()
-        elif choice == 1: greeter_status(); press_any_key()
-        elif choice == 2: greeter_uninstall(); press_any_key()
-        elif choice == 3: break
-
-
-def fcitx_menu_loop() -> None:
-    """NyxMellow Fcitx5 skin interactive submenu."""
-    while True:
-        items = [
-            MenuItem(label=msg("fcitx_sub_install")),
-            MenuItem(label=msg("fcitx_sub_deploy")),
-            MenuItem(label=msg("fcitx_sub_activate")),
-            MenuItem(label=msg("fcitx_sub_status")),
-            MenuItem(label=msg("fcitx_sub_uninstall"), style="warn"),
-            MenuItem(label=msg("fcitx_sub_back"), style="subtle"),
-        ]
-        menu = Menu("fcitx_menu_title", items, hint_key="submenu_hint", compact=True)
-        choice = menu.run()
-        if choice == 0: fcitx_install(); press_any_key()
-        elif choice == 1: fcitx_deploy_assets(); press_any_key()
-        elif choice == 2: fcitx_activate(); press_any_key()
-        elif choice == 3: fcitx_status(); press_any_key()
-        elif choice == 4: fcitx_uninstall(); press_any_key()
-        elif choice == 5: break
-
-
-def gtk_menu_loop() -> None:
-    """GTK Material You theme interactive submenu."""
-    while True:
-        items = [
-            MenuItem(label=msg("gtk_sub_install")),
-            MenuItem(label=msg("gtk_sub_status")),
-            MenuItem(label=msg("gtk_sub_uninstall"), style="warn"),
-            MenuItem(label=msg("gtk_sub_back"), style="subtle"),
-        ]
-        menu = Menu("gtk_menu_title", items, hint_key="submenu_hint", compact=True)
-        choice = menu.run()
-        if choice == 0: gtktheme_install(); press_any_key()
-        elif choice == 1: gtktheme_status(); press_any_key()
-        elif choice == 2: gtktheme_uninstall(); press_any_key()
-        elif choice == 3: break
-
-
-def fisher_menu_loop() -> None:
-    """fisher plugin manager interactive submenu."""
-    while True:
-        items = [
-            MenuItem(label=msg("fisher_sub_install")),
-            MenuItem(label=msg("fisher_sub_status")),
-            MenuItem(label=msg("fisher_sub_uninstall"), style="warn"),
-            MenuItem(label=msg("fisher_sub_back"), style="subtle"),
-        ]
-        menu = Menu("fisher_menu_title", items, hint_key="submenu_hint", compact=True)
-        choice = menu.run()
-        if choice == 0: fisher_install(); press_any_key()
-        elif choice == 1: fisher_status(); press_any_key()
-        elif choice == 2: fisher_uninstall(); press_any_key()
-        elif choice == 3: break
-
-
 def deps_menu_loop() -> bool:
     """Dependencies & Recommended apps submenu."""
     if not sys.stdin.isatty():
@@ -295,30 +178,6 @@ def deps_menu_loop() -> bool:
         elif choice == 1: run_optional_apps_menu_loop(); press_any_key()
         elif choice == 2: break
     return True
-
-
-def extensions_menu_loop() -> None:
-    """Extensions interactive submenu: greeter / fcitx / gtk / fisher."""
-    while True:
-        label_greeter = pad_display(msg("ext_sub_greeter"), 26) + greeter_status_label()
-        label_fcitx = pad_display(msg("ext_sub_fcitx"), 26) + fcitx_status_label()
-        label_gtk = pad_display(msg("ext_sub_gtk"), 26) + gtktheme_status_label()
-        label_fisher = pad_display(msg("ext_sub_fisher"), 26) + fisher_status_label()
-
-        items = [
-            MenuItem(label=label_greeter),
-            MenuItem(label=label_fcitx),
-            MenuItem(label=label_gtk),
-            MenuItem(label=label_fisher),
-            MenuItem(label=msg("ext_back"), style="subtle"),
-        ]
-        menu = Menu("ext_menu_title", items, hint_key="submenu_hint", compact=True)
-        choice = menu.run()
-        if choice == 0: greeter_menu_loop()
-        elif choice == 1: fcitx_menu_loop()
-        elif choice == 2: gtk_menu_loop()
-        elif choice == 3: fisher_menu_loop()
-        elif choice == 4: break
 
 
 def preset_switcher_loop() -> None:
@@ -378,8 +237,8 @@ def main_menu_loop() -> None:
             # 诊断
             MenuItem(label=msg("menu_opt5"), group_header=msg("menu_group_system")),
             MenuItem(label=msg("menu_opt6")),
-            # 扩展
-            MenuItem(label=msg("menu_opt8")),
+            # 单元
+            MenuItem(label=msg("menu_opt_workshop"), group_header=msg("menu_group_units")),
             # 退出
             MenuItem(label=msg("menu_opt0"), style="subtle"),
         ]
@@ -426,7 +285,8 @@ def main_menu_loop() -> None:
             generate_bug_report()
             press_any_key()
         elif choice == 8:
-            extensions_menu_loop()
+            from nyxuri.tui import UnitWorkshop
+            UnitWorkshop().run()
         elif choice == 9:
             sys.exit(0)
 

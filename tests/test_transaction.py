@@ -101,15 +101,15 @@ class TestUnitOn(unittest.TestCase):
                                  "files": {"a.conf": "a"}}})
             calls = []
 
-            def installer(pkgs):
-                calls.append(pkgs)
+            def installer(uid, pkgs):
+                calls.append((uid, pkgs))
                 return True
 
             with mock.patch.object(transaction, "missing_packages",
                                    side_effect=[["missing-pkg"], []]):
                 steps = transaction.unit_on("app", install_packages=installer)
             self.assertTrue(steps[0].ok, str(steps))
-            self.assertEqual(calls, [["missing-pkg"]])
+            self.assertEqual(calls, [("app", ["missing-pkg"])])
             self.assertTrue((ctx.home / ".config/app/a.conf").is_file())
 
     def test_on_already_enabled_is_noop(self):
@@ -423,6 +423,101 @@ class TestKernelLayering(unittest.TestCase):
                 self.assertNotIn("quickshell", (node.module or "").lower())
             elif isinstance(node, ast.Constant) and isinstance(node.value, str):
                 self.assertNotIn("quickshell", node.value.lower())
+
+
+class TestUnitHooks(unittest.TestCase):
+    """KM3 hook contract: unit-owned scripts, declared in the manifest.
+
+    - post_install runs BEFORE the ledger snapshot, so products the hook
+      lands inside the unit's own living area become transaction-managed
+      (``off`` wipes them through the normal white-paper path).
+    - post_remove runs AFTER the wipe (effects outside the living area).
+    - hooks never ship to the living area and never count as deployable.
+    """
+
+    def setUp(self):
+        patcher = mock.patch.object(transaction, "missing_packages", return_value=[])
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _make_hook(self, unit_dir: Path, name: str, body: str) -> Path:
+        hooks = unit_dir / "hooks"
+        hooks.mkdir(exist_ok=True)
+        script = hooks / name
+        script.write_text("#!/bin/sh\n" + body + "\n", encoding="utf-8")
+        script.chmod(0o755)
+        return script
+
+    def test_on_runs_hook_and_snapshot_covers_living_area_products(self):
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {
+                "manifest": 'post_install = "seed"\n',
+                "files": {"a.conf": "a"},
+            }})
+            self._make_hook(
+                ctx.env.configs_src / "app", "seed",
+                'printf "hooked\\n" > "$NYXURI_UNIT_DEST/hooked.conf"',
+            )
+            steps = transaction.unit_on("app")
+            self.assertTrue(steps[0].ok, str(steps))
+            self.assertNotIn("hook-failed", steps[0].detail)
+            dest = ctx.home / ".config/app"
+            self.assertTrue((dest / "hooked.conf").is_file())
+            rec = ledger.get_unit("app")
+            self.assertIn("hooked.conf", rec["files"], "hook products must enter the managed snapshot")
+
+    def test_on_hook_failure_surfaces_in_detail_without_blocking(self):
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {"manifest": 'post_install = "nope"\n', "files": {"a.conf": "a"}}})
+            steps = transaction.unit_on("app")
+            self.assertTrue(steps[0].ok)
+            self.assertIn("hook-failed: nope", steps[0].detail)
+            self.assertTrue((ctx.home / ".config/app/a.conf").is_file())
+
+    def test_off_runs_post_remove_after_wipe(self):
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {
+                "manifest": 'post_remove = "clean"\n',
+                "files": {"a.conf": "a"},
+            }})
+            calls = []
+            original = transaction._run_unit_hook
+
+            def spy(uid, manifest, spec):
+                calls.append((uid, spec, (ctx.home / ".config/app").exists()))
+                return original(uid, manifest, spec)
+
+            with mock.patch.object(transaction, "_run_unit_hook", side_effect=spy):
+                transaction.unit_on("app")
+                steps = transaction.unit_off("app")
+            self.assertTrue(steps[0].ok, str(steps))
+            self.assertEqual(calls[-1], ("app", "clean", False),
+                             "post_remove must run after the wipe")
+            self.assertFalse((ctx.home / ".config/app").exists())
+
+    def test_hook_env_exposes_unit_identity(self):
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {"manifest": 'post_install = "identity"\n', "files": {"a.conf": "a"}}})
+            marker = ctx.home / "hook-env.txt"
+            self._make_hook(
+                ctx.env.configs_src / "app", "identity",
+                f'env | grep -E "^NYXURI_UNIT" > "{marker}"',
+            )
+            steps = transaction.unit_on("app")
+            self.assertTrue(steps[0].ok, str(steps))
+            content = marker.read_text(encoding="utf-8")
+            self.assertIn("NYXURI_UNIT=app", content)
+            self.assertIn("NYXURI_UNIT_SRC=", content)
+            self.assertIn("NYXURI_UNIT_DEST=", content)
+
+    def test_hooks_never_count_as_deployable_config(self):
+        from nyxuri.deploy.manifest import load_manifest
+
+        with TempEnv() as ctx:
+            _stage(ctx, {"ghost-unit": {"manifest": 'packages = ["x"]\n'}})
+            self._make_hook(ctx.env.configs_src / "ghost-unit", "hook", "true")
+            m = load_manifest(ctx.env.configs_src / "ghost-unit")
+            self.assertFalse(m.is_deployable, "manifest + hooks only must stay non-deployable")
 
 
 if __name__ == "__main__":

@@ -130,7 +130,7 @@ def _base_deploy_ignore_factory(
     exc = [p for p in (exclude_patterns or []) if p and p.strip()]
 
     def _ignore(src_dir, names):
-        skip = {n for n in names if n in ("__pycache__", "manifest.toml")}
+        skip = {n for n in names if n in ("__pycache__", "manifest.toml", "hooks")}
         if Path(src_dir) == root:
             if "presets" in names:
                 skip.add("presets")
@@ -169,12 +169,13 @@ def _deploy_ignore_factory(root_src: Path):
 
     - manifest.toml: self-describing manifest (Nyxuri metadata, §10.4 boundary)
     - __pycache__: bytecode cache, never user config
+    - hooks/: unit lifecycle hooks (declared side effects, run by transaction only)
     - presets/ & __presets__/: top-level variant source tree (only at app root, not nested)
     """
     root = root_src
 
     def _ignore(src_dir, names):
-        skip = {n for n in names if n in ("__pycache__", "manifest.toml")}
+        skip = {n for n in names if n in ("__pycache__", "manifest.toml", "hooks")}
         if Path(src_dir) == root:
             if "presets" in names:
                 skip.add("presets")

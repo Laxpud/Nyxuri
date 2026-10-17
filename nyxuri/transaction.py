@@ -198,6 +198,49 @@ def _disable_plan(unit_id: str) -> List[str]:
     return list(reversed(resolve_order(sub)))
 
 
+# --- read-only plans (disclosure only — writes go through the verbs) --------
+
+
+def replay_enabled_hooks() -> List[Step]:
+    """Re-run the on-side hooks of every ledger-enabled unit.
+
+    Deploy pipelines use this after a base deploy: hook products inside a
+    living area re-enter that unit's snapshot when the unit is next switched,
+    and side-domain effects (skins, renders) are replayed idempotently.
+    Fresh machines with an empty ledger get a no-op — activation belongs to
+    an explicit ``on``.
+    """
+    results: List[Step] = []
+    for uid in sorted(_enabled_set()):
+        try:
+            manifest = registry.load_unit(uid)
+        except KeyError:
+            continue
+        if not manifest.post_install:
+            continue
+        ok = _run_unit_hook(uid, manifest, manifest.post_install)
+        results.append(Step(uid, ok, "hook-replayed" if ok else f"hook-failed: {manifest.post_install}"))
+    return results
+
+
+def plan_on(unit_id: str) -> List[str]:
+    """The enable closure (unit plus dependencies, dependency-first).
+
+    Disclosure input for the outer layers ("what would this switch turn on");
+    computing it touches nothing and writes nothing.
+    """
+    return _enable_closure(unit_id)
+
+
+def plan_off(unit_id: str) -> List[str]:
+    """The disable plan: the unit plus its ENABLED dependents (they first).
+
+    Every member besides ``unit_id`` is a dependent that would block the
+    transaction unless the caller opts into ``cascade``.
+    """
+    return _disable_plan(unit_id)
+
+
 # --- vault in/out ------------------------------------------------------------
 
 
@@ -319,6 +362,57 @@ def _wipe_unit(unit_id: str, dest: Path, rec: Optional[dict]) -> List[str]:
     return sorted(remaining - managed)
 
 
+# --- unit lifecycle hooks (declared side effects, unit-owned) -----------------
+
+
+def _hook_script(unit_id: str, spec: str):
+    """Resolve ``configs/<unit>/hooks/<spec>``; None when absent or malformed."""
+    if not spec or "/" in spec or spec.startswith("."):
+        return None
+    script = get_env().configs_src / unit_id / "hooks" / spec
+    return script if script.is_file() else None
+
+
+def _run_unit_hook(unit_id: str, manifest: ModuleManifest, spec: str) -> bool:
+    """Execute a declared unit hook: ``configs/<unit>/hooks/<spec>``.
+
+    Hooks are the unit's own behavior (KM3 contract, unit-model.md §4) —
+    executable files living in the blueprint, never kernel business code.
+    The transaction injects identity context (``NYXURI_UNIT`` / ``_SRC`` /
+    ``_DEST``) and never interprets the hook's internals; a failing hook
+    degrades to WARN and the caller surfaces it in the step detail.
+    """
+    script = _hook_script(unit_id, spec)
+    if script is None:
+        log_msg("WARN", f"unit '{unit_id}' declares a missing hook: {spec}")
+        return False
+    if not os.access(script, os.X_OK):
+        log_msg("WARN", f"hook for '{unit_id}' is not executable: {script}")
+        return False
+    import subprocess
+
+    hook_env = {
+        **os.environ,
+        "NYXURI_UNIT": unit_id,
+        "NYXURI_UNIT_SRC": str(get_env().configs_src / unit_id),
+        "NYXURI_UNIT_DEST": str(_unit_dest(unit_id, manifest)),
+    }
+    root = Path(__import__("nyxuri").__file__).resolve().parent.parent
+    hook_env["PYTHONPATH"] = str(root) + (
+        os.pathsep + hook_env["PYTHONPATH"] if hook_env.get("PYTHONPATH") else ""
+    )
+    try:
+        # Hooks own their runtime (network fetches, schema compilers) — no
+        # timeout here; the hook itself is the declared unit boundary.
+        result = subprocess.run(
+            [str(script)], env=hook_env, cwd=str(script.parent.parent), check=False
+        )
+        return result.returncode == 0
+    except Exception as exc:
+        log_msg("WARN", f"hook '{spec}' failed for '{unit_id}': {exc}")
+        return False
+
+
 # --- the two verbs of the transaction path -----------------------------------
 
 
@@ -326,14 +420,16 @@ def unit_on(
     unit_id: str,
     *,
     preset: Optional[str] = None,
-    install_packages: Optional[Callable[[List[str]], bool]] = None,
+    install_packages: Optional[Callable[[str, List[str]], bool]] = None,
 ) -> List[Step]:
     """Enable a unit: resolve → preflight → vault out → swap → ledger → event.
 
     The dependency closure is enabled in resolver order; a unit missing
     declared packages aborts the transaction with the missing list disclosed
     (nothing has been touched beyond earlier closure members). Installation
-    itself is injected — the kernel never shells out to a package manager.
+    itself is injected as ``installer(unit_id, missing)`` — the outer layer
+    owns the package-manager call (it also owns the manifest context needed
+    to split repo / AUR / Flatpak names); the kernel never shells out.
     """
     plan = _enable_closure(unit_id)
     enabled = _enabled_set()
@@ -349,7 +445,7 @@ def unit_on(
             installed = False
             if install_packages is not None:
                 try:
-                    installed = bool(install_packages(list(missing)))
+                    installed = bool(install_packages(uid, list(missing)))
                 except Exception as exc:
                     log_msg("WARN", f"package installer failed for {uid}: {exc}")
             if not installed or missing_packages(manifest):
@@ -366,6 +462,13 @@ def unit_on(
         if uid in _phase_atomic_deployment([uid]):
             results.append(Step(uid, False, "deploy-failed"))
             return results
+        hook_note = ""
+        if manifest.post_install:
+            # Runs BEFORE the ledger snapshot: a hook that lands files inside
+            # the unit's own living area makes them transaction-managed, so
+            # ``off`` wipes them through the normal white-paper path (KM3).
+            if not _run_unit_hook(uid, manifest, manifest.post_install):
+                hook_note = f"; hook-failed: {manifest.post_install}"
         ledger.set_unit(
             uid,
             state="enabled",
@@ -374,21 +477,19 @@ def unit_on(
             vault=None,
         )
         _emit(uid, "enabled")
-        if manifest.post_install:
-            from nyxuri.deps import _run_post_install_hook
-
-            _run_post_install_hook(manifest.post_install)
-        results.append(Step(uid, True, "enabled"))
+        results.append(Step(uid, True, "enabled" + hook_note))
     return results
 
 
 def unit_off(unit_id: str, *, cascade: bool = False) -> List[Step]:
-    """Disable a unit: guard → vault in → managed wipe → ledger → event.
+    """Disable a unit: guard → vault in → managed wipe → post_remove → ledger.
 
     Enabled dependents block the transaction unless ``cascade`` is set, in
     which case they are switched off first (dependents-first order). The
     report keeps the package asymmetry honest: declared packages stay on
-    the machine, only the unit's config presence is withdrawn.
+    the machine, only the unit's config presence is withdrawn. A declared
+    ``post_remove`` hook cleans effects that live outside the living area
+    (running after the wipe, before the ledger lands).
     """
     plan = _disable_plan(unit_id)
     dependents = [uid for uid in plan if uid != unit_id]
@@ -407,6 +508,8 @@ def unit_off(unit_id: str, *, cascade: bool = False) -> List[Step]:
         archived = _vault_archive(uid, dest, manifest)
         foreign = _wipe_unit(uid, dest, rec)
         detail = "disabled"
+        if manifest.post_remove and not _run_unit_hook(uid, manifest, manifest.post_remove):
+            detail += f"; hook-failed: {manifest.post_remove}"
         if archived:
             detail += f"; archived: {len(archived)}"
         if foreign:

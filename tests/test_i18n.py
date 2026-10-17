@@ -18,10 +18,19 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 ENGINE_DIR = REPO_ROOT / "nyxuri"
 
 
+def _scan_targets():
+    """Engine modules + unit hook scripts (KM3: hooks are product code)."""
+    yield from ENGINE_DIR.rglob("*.py")
+    hooks = REPO_ROOT / "configs"
+    for path in sorted(hooks.glob("*/hooks/*")):
+        if path.is_file():
+            yield path
+
+
 def _collect_msg_calls() -> set:
     """Find all msg("key") / msg('key') string-literal calls across all .py files."""
     keys = set()
-    for py_file in ENGINE_DIR.rglob("*.py"):
+    for py_file in _scan_targets():
         try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         except SyntaxError:
@@ -43,7 +52,7 @@ def _collect_translation_keys() -> set:
 def _collect_prompt_confirm_calls() -> set:
     """Find all prompt_confirm("key") string-literal calls."""
     keys = set()
-    for py_file in ENGINE_DIR.rglob("*.py"):
+    for py_file in _scan_targets():
         try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         except SyntaxError:
@@ -77,7 +86,7 @@ def _collect_all_referenced_keys() -> set:
     import re
     key_pattern = re.compile(r"^[a-z][a-z0-9_]*$")
     candidates = set()
-    for py_file in ENGINE_DIR.rglob("*.py"):
+    for py_file in _scan_targets():
         if py_file.name == "i18n.py":
             continue
         try:

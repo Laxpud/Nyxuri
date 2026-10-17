@@ -19,8 +19,13 @@ Schema (all fields optional, flat at top level)::
     category        = "browser"         # default = ""  (apps menu grouping key)
     detect          = "mission-center"  # default = <unit name> (pkg/binary to detect)
     optional        = true              # default = false (menu + optdepends, not hard dep)
-    post_install    = "fcitx:setup_rime_ice"  # default = "" (module:function hook)
+    post_install    = "setup-rime"      # default = "" (hook script: configs/<unit>/hooks/<name>)
+    post_remove     = "clean-skin"      # default = "" (off-side hook, same shape)
     dependencies    = []                # default = []  (other Nyxuri units)
+
+    [privilege]         # declared root-level side effects (gate: 边界必须声明)
+    requires_root = true
+    system_paths = ["/etc/greetd/config.toml"]
 
     [presets]           # inherit / allow / standalone / include / exclude / reload
     [parts.<slot>]      # target / source_dir / default
@@ -60,7 +65,10 @@ class ModuleManifest:
     dependencies: List[str]  # other Nyxuri units this unit depends on
     is_deployable: bool
     is_optional: bool = False  # True iff declared optional (menu + optdepends)
-    post_install: str = ""     # Optional lifecycle hook spec (e.g. "fcitx:setup_rime_ice")
+    post_install: str = ""     # on-side hook: executable at configs/<unit>/hooks/<spec>
+    post_remove: str = ""      # off-side hook: same shape, run after the wipe
+    requires_root: bool = False  # declared privilege escalation ([privilege])
+    system_paths: List[str] = field(default_factory=list)  # declared /etc etc. touchpoints
     target: str = ""           # Single-file unit: deployed file name under ~/.config
     preset_inherit: bool = False
     preset_allow: List[str] = field(default_factory=list)
@@ -72,10 +80,14 @@ class ModuleManifest:
 
 
 def _is_deployable(app_src: Path) -> bool:
-    """A unit is deployable iff it ships real config (more than just a manifest)."""
+    """A unit is deployable iff it ships real config (more than just a manifest).
+
+    ``hooks/`` is unit-owned lifecycle behavior (KM3 contract) — it never
+    counts as deployable config and never ships to the living area.
+    """
     try:
         for entry in app_src.iterdir():
-            if entry.name in _METADATA_NAMES or entry.name == _MANIFEST_NAME:
+            if entry.name in _METADATA_NAMES or entry.name in (_MANIFEST_NAME, "hooks"):
                 continue
             return True
     except OSError:
@@ -126,6 +138,7 @@ def load_manifest(app_src: Path) -> ModuleManifest:
             data = tomllib.load(f)
 
     presets = data.get("presets", {}) or {}
+    privilege = data.get("privilege", {}) or {}
     # Absent packages → [<unit name>]; an explicit empty list stays empty
     # (flatpak/AUR-only units must keep their name out of pacman).
     raw_repo = data.get("packages")
@@ -154,6 +167,9 @@ def load_manifest(app_src: Path) -> ModuleManifest:
         is_deployable=_is_deployable(app_src),
         is_optional=bool(data.get("optional", False)),
         post_install=str(data.get("post_install", "")),
+        post_remove=str(data.get("post_remove", "")),
+        requires_root=bool(privilege.get("requires_root", False)),
+        system_paths=_as_str_list(privilege.get("system_paths")),
         target=str(data.get("target", "")),
         preset_inherit=bool(presets.get("inherit")),
         preset_allow=_as_str_list(presets.get("allow")),

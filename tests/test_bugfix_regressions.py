@@ -123,20 +123,6 @@ class TestTemplateRegistryHeaders(unittest.TestCase):
             self.assertEqual(target.stat().st_mode & 0o777, 0o644)
 
 
-class TestGtkThemeUninstall(unittest.TestCase):
-
-    def test_partial_registration_is_still_unregistered(self):
-        from nyxuri.modules import gtktheme
-        with TempEnv() as ctx:
-            conf = ctx.env.config_dir / "noctalia" / "noctalia-config.toml"
-            conf.parent.mkdir(parents=True, exist_ok=True)
-            conf.write_text('[theme.templates.user.nyxuri_gtk3]\ncss = "x"\n', encoding="utf-8")
-            self.assertFalse(gtktheme.gtktheme_registered())
-            self.assertTrue(gtktheme.gtktheme_any_registered())
-            self.assertTrue(_quiet(gtktheme.gtktheme_uninstall))
-            self.assertNotIn("theme.templates.user.nyxuri_gtk3", conf.read_text(encoding="utf-8"))
-
-
 class TestDeployAssets(unittest.TestCase):
 
     def test_pack_requires_a_real_video(self):
@@ -379,18 +365,6 @@ class TestLedgerResilience(unittest.TestCase):
                 os.waitpid(pid, 0)
             data = ledger.read_ledger()
             self.assertEqual([data.get(f"k{i}") for i in range(6)], list(range(6)))
-
-
-class TestFisherCompletion(unittest.TestCase):
-
-    def test_incomplete_install_is_not_reported_installed(self):
-        from nyxuri.modules import fisher
-        with TempEnv():
-            with patch.object(fisher.shutil, "which", return_value="/usr/bin/fish"), \
-                 patch.object(fisher, "fetch_raw_with_fallback", return_value=True), \
-                 patch.object(fisher.subprocess, "run", return_value=type("R", (), {"returncode": 1})()):
-                self.assertFalse(_quiet(fisher.fisher_install))
-            self.assertFalse(fisher.fisher_installed())
 
 
 class TestShellSwitcherClassification(unittest.TestCase):

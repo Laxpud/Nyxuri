@@ -11,7 +11,7 @@ from tests.utils import TempEnv
 
 class TestThemeSlices(unittest.TestCase):
     def setUp(self):
-        self.source = Path(__file__).resolve().parents[1] / "assets/fcitx5/nyxmellow/templates"
+        self.source = Path(__file__).resolve().parents[1] / "configs/fcitx5-rime/hooks/skin/templates"
 
     def _load_theme(self):
         config = configparser.ConfigParser(interpolation=None)

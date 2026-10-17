@@ -123,10 +123,6 @@ class TestCliLinkOwnership(unittest.TestCase):
         from nyxuri.state.uninstall import uninstall_nyxuri
 
         with patch("sys.stdin.isatty", return_value=False), \
-             patch("nyxuri.modules.fcitx.fcitx5_installed", return_value=False), \
-             patch("nyxuri.modules.gtktheme.gtktheme_registered", return_value=False), \
-             patch("nyxuri.modules.greeter.greeter_installed", return_value=False), \
-             patch("nyxuri.modules.fisher.fisher_installed", return_value=False), \
              patch("builtins.print"):
             self.assertTrue(uninstall_nyxuri("all"))
 

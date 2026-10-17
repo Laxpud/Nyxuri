@@ -32,10 +32,7 @@ class TestUninstallNonInteractive(unittest.TestCase):
         from nyxuri.constants import PROJECT_NAME
 
         with patch("sys.stdin.isatty", return_value=False), patch("builtins.print"):
-            with patch("nyxuri.modules.fcitx.fcitx5_installed", return_value=False), \
-                 patch("nyxuri.modules.gtktheme.gtktheme_registered", return_value=False), \
-                 patch("nyxuri.modules.greeter.greeter_installed", return_value=False):
-                result = uninstall_nyxuri("")
+            result = uninstall_nyxuri("")
 
         self.assertTrue(result, "Non-interactive uninstall uses standard scope")
         archives = list(self.env.config_dir.glob(f"{PROJECT_NAME}_archive_*"))
@@ -51,11 +48,9 @@ class TestUninstallNonInteractive(unittest.TestCase):
             with patch("builtins.print"):
                 with patch("nyxuri.state.uninstall.prompt_confirm", return_value=True):
                     with patch("nyxuri.state.uninstall.get_all_backups", return_value=[]):
-                        with patch("nyxuri.modules.fcitx.fcitx_uninstall"):
-                            with patch("nyxuri.modules.greeter.greeter_uninstall"):
-                                with patch("nyxuri.state.uninstall.remove_path"):
-                                    with patch("nyxuri.state.uninstall.get_pics_dir", return_value=self.env.home / "Pictures"):
-                                        result = uninstall_nyxuri("purge")
+                        with patch("nyxuri.state.uninstall.remove_path"):
+                            with patch("nyxuri.state.uninstall.get_pics_dir", return_value=self.env.home / "Pictures"):
+                                result = uninstall_nyxuri("purge")
 
         self.assertTrue(result)
 
@@ -77,10 +72,7 @@ class TestModeAliases(unittest.TestCase):
 
         with patch("sys.stdin.isatty", return_value=False), patch("builtins.print"), \
              patch("nyxuri.state.uninstall.copy_path"), patch("nyxuri.state.uninstall.remove_path"):
-            with patch("nyxuri.modules.fcitx.fcitx5_installed", return_value=False), \
-                 patch("nyxuri.modules.gtktheme.gtktheme_registered", return_value=False), \
-                 patch("nyxuri.modules.greeter.greeter_installed", return_value=False):
-                result = uninstall_nyxuri("safe")
+            result = uninstall_nyxuri("safe")
 
         self.assertTrue(result)
 
@@ -92,12 +84,10 @@ class TestModeAliases(unittest.TestCase):
             with patch("builtins.print"):
                 with patch("nyxuri.state.uninstall.prompt_confirm", return_value=True):
                     with patch("nyxuri.state.uninstall.get_all_backups", return_value=[]):
-                        with patch("nyxuri.modules.fcitx.fcitx_uninstall"):
-                            with patch("nyxuri.modules.greeter.greeter_uninstall"):
-                                with patch("nyxuri.state.uninstall.remove_path"):
-                                    with patch("nyxuri.state.uninstall.get_pics_dir", return_value=self.env.home / "Pictures"):
-                                        result = uninstall_nyxuri("3")
-                                        self.assertTrue(result)
+                        with patch("nyxuri.state.uninstall.remove_path"):
+                            with patch("nyxuri.state.uninstall.get_pics_dir", return_value=self.env.home / "Pictures"):
+                                result = uninstall_nyxuri("3")
+                                self.assertTrue(result)
 
 
 class TestBackupInteractiveFlag(unittest.TestCase):

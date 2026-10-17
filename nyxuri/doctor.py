@@ -271,22 +271,48 @@ def _check_disk_space(env) -> None:
     except Exception:
         pass
 
+def _unit_state(uid: str) -> str:
+    """Ledger state of one unit ('enabled' / 'disabled' / '' when never switched)."""
+    from nyxuri import ledger
+    rec = ledger.get_unit(uid)
+    return (rec or {}).get("state", "")
+
+
 def _check_fcitx_skin(env) -> None:
     if shutil.which("fcitx5") or (env.config_dir / "fcitx5" / "conf" / "classicui.conf").is_file():
-        from nyxuri.modules.fcitx import fcitx_enabled
-        if fcitx_enabled():
+        if _unit_state("fcitx5-rime") == "enabled":
             print(msg("doctor_ok", text("Fcitx5: NyxMellow 皮肤已启用", "Fcitx5: NyxMellow skin is enabled")))
         else:
-            print(msg("doctor_warn", text(f"Fcitx5: {FCITX_THEME} 皮肤未启用", f"Fcitx5: {FCITX_THEME} skin not enabled")))
+            print(msg("doctor_warn", text(
+                f"Fcitx5: {FCITX_THEME} 皮肤未启用（nyxuri on fcitx5-rime）",
+                f"Fcitx5: {FCITX_THEME} skin not enabled (nyxuri on fcitx5-rime)",
+            )))
 
 def _check_gtk_theme(env) -> None:
-    from nyxuri.modules.gtktheme import gtktheme_registered, gtktheme_rendered
-    if gtktheme_rendered():
+    rendered = False
+    registered = False
+    for gtk_dir in ("gtk-3.0", "gtk-4.0"):
+        css = env.config_dir / gtk_dir / "gtk.css"
+        if css.is_file():
+            try:
+                if "@define-color accent_bg_color" in css.read_text(encoding="utf-8", errors="ignore"):
+                    rendered = True
+                    continue
+            except Exception:
+                pass
+    noctalia_conf = env.config_dir / "noctalia" / "noctalia-config.toml"
+    if noctalia_conf.is_file():
+        try:
+            content = noctalia_conf.read_text(encoding="utf-8", errors="ignore")
+            registered = "theme.templates.user.nyxuri_gtk3" in content or "theme.templates.user.nyxmellow" in content
+        except Exception:
+            pass
+    if rendered:
         print(msg("doctor_ok", text("GTK 主题: 已渲染并跟随壁纸", "GTK theme: rendered, following wallpaper")))
-    elif gtktheme_registered():
+    elif registered:
         print(msg("doctor_warn", text(
-            "GTK 主题: 模板已注册但未渲染，运行 nyxuri gtk install",
-            "GTK theme: registered but not rendered, run nyxuri gtk install",
+            "GTK 主题: 模板已注册但未渲染，运行 nyxuri on noctalia",
+            "GTK theme: registered but not rendered, run nyxuri on noctalia",
         )))
     else:
         print(msg("doctor_warn", text("GTK 主题: 未注册", "GTK theme: not registered")))
@@ -301,8 +327,33 @@ def _check_vm(env) -> None:
             pass
 
 def _check_greeter(env) -> None:
-    from nyxuri.modules.greeter import greeter_status
-    greeter_status()
+    """Greeter state: session binary + /etc/greetd usage + service enabled."""
+    from nyxuri.constants import GREETER_ETC_CFG, GREETER_PKG, GREETER_SESSION_BIN
+    if shutil.which(GREETER_SESSION_BIN):
+        print(msg("doctor_ok", text(f"{GREETER_PKG}: 已安装", f"{GREETER_PKG}: installed")))
+    else:
+        print(msg("doctor_warn", text(f"{GREETER_PKG}: 未安装", f"{GREETER_PKG}: not installed")))
+    cfg_uses = False
+    if GREETER_ETC_CFG.is_file():
+        try:
+            cfg_uses = GREETER_SESSION_BIN in GREETER_ETC_CFG.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            pass
+    if cfg_uses:
+        print(msg("doctor_ok", text(f"greetd 配置: 已使用 {GREETER_PKG}", f"greetd config: using {GREETER_PKG}")))
+    else:
+        print(msg("doctor_warn", text(
+            f"greetd 配置未使用 {GREETER_PKG}（nyxuri on greeter）",
+            f"greetd config does not use {GREETER_PKG} (nyxuri on greeter)",
+        )))
+    if shutil.which("systemctl"):
+        enabled = subprocess.run(
+            ["systemctl", "is-enabled", "greetd"], capture_output=True, check=False
+        ).returncode == 0
+        if enabled:
+            print(msg("doctor_ok", text("greetd 服务: 已启用", "greetd service: enabled")))
+        else:
+            print(msg("doctor_warn", text("greetd 服务: 未启用", "greetd service: disabled")))
 
 
 def _check_path_occlusion(env) -> None:
@@ -552,8 +603,7 @@ def generate_bug_report() -> Optional[Path]:
         if len(lines) >= 2:
             health_lines.append(f"home free space: {lines[1].split()[3]}")
     if shutil.which("fcitx5") or (env.config_dir / "fcitx5" / "conf" / "classicui.conf").is_file():
-        from nyxuri.modules.fcitx import fcitx_enabled
-        health_lines.append(f"fcitx5 nyxmellow: {'enabled' if fcitx_enabled() else 'NOT enabled'}")
+        health_lines.append(f"fcitx5 nyxmellow: {'enabled' if _unit_state('fcitx5-rime') == 'enabled' else 'NOT enabled'}")
     health_checks = "\n".join(health_lines)
 
     # Noctalia Hook Log

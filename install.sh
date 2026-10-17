@@ -128,14 +128,10 @@ engine_is_complete() {
     for module in __init__ backup uninstall; do
         [ -f "$target_dir/nyxuri/state/$module.py" ] || return 1
     done
-    # modules/ subpackage (fcitx · fisher · greeter · gtktheme)
-    for module in __init__ fcitx fisher greeter gtktheme lifecycle; do
-        [ -f "$target_dir/nyxuri/modules/$module.py" ] || return 1
-    done
     [ -d "$target_dir/configs" ] \
         && [ -f "$target_dir/configs/fish/config.fish" ] \
         && [ -d "$target_dir/assets/wallpapers" ] \
-        && [ -d "$target_dir/assets/fcitx5" ]
+        && [ -d "$target_dir/configs/fcitx5-rime/hooks/skin" ]
 }
 
 legacy_tree_detected() {

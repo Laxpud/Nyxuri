@@ -217,7 +217,12 @@ def run_user_hooks() -> List[str]:
 
 
 def _phase_post_install_services() -> None:
-    """Run built-in post-deployment work (mpvpaper, Fisher)."""
+    """Run built-in post-deployment work (theme sync).
+
+    Unit activation is user policy, not a deploy side effect: enabled units
+    replay their declared hooks via ``transaction.replay_enabled_hooks()``
+    in the workflow; the retired module direct-calls are gone (KM3).
+    """
     try:
         from nyxuri.theme import sync
         sync()
@@ -225,23 +230,11 @@ def _phase_post_install_services() -> None:
     except Exception as e:
         log_msg("WARN", f"Theme sync failed during deploy: {e}")
 
-    if shutil.which(THEME_ENGINE):
-        from nyxuri.modules.gtktheme import gtktheme_trigger_render
-        gtktheme_trigger_render()
-        # Plugin activation is user policy, not a deploy side effect.  The
-        # module remains available for an explicit Noctalia configuration.
-
-    if shutil.which("fish"):
-        from nyxuri.modules.fisher import fisher_install
-        fisher_install()
-
 def render_completion_screen(
     mode: str = "install",
     chosen_items: Optional[List[str]] = None,
     preserved_lines: Optional[List[str]] = None,
     wallpaper_result: Optional[WallpaperDeployResult] = None,
-    do_fcitx: bool = False,
-    do_greeter: bool = False,
     failed_items: Optional[List[str]] = None,
     hook_diagnostics: Optional[List[str]] = None,
 ) -> None:
@@ -255,7 +248,6 @@ def render_completion_screen(
     if hook_diagnostics is None:
         hook_diagnostics = []
 
-    from nyxuri.modules.fcitx import fcitx5_installed, fcitx_enabled
     from nyxuri.deps import get_missing_deps
 
     title_key = "summary_title_failed" if failed_items else ("summary_title_update" if mode == "update" else ("summary_title_test" if mode == "test" else "summary_title_install"))
@@ -282,20 +274,11 @@ def render_completion_screen(
                 wallpaper_key, wallpaper_color, wallpaper_icon = "summary_item_wallpapers_skip", Colors.BOLD_YELLOW, "[!]"
             sys.stdout.write(f"    {wallpaper_color}{wallpaper_icon}{Colors.RESET} {msg(wallpaper_key)}\n")
 
-        if mode in ("full", "update", "test") and fcitx5_installed():
-            if do_fcitx or fcitx_enabled():
-                sys.stdout.write(f"    {Colors.BOLD_GREEN}[✓]{Colors.RESET} {msg('summary_item_fcitx_ok')}\n")
-            else:
-                sys.stdout.write(f"    {Colors.BOLD_YELLOW}[!]{Colors.RESET} {msg('summary_item_fcitx_skip')}\n")
-
         if mode == "full":
             if not missing_deps:
                 sys.stdout.write(f"    {Colors.BOLD_GREEN}[✓]{Colors.RESET} {msg('summary_item_deps_ok')}\n")
             else:
                 sys.stdout.write(f"    {Colors.BOLD_YELLOW}[!]{Colors.RESET} {msg('summary_item_deps_skip')}\n")
-
-        if do_greeter:
-            sys.stdout.write(f"    {Colors.BOLD_GREEN}[✓]{Colors.RESET} {msg('summary_item_greeter_ok')}\n")
 
         if hook_diagnostics:
             sys.stdout.write(f"\n  {Colors.BOLD_WHITE}{msg('summary_section_hooks')}{Colors.RESET}\n")

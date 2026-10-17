@@ -69,16 +69,12 @@ class TestPostInstallHooksIndependence(unittest.TestCase):
     def tearDown(self):
         self._ctx.__exit__()
 
-    def test_sync_timeout_does_not_block_fisher(self):
+    def test_sync_timeout_does_not_block_deploy_services(self):
         from nyxuri.deploy.deploy import _phase_post_install_services
 
         with patch("nyxuri.theme.sync", side_effect=RuntimeError("theme failure")), \
-             patch("nyxuri.deploy.deploy.shutil.which", return_value=True), \
-             patch("nyxuri.modules.fisher.fisher_install") as mock_fisher, \
              patch("builtins.print"):
             _phase_post_install_services()
-
-        mock_fisher.assert_called_once()
 
 
 class TestUserPostDeployHooks(unittest.TestCase):
@@ -226,18 +222,6 @@ class TestGtkThemeTimeout(unittest.TestCase):
 
     def tearDown(self):
         self._ctx.__exit__()
-
-    def test_render_timeout_degrades_to_pending(self):
-        from nyxuri.i18n import msg
-        from nyxuri.modules.gtktheme import gtktheme_trigger_render
-
-        out = StringIO()
-        with patch("nyxuri.modules.gtktheme.noctalia_available", return_value=True), \
-             patch("nyxuri.modules.gtktheme.timed_run", return_value=None), \
-             redirect_stdout(out):
-            gtktheme_trigger_render()
-
-        self.assertIn(msg("gtk_render_pending"), out.getvalue())
 
 
 if __name__ == "__main__":

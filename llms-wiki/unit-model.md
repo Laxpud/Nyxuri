@@ -62,7 +62,8 @@ transaction（编排：唯一可触碰副作用的模块）
 
 * 禁止绕过 ledger 直写账本，禁止绕过 registry 直读蓝图；
 * `resolver` 不 import 任何内核兄弟模块，只做纯计算；
-* deploy.atomic、Vault、事件通知只允许 transaction 触碰；
+* deploy.atomic、Vault、事件通知、单元生命周期钩子（`post_install` / `post_remove`，
+  执行单元目录内 `hooks/<名字>` 脚本）只允许 transaction 触碰；
 * doctor 三态对账（`audit_units`：`Synced` / `Drifted` / `Ghost`）是只读能力，
   同样收敛在 transaction（受管文件与哈希知识只此一家），内核保持四模块不变。
 
@@ -117,9 +118,11 @@ transaction（编排：唯一可触碰副作用的模块）
 单元记录统一挂在 `state.json` 顶层的 `units` 键下，以单元 ID 为键；`updated` 为带时区的
 ISO 8601 时间戳。单元记录的读写只经 `nyxuri.ledger`，任何内核模块不得绕过。
 
-`files` 快照口径（KM2 落地）：只记受管文件——`__custom__` 与 manifest `preserve`
-文件属用户心血，不入快照、不参与 `Drifted` 判定；`preserve_values` 目标文件计入；
-symlink 记 `link:<目标>`。停用时无受管快照（`files` 空：从未经事务开关，或停用后
+`files` 快照口径（KM2 落地，KM3 扩展）：只记受管文件——`__custom__` 与 manifest
+`preserve` 文件属用户心血，不入快照、不参与 `Drifted` 判定；`preserve_values` 目标文件计入；
+symlink 记 `link:<目标>`；`post_install` 钩子在快照**之前**运行，钩子落进单元自身生活区
+的产物自动入快照、`off` 走正常抹白（钩子落生活区外的产物由 `post_remove` 自清，
+见 [manifest-schema](manifest-schema.md) 钩子契约）。停用时无受管快照（`files` 空：从未经事务开关，或停用后
 再现内容）的单元按蓝图所有权整域抹白；单文件单元（`target=`）无 Vault 进出，
 其唯一实机文件即全部生活区。
 
@@ -170,7 +173,12 @@ system_paths = []
 
 ### 声明边界
 
-manifest 只声明上述字段，不追求覆盖一切。服务启停（systemd unit 等）**暂不进 manifest**：属单元内部行为，随单元自身脚本处理；KM2 前不发明新字段，出现跨单元或系统级服务效果的真实需求再议（登记于 [delayed-decisions](delayed-decisions.md)）。完整字段参考（含 `label` / `category` / `detect` / `optional` / `post_install` / `preserve_values` 等展示与包元数据字段）见 [manifest-schema](manifest-schema.md)。
+manifest 只声明上述字段，不追求覆盖一切。单元的外部副作用走**单元本地钩子**：
+`post_install` / `post_remove` 指向 `configs/<unit>/hooks/<名字>` 可执行脚本，
+由 transaction 执行（KM3 契约，`<module>:<function>` 旧形态已随 `nyxuri/modules/`
+退役；详见 [manifest-schema](manifest-schema.md) 钩子契约）。systemd 服务启停等
+跨系统声明字段仍暂不进 manifest：属单元内部行为，出现真实需求再议（登记于
+[delayed-decisions](delayed-decisions.md)）。完整字段参考（含 `label` / `category` / `detect` / `optional` / `preserve_values` 等展示与包元数据字段）见 [manifest-schema](manifest-schema.md)。
 
 ---
 
@@ -239,7 +247,7 @@ Nyxuri Shell 绝非特权单体，其内部亦彻底单元化。Shell 本身蜕�
 | `.optional-apps.toml`（axis-B sidecar） | KM1（已执法） |
 | `configs/starship.toml` + `starship.toml.module.toml`（单文件特例） | KM1（已执法，升格为 `configs/starship/` + `target`） |
 | `*.module.toml` sidecar 机制（已统一收敛为目录内 `manifest.toml`） | KM1（已执法） |
-| `nyxuri/modules/` 专用业务模块 | KM3 |
-| 旧 CLI 命令兼容别名（KM3 设倒计时） | KM5 |
+| `nyxuri/modules/` 专用业务模块（能力并入 `configs/` 单元 + 钩子脚本） | KM3（已执法） |
+| 旧 CLI 命令兼容别名（KM3 设倒计时，见 `cli.py RETIREMENTS`） | KM5 |
 | `nyxuri/cli.py` 硬编码专用命令 | KM5 |
 | `install.sh` 安装器职责（退役为一次性引导） | KM5 |

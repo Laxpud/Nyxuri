@@ -47,10 +47,7 @@ def uninstall_nyxuri(mode: str = "") -> bool:
     snapshot (folded into `nyxuri rollback`).
     """
     from nyxuri.deploy.deploy import config_item_dest, discover_config_items
-    from nyxuri.modules.fcitx import fcitx5_installed, fcitx_uninstall
-    from nyxuri.modules.fisher import fisher_installed, fisher_uninstall
-    from nyxuri.modules.greeter import greeter_installed, greeter_uninstall
-    from nyxuri.modules.gtktheme import gtktheme_registered, gtktheme_uninstall
+    from nyxuri import ledger, registry, transaction
 
     env = get_env()
     items = discover_config_items()
@@ -71,11 +68,15 @@ def uninstall_nyxuri(mode: str = "") -> bool:
     elif mode in ("3", "--purge", "purge", "--all", "all"):
         mode = "all"
 
-    # --- Detect installed modules (only installed ones are shown) ---
-    has_fcitx = fcitx5_installed()
-    has_gtk = gtktheme_registered()
-    has_greeter = greeter_installed()
-    has_fisher = fisher_installed()
+    # --- KM3: unit switches replace the module checkboxes. Enabled units
+    # with living-area side effects are offered through `off` (cascade off),
+    # which vaults customs and wipes to white paper.
+    HOOK_UNITS = ("fcitx5-rime", "fish", "greeter", "noctalia")
+    enabled_hooked = [
+        uid for uid in HOOK_UNITS
+        if uid in registry.unit_ids()
+        and (ledger.get_unit(uid) or {}).get("state") == "enabled"
+    ]
 
     # --- Build checkbox entries (defaults = standard scope) ---
     entries = [
@@ -89,18 +90,13 @@ def uninstall_nyxuri(mode: str = "") -> bool:
         CheckboxEntry(key="state", label=msg("uninstall_item_state"), checked=False),
         CheckboxEntry(key="cache", label=msg("uninstall_item_cache"), checked=False),
     ]
-    module_entries = []
-    if has_fcitx:
-        module_entries.append(CheckboxEntry(key="fcitx", label=msg("uninstall_item_fcitx"), checked=True))
-    if has_gtk:
-        module_entries.append(CheckboxEntry(key="gtk", label=msg("uninstall_item_gtk"), checked=True))
-    if has_greeter:
-        module_entries.append(CheckboxEntry(key="greeter", label=msg("uninstall_item_greeter"), checked=True))
-    if has_fisher:
-        module_entries.append(CheckboxEntry(key="fisher", label=msg("uninstall_item_fisher"), checked=True))
-    if module_entries:
-        entries.append(CheckboxEntry(key="__sep_mod__", label=msg("uninstall_group_modules"), is_separator=True))
-        entries.extend(module_entries)
+    unit_entries = [
+        CheckboxEntry(key=f"unit:{uid}", label=msg("uninstall_item_unit", uid), checked=True)
+        for uid in enabled_hooked
+    ]
+    if unit_entries:
+        entries.append(CheckboxEntry(key="__sep_mod__", label=msg("uninstall_group_units"), is_separator=True))
+        entries.extend(unit_entries)
 
     all_keys = [e.key for e in entries if not e.is_separator]
     default_keys = [e.key for e in entries if not e.is_separator and e.checked]
@@ -145,24 +141,21 @@ def uninstall_nyxuri(mode: str = "") -> bool:
     # read_key), so stale \r would feed its password prompt as bad input.
     drain_stdin()
 
-    # 1. Module uninstallers FIRST — fcitx reads .prev in state_dir; greeter's
-    #    sudo restore+rm runs here. nyx_dir/state must outlive these.
-    for key, fn, label in (
-        ("fcitx", fcitx_uninstall, "fcitx"),
-        ("gtk", gtktheme_uninstall, "GTK theme"),
-        ("greeter", greeter_uninstall, "greeter"),
-        ("fisher", fisher_uninstall, "fisher"),
-    ):
-        if key in selected:
+    # 1. Enabled hook units FIRST — `off` vaults customs and wipes to white
+    #    paper (side-domain cleanup via each unit's post_remove hook).
+    #    nyx_dir/state must outlive these.
+    for uid in enabled_hooked:
+        if f"unit:{uid}" in selected:
             try:
-                if not fn():
-                    log_msg("WARN", f"{label} uninstall reported failure")
-                    print(msg("uninstall_failed", label))
+                steps = transaction.unit_off(uid, cascade=True)
+                if not all(s.ok for s in steps):
+                    log_msg("WARN", f"unit off reported failure: {uid}")
+                    print(msg("uninstall_failed", uid))
                     return False
-                print(msg("uninstall_module_done", label))
+                print(msg("uninstall_module_done", uid))
             except Exception as e:
-                log_msg("WARN", f"{label} uninstall failed: {e}")
-                print(msg("uninstall_failed", label))
+                log_msg("WARN", f"unit off failed for {uid}: {e}")
+                print(msg("uninstall_failed", uid))
                 return False
 
     # 2. Configs — archive-then-delete (interactive), or delete-only (purge).

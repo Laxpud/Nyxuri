@@ -213,10 +213,10 @@ class TestRealRepoManifests(unittest.TestCase):
         self.assertTrue(m.is_deployable)
 
     def test_manifest_only_optional_units(self):
-        # nautilus/missioncenter/fcitx5-rime declare packages only — optional
-        # and not deployable.
+        # nautilus/missioncenter declare packages only — optional and not
+        # deployable. fcitx5-rime grew real config at KM3 (skin + profile).
         manifests = dict(manifest.discover_manifest_apps())
-        for name in ("nautilus", "missioncenter", "fcitx5-rime"):
+        for name in ("nautilus", "missioncenter"):
             self.assertIn(name, manifests)
             m = manifests[name]
             self.assertFalse(m.is_deployable, f"{name} has no config to ship")
@@ -229,10 +229,10 @@ class TestRealRepoManifests(unittest.TestCase):
         deployable = manifest.discover_deployable_apps()
         self.assertNotIn("nautilus", deployable)
         self.assertNotIn("missioncenter", deployable)
-        self.assertNotIn("fcitx5-rime", deployable)
-        # The 9 shipped config units are all present.
+        # The shipped config units are all present.
         for name in ("fastfetch", "fish", "kitty", "niri", "noctalia",
-                     "starship", "xdg-desktop-portal", "zed", "mango"):
+                     "starship", "xdg-desktop-portal", "zed", "mango",
+                     "fcitx5-rime"):
             self.assertIn(name, deployable)
 
     def test_stray_sidecar_files_are_gone(self):
@@ -256,7 +256,24 @@ class TestRealRepoManifests(unittest.TestCase):
         self.assertEqual(m.packages_aur, ["rime-ice-git"])
         self.assertIn("fcitx5-rime", m.packages_repo)
         self.assertTrue(m.is_optional)
-        self.assertEqual(m.post_install, "fcitx:setup_rime_ice")
+        # KM3: skin + profile live in the blueprint; hooks run the side domains.
+        self.assertEqual(m.post_install, "activate")
+        self.assertEqual(m.post_remove, "deactivate")
+        self.assertIn("conf/classicui.conf", m.preserve)
+        self.assertIn("profile", m.preserve)
+
+    def test_privilege_declaration_parsed(self):
+        """[privilege] declares root-level side effects (KM3: the greeter case)."""
+        manifests = dict(manifest.discover_manifest_apps())
+        m = manifests["greeter"]
+        self.assertTrue(m.requires_root)
+        self.assertTrue(any(p.startswith("/etc/greetd") for p in m.system_paths))
+        self.assertEqual(m.post_install, "activate")
+        self.assertEqual(m.post_remove, "deactivate")
+        self.assertFalse(m.is_deployable, "manifest-only unit stays non-deployable")
+        # Units without the table default to unprivileged.
+        self.assertFalse(manifests["kitty"].requires_root)
+        self.assertEqual(manifests["kitty"].system_paths, [])
 
     def test_zed_optional_and_deployable(self):
         # zed ships config AND stays optional — both axes true at once.

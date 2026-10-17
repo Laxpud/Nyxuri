@@ -1,356 +1,170 @@
-"""Behavior contracts for fcitx: partial template registration detection (OR logic)."""
+"""fcitx5-rime unit hook contracts (KM3): skin deploy, rime patch, revert.
 
+The hooks live at configs/fcitx5-rime/hooks/ and are imported as modules.
+Living-area files (classicui.conf, profile) are blueprint+preserve owned —
+the hooks only touch the side domains, which is what these tests pin.
+"""
+
+import importlib.util
 import unittest
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import patch, mock_open
+from unittest.mock import MagicMock, patch
 
 from tests.utils import TempEnv
 
+REPO = Path(__file__).resolve().parent.parent
 
-class TestFcitxTemplateDetection(unittest.TestCase):
-    """fcitx_templates_registered must use OR logic (any one template = registered)."""
 
+def _load_hook(name: str):
+    path = REPO / "configs" / "fcitx5-rime" / "hooks" / name
+    mod_name = f"fcitx5_rime_hook_{name}"
+    spec = importlib.util.spec_from_file_location(mod_name, path, loader=SourceFileLoader(mod_name, str(path)))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class TestSkinDeploy(unittest.TestCase):
     def setUp(self):
         self._ctx = TempEnv()
         self._ctx.__enter__()
+        self.activate = _load_hook("activate")
+        self.deactivate = _load_hook("deactivate")
 
     def tearDown(self):
         self._ctx.__exit__()
 
-    def test_all_three_registered_returns_true(self):
-        """All 3 templates present → True."""
-        from nyxuri.modules.fcitx import fcitx_templates_registered, FCITX_THEME
+    def test_deploy_skin_copies_blueprint_templates(self):
+        unit_src = REPO / "configs" / "fcitx5-rime"
+        self.assertTrue(self.activate.deploy_skin(unit_src))
+        theme_dir = self._ctx.env.home / ".local/share/fcitx5/themes/nyxmellow/templates"
+        for name in ("theme.conf", "panel.svg", "highlight.svg"):
+            self.assertTrue((theme_dir / name).is_file(), name)
 
-        content = (
-            f"[theme.templates.user.{FCITX_THEME}_theme]\n"
-            f"[theme.templates.user.{FCITX_THEME}_panel]\n"
-            f"[theme.templates.user.{FCITX_THEME}_highlight]\n"
-        )
-        with patch("nyxuri.modules.fcitx._fcitx_paths") as mock_paths:
-            mock_paths.return_value = (None, None, None, None, Path("/fake/config.toml"), None, None, None)
-            with patch("pathlib.Path.is_file", return_value=True):
-                with patch("pathlib.Path.read_text", return_value=content):
-                    self.assertTrue(fcitx_templates_registered())
-
-    def test_only_one_registered_returns_true(self):
-        """Only 1 of 3 templates present → True (OR logic)."""
-        from nyxuri.modules.fcitx import fcitx_templates_registered, FCITX_THEME
-
-        content = f"[theme.templates.user.{FCITX_THEME}_theme]\n"
-        with patch("nyxuri.modules.fcitx._fcitx_paths") as mock_paths:
-            mock_paths.return_value = (None, None, None, None, Path("/fake/config.toml"), None, None, None)
-            with patch("pathlib.Path.is_file", return_value=True):
-                with patch("pathlib.Path.read_text", return_value=content):
-                    self.assertTrue(fcitx_templates_registered(),
-                                    "Partial registration (1/3) should return True with OR logic")
-
-    def test_none_registered_returns_false(self):
-        """No templates present → False."""
-        from nyxuri.modules.fcitx import fcitx_templates_registered, FCITX_THEME
-
-        content = "[some.other.template]\n"
-        with patch("nyxuri.modules.fcitx._fcitx_paths") as mock_paths:
-            mock_paths.return_value = (None, None, None, None, Path("/fake/config.toml"), None, None, None)
-            with patch("pathlib.Path.is_file", return_value=True):
-                with patch("pathlib.Path.read_text", return_value=content):
-                    self.assertFalse(fcitx_templates_registered())
-
-    def test_no_config_file_returns_false(self):
-        """No config file → False."""
-        from nyxuri.modules.fcitx import fcitx_templates_registered
-
-        with patch("nyxuri.modules.fcitx._fcitx_paths") as mock_paths:
-            mock_paths.return_value = (None, None, None, None, Path("/fake/config.toml"), None, None, None)
-            with patch("pathlib.Path.is_file", return_value=False):
-                self.assertFalse(fcitx_templates_registered())
+    def test_deploy_skin_fails_without_payload(self):
+        empty = self._ctx.env.home / "empty-unit"
+        empty.mkdir()
+        self.assertFalse(self.activate.deploy_skin(empty))
 
 
-class TestFcitxStartup(unittest.TestCase):
+class TestRimeMount(unittest.TestCase):
     def setUp(self):
         self._ctx = TempEnv()
         self._ctx.__enter__()
-        self.env = self._ctx.env
+        self.activate = _load_hook("activate")
+        self.home = self._ctx.env.home
+        self.rime_dir = self.home / ".local/share/fcitx5/rime"
+        self.marker = self.home / ".local/state/nyxuri/fcitx-nyxmellow-rime.owned"
 
     def tearDown(self):
         self._ctx.__exit__()
 
-    def test_niri_starts_fcitx_when_installed(self):
-        config = (self.env.configs_src / "niri" / "config.kdl").read_text(encoding="utf-8")
-        self.assertIn(
-            'spawn-at-startup "sh" "-c" "command -v fcitx5 >/dev/null 2>&1 && exec fcitx5 -d"',
-            config,
-        )
+    def test_fresh_mount_writes_patch_and_ownership(self):
+        with patch.object(self.activate.shutil, "which", return_value=None), \
+             patch("builtins.print"):
+            self.activate.mount_rime(self.rime_dir, self.marker)
 
-    def test_reload_does_not_start_or_kill_daemon(self):
-        from nyxuri.modules.fcitx import fcitx_reload
+        custom = self.rime_dir / "default.custom.yaml"
+        self.assertEqual(custom.read_text(encoding="utf-8"), "patch:\n  schema_list:\n    - schema: rime_ice\n")
+        self.assertTrue(self.marker.is_file())
+        self.assertIn("default.custom.yaml", self.marker.read_text(encoding="utf-8"))
 
-        with patch("nyxuri.modules.fcitx.shutil.which", return_value="/usr/bin/busctl"), \
-             patch("nyxuri.modules.fcitx.timed_run", return_value=SimpleNamespace(returncode=0)) as run, \
-             patch("nyxuri.modules.fcitx.subprocess.Popen") as popen:
-            fcitx_reload()
+    def test_mount_is_idempotent(self):
+        self.rime_dir.mkdir(parents=True)
+        custom = self.rime_dir / "default.custom.yaml"
+        custom.write_text("patch:\n  schema_list:\n    - schema: rime_ice\n", encoding="utf-8")
 
-        run.assert_called_once_with(
-            ["busctl", "--user", "--auto-start=no", "call", "org.fcitx.Fcitx5", "/controller", "org.fcitx.Fcitx.Controller1", "ReloadAddonConfig", "s", "classicui"],
-            5, stdout=-3, stderr=-3, check=False,
-        )
-        popen.assert_not_called()
+        with patch.object(self.activate.shutil, "which", return_value=None), \
+             patch("builtins.print"):
+            self.activate.mount_rime(self.rime_dir, self.marker)
 
-    def test_reload_does_not_start_daemon_when_busctl_is_unavailable(self):
-        from nyxuri.modules.fcitx import fcitx_reload
-
-        with patch("nyxuri.modules.fcitx.shutil.which", return_value=None), \
-             patch("nyxuri.modules.fcitx.subprocess.Popen") as popen:
-            fcitx_reload()
-
-        popen.assert_not_called()
-
-    def test_theme_edit_preserves_other_sections_and_comments(self):
-        from nyxuri.modules.fcitx import fcitx_set_theme_conf
-        path = self.env.config_dir / "fcitx5/conf/classicui.conf"
-        path.parent.mkdir(parents=True)
-        path.write_text("# personal\n[Other]\nTheme=keep\n[ClassicUI]\nTheme=old\nFont=custom\n")
-        path.chmod(0o600)
-        fcitx_set_theme_conf()
-        self.assertEqual(path.read_text(), "# personal\nTheme=nyxmellow\nFont=custom\nDarkTheme=nyxmellow\n[Other]\nTheme=keep\n")
-        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
-
-    def test_theme_edit_uses_fcitx_root_config_format(self):
-        from nyxuri.modules.fcitx import fcitx_set_theme_conf
-        path = self.env.config_dir / "fcitx5/conf/classicui.conf"
-        path.parent.mkdir(parents=True)
-        path.write_text("# generated by fcitx5\nTheme=old\nDarkTheme=old-dark\nFont=custom\n")
-        fcitx_set_theme_conf()
         self.assertEqual(
-            path.read_text(),
-            "# generated by fcitx5\nTheme=nyxmellow\nDarkTheme=nyxmellow\nFont=custom\n",
+            custom.read_text(encoding="utf-8"),
+            "patch:\n  schema_list:\n    - schema: rime_ice\n",
+            "idempotent mount must not duplicate the schema entry",
         )
 
-    def test_theme_edit_migrates_legacy_classicui_header(self):
-        from nyxuri.modules.fcitx import fcitx_set_theme_conf
-        path = self.env.config_dir / "fcitx5/conf/classicui.conf"
-        path.parent.mkdir(parents=True)
-        path.write_text("[ClassicUI]\nTheme=default\nDarkTheme=default-dark\nFont=Sans 10\n")
-        fcitx_set_theme_conf()
-        content = path.read_text()
-        self.assertNotIn("[ClassicUI]", content)
-        self.assertIn("Theme=nyxmellow\n", content)
-        self.assertIn("DarkTheme=nyxmellow\n", content)
-        self.assertIn("Font=Sans 10\n", content)
+    def test_mount_merges_into_existing_user_patch(self):
+        self.rime_dir.mkdir(parents=True)
+        custom = self.rime_dir / "default.custom.yaml"
+        custom.write_text("patch:\n  schema_list:\n", encoding="utf-8")
 
-    def test_theme_edit_applies_to_every_duplicate_key(self):
-        from nyxuri.modules.fcitx import fcitx_set_theme_conf
-        path = self.env.config_dir / "fcitx5/conf/classicui.conf"
-        path.parent.mkdir(parents=True)
-        path.write_text("[ClassicUI]\nTheme=old\nTheme=older\nDarkTheme=old-dark\n")
-        fcitx_set_theme_conf()
-        content = path.read_text()
-        self.assertNotIn("Theme=old\n", content)
-        self.assertNotIn("Theme=older\n", content)
-        self.assertEqual(content, "Theme=nyxmellow\nTheme=nyxmellow\nDarkTheme=nyxmellow\n")
+        with patch.object(self.activate.shutil, "which", return_value=None), \
+             patch("builtins.print"):
+            self.activate.mount_rime(self.rime_dir, self.marker)
 
-    def test_theme_edit_tolerates_duplicate_section(self):
-        from nyxuri.modules.fcitx import fcitx_set_theme_conf
-        path = self.env.config_dir / "fcitx5/conf/classicui.conf"
-        path.parent.mkdir(parents=True)
-        path.write_text("[ClassicUI]\nTheme=old\n[ClassicUI]\nDarkTheme=old-dark\n")
-        fcitx_set_theme_conf()
-        content = path.read_text()
-        self.assertIn("Theme=nyxmellow\n", content)
-        self.assertIn("DarkTheme=nyxmellow\n", content)
-
-    def test_theme_edit_still_refuses_unparseable_file(self):
-        import configparser
-        from nyxuri.modules.fcitx import fcitx_set_theme_conf
-        path = self.env.config_dir / "fcitx5/conf/classicui.conf"
-        path.parent.mkdir(parents=True)
-        original = "[ClassicUI]\nTheme=old\nthis line has no separator\n"
-        path.write_text(original)
-        with self.assertRaises(configparser.ParsingError):
-            fcitx_set_theme_conf()
-        self.assertEqual(path.read_text(), original)
-
-    def test_flat_edit_drops_a_key_restored_to_absent(self):
-        from nyxuri.modules.fcitx import _edit_flat_config
-        edited = _edit_flat_config("[ClassicUI]\nTheme=old\nFont=custom\n",
-                                   {"Theme": None, "DarkTheme": "new-dark"})
-        self.assertNotIn("Theme=old", edited)
-        self.assertNotIn("Theme=None", edited)
-        self.assertIn("Font=custom\n", edited)
-        self.assertIn("DarkTheme=new-dark\n", edited)
-
-    def test_uninstall_keeps_user_changes_and_private_theme_files(self):
-        from nyxuri.modules.fcitx import fcitx_set_theme_conf, fcitx_uninstall
-        path = self.env.config_dir / "fcitx5/conf/classicui.conf"
-        path.parent.mkdir(parents=True)
-        path.write_text("[ClassicUI]\nTheme=old\nDarkTheme=old-dark\n")
-        fcitx_set_theme_conf()
-        path.write_text(path.read_text().replace("Theme=nyxmellow\n", "Theme=my-new-theme\n", 1))
-        private = self.env.home / ".local/share/fcitx5/themes/nyxmellow/custom.txt"
-        private.parent.mkdir(parents=True)
-        private.write_text("mine")
-        with patch("nyxuri.modules.fcitx.fcitx_reload"):
-            self.assertTrue(fcitx_uninstall())
-        self.assertIn("Theme=my-new-theme\n", path.read_text())
-        self.assertIn("DarkTheme=old-dark\n", path.read_text())
-        self.assertEqual(private.read_text(), "mine")
-
-    def test_install_preserves_shortcuts_and_is_repeatable(self):
-        from nyxuri.modules.fcitx import fcitx_install
-        config = self.env.config_dir / "fcitx5/config"
-        config.parent.mkdir(parents=True)
-        config.write_text("[Hotkey/TriggerKeys]\n0=Alt+space\n")
-        quickphrase = config.parent / "conf/quickphrase.conf"
-        quickphrase.parent.mkdir()
-        quickphrase.write_text("[Hotkey]\nTriggerKey=Super+space\n")
-        shell = self.env.config_dir / "noctalia/noctalia-config.toml"
-        shell.parent.mkdir()
-        shell.write_text('[theme]\nmode = "dark"\n')
-        with patch("nyxuri.modules.fcitx.fcitx5_installed", return_value=True), \
-             patch("nyxuri.modules.fcitx.fcitx_trigger_render"), \
-             patch("nyxuri.modules.fcitx.fcitx_reload"):
-            self.assertTrue(fcitx_install())
-            first = shell.read_text()
-            self.assertTrue(fcitx_install())
-            self.assertEqual(shell.read_text(), first)
-        self.assertEqual(config.read_text(), "[Hotkey/TriggerKeys]\n0=Alt+space\n")
-        self.assertEqual(quickphrase.read_text(), "[Hotkey]\nTriggerKey=Super+space\n")
-
-    def test_template_registration_and_removal_leave_other_templates(self):
-        from nyxuri.modules.fcitx import fcitx_register_templates, fcitx_uninstall
-        path = self.env.config_dir / "noctalia/noctalia-config.toml"
-        path.parent.mkdir()
-        personal = '[theme.templates.user.nyxmellow_personal]\ninput_path = "mine"\n'
-        owned = '[theme.templates.user.nyxmellow_theme]\nindex = 9\n'
-        path.write_text(personal + owned)
-        self.assertTrue(fcitx_register_templates())
-        self.assertIn(personal, path.read_text())
-        self.assertIn(owned, path.read_text())
-        with patch("nyxuri.modules.fcitx.fcitx_reload"):
-            self.assertTrue(fcitx_uninstall())
-        self.assertIn(personal, path.read_text())
-        self.assertNotIn("nyxmellow_theme]", path.read_text())
-
-    def test_template_registration_upgrades_legacy_hooks(self):
-        from nyxuri.modules.fcitx import fcitx_register_templates, FCITX_CLASSICUI_RELOAD_HOOK
-        path = self.env.config_dir / "noctalia/noctalia-config.toml"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        legacy_content = (
-            '[theme.templates.user.nyxmellow_highlight]\n'
-            'index = 2\n'
-            'input_path = "in.svg"\n'
-            'output_path = "out.svg"\n'
-            'post_hook = "fcitx5-remote --check -r >/dev/null 2>&1 || true"\n'
-        )
-        path.write_text(legacy_content)
-        self.assertTrue(fcitx_register_templates())
-        self.assertIn(f'post_hook = "{FCITX_CLASSICUI_RELOAD_HOOK}"', path.read_text())
-
-    def test_failed_template_write_does_not_enable_module(self):
-        from nyxuri.modules.fcitx import fcitx_install, fcitx_enabled
-        with patch("nyxuri.modules.fcitx.atomic_replace_item", return_value=False):
-            self.assertFalse(fcitx_install())
-        self.assertFalse(fcitx_enabled())
+        content = custom.read_text(encoding="utf-8")
+        self.assertIn("schema: rime_ice", content)
 
 
-class TestFcitxDecouplingAndRime(unittest.TestCase):
+class TestRimeRevert(unittest.TestCase):
     def setUp(self):
         self._ctx = TempEnv()
         self._ctx.__enter__()
-        self.env = self._ctx.env
+        self.deactivate = _load_hook("deactivate")
+        self.home = self._ctx.env.home
+        self.rime_dir = self.home / ".local/share/fcitx5/rime"
+        self.marker = self.home / ".local/state/nyxuri/fcitx-nyxmellow-rime.owned"
+        self.rime_dir.mkdir(parents=True)
+        self.marker.parent.mkdir(parents=True, exist_ok=True)
 
     def tearDown(self):
         self._ctx.__exit__()
 
-    def test_deploy_assets_does_not_modify_classicui_or_enable_marker(self):
-        """fcitx_deploy_assets only deploys templates and hooks, leaving classicui untouched."""
-        from nyxuri.modules.fcitx import fcitx_deploy_assets, fcitx_enabled
-
-        classicui = self.env.config_dir / "fcitx5/conf/classicui.conf"
-        noctalia_conf = self.env.config_dir / "noctalia/noctalia-config.toml"
-        noctalia_conf.parent.mkdir(parents=True, exist_ok=True)
-        noctalia_conf.write_text('[theme]\nmode = "dark"\n')
-
-        with patch("nyxuri.modules.fcitx.fcitx5_installed", return_value=True), \
-             patch("nyxuri.modules.fcitx.fcitx_deploy_templates", return_value=True), \
-             patch("nyxuri.modules.fcitx.fcitx_trigger_render"):
-            self.assertTrue(fcitx_deploy_assets())
-
-        self.assertFalse(classicui.exists(), "classicui.conf must NOT be created or modified by deploy_assets")
-        self.assertFalse(fcitx_enabled(), "enabled marker must NOT be created by deploy_assets")
-
-    def test_activate_modifies_classicui_and_creates_marker(self):
-        """fcitx_activate sets theme in classicui and creates consent marker."""
-        from nyxuri.modules.fcitx import fcitx_activate, fcitx_enabled
-
-        classicui = self.env.config_dir / "fcitx5/conf/classicui.conf"
-        noctalia_conf = self.env.config_dir / "noctalia/noctalia-config.toml"
-        noctalia_conf.parent.mkdir(parents=True, exist_ok=True)
-        noctalia_conf.write_text('[theme]\nmode = "dark"\n')
-
-        with patch("nyxuri.modules.fcitx.fcitx5_installed", return_value=True), \
-             patch("nyxuri.modules.fcitx.fcitx_trigger_render"), \
-             patch("nyxuri.modules.fcitx.fcitx_reload"):
-            self.assertTrue(fcitx_activate())
-
-        self.assertTrue(classicui.is_file())
-        self.assertIn("Theme=nyxmellow", classicui.read_text())
-        self.assertTrue(fcitx_enabled())
-
-    def test_preflight_plan_clarity(self):
-        """Preflight plan must clearly distinguish deploy-only vs default theme activation."""
-        from nyxuri.modules.fcitx import fcitx_preflight_plan
-
-        plan_full = fcitx_preflight_plan(set_default=True)
-        plan_deploy = fcitx_preflight_plan(set_default=False)
-
-        full_text = " ".join(plan_full)
-        deploy_text = " ".join(plan_deploy)
-
-        self.assertIn("classicui.conf", full_text)
-        self.assertIn("templates", full_text)
-        self.assertTrue("跳过" in deploy_text or "Skipped" in deploy_text)
-
-    def test_setup_rime_ice_creates_yaml_and_profile(self):
-        """setup_rime_ice patches default.custom.yaml and adds rime to profile."""
-        from nyxuri.modules.fcitx import setup_rime_ice
-
-        with patch("nyxuri.modules.fcitx.fcitx_reload_all"):
-            self.assertTrue(setup_rime_ice())
-
-        custom_yaml = self.env.home / ".local/share/fcitx5/rime/default.custom.yaml"
-        profile = self.env.config_dir / "fcitx5/profile"
-
-        self.assertTrue(custom_yaml.is_file(), "default.custom.yaml must be created")
-        self.assertIn("rime_ice", custom_yaml.read_text(), "rime_ice schema must be in default.custom.yaml")
-
-        self.assertTrue(profile.is_file(), "fcitx5 profile must be created")
-        self.assertIn("Name=rime", profile.read_text(), "rime input method must be in fcitx5 profile")
-
-    def test_setup_rime_ice_preserves_existing_profile_items(self):
-        """setup_rime_ice appends to existing profile without overwriting."""
-        from nyxuri.modules.fcitx import setup_rime_ice
-
-        profile = self.env.config_dir / "fcitx5/profile"
-        profile.parent.mkdir(parents=True, exist_ok=True)
-        profile.write_text(
-            "[Groups/0]\n"
-            "Name=默认\n"
-            "Default Layout=us\n\n"
-            "[Groups/0/Items/0]\n"
-            "Name=keyboard-us\n"
-            "Layout=\n\n"
-            "[GroupOrder]\n"
-            "0=默认\n"
+    def test_owned_patch_file_is_removed_entirely(self):
+        (self.rime_dir / "default.custom.yaml").write_text(
+            "patch:\n  schema_list:\n    - schema: rime_ice\n", encoding="utf-8"
         )
+        self.marker.write_text("default.custom.yaml\n", encoding="utf-8")
 
-        with patch("nyxuri.modules.fcitx.fcitx_reload_all"):
-            self.assertTrue(setup_rime_ice())
+        self.deactivate.revert_rime(self.rime_dir, self.marker)
 
-        content = profile.read_text()
-        self.assertIn("Name=keyboard-us", content)
-        self.assertIn("Name=rime", content)
-        self.assertIn("[Groups/0/Items/1]", content)
+        self.assertFalse((self.rime_dir / "default.custom.yaml").exists())
+        self.assertFalse(self.marker.exists())
+
+    def test_user_lines_survive_owned_line_removal(self):
+        (self.rime_dir / "default.custom.yaml").write_text(
+            "patch:\n  schema_list:\n    - schema: lunar\n    - schema: rime_ice\n", encoding="utf-8"
+        )
+        self.marker.write_text("default.custom.yaml\n", encoding="utf-8")
+
+        self.deactivate.revert_rime(self.rime_dir, self.marker)
+
+        content = (self.rime_dir / "default.custom.yaml").read_text(encoding="utf-8")
+        self.assertIn("schema: lunar", content)
+        self.assertNotIn("schema: rime_ice", content)
+
+    def test_unowned_file_is_never_touched(self):
+        custom = self.rime_dir / "default.custom.yaml"
+        custom.write_text("patch:\n  schema_list:\n    - schema: rime_ice\n", encoding="utf-8")
+
+        self.deactivate.revert_rime(self.rime_dir, self.marker)
+
+        self.assertTrue(custom.is_file(), "no ownership record → hands off")
+
+
+class TestSkinWithdraw(unittest.TestCase):
+    def setUp(self):
+        self._ctx = TempEnv()
+        self._ctx.__enter__()
+        self.deactivate = _load_hook("deactivate")
+        self.theme_dir = self._ctx.env.home / ".local/share/fcitx5/themes/nyxmellow"
+
+    def tearDown(self):
+        self._ctx.__exit__()
+
+    def test_known_files_removed_user_files_survive(self):
+        (self.theme_dir / "templates").mkdir(parents=True)
+        (self.theme_dir / "templates" / "theme.conf").write_text("t")
+        (self.theme_dir / "theme.conf").write_text("rendered")
+        (self.theme_dir / "user-notes.txt").write_text("mine")
+
+        self.deactivate.withdraw_skin(self.theme_dir)
+
+        self.assertFalse((self.theme_dir / "templates").exists())
+        self.assertFalse((self.theme_dir / "theme.conf").exists())
+        self.assertTrue((self.theme_dir / "user-notes.txt").is_file())
 
 
 if __name__ == "__main__":

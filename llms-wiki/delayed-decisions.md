@@ -7,7 +7,7 @@
 | 事项 | 触发条件 | 当前决策 |
 |---|---|---|
 | **硬件适配 Overlay**（NVIDIA / AMD / 多显示器…） | 出现多个明确的硬件适配需求 | 当前无自动驱动补丁，不引入硬件 overlay；应用预设底版继承（Base Overlay）保持独立。详见 [nvidia-patch](nvidia-patch.md) |
-| **单元服务声明字段**（manifest 声明 systemd unit 等服务副作用） | 出现跨单元或系统级服务效果的真实需求 | 服务启停属单元内部行为，随单元自身脚本处理；KM2 前不发明字段。详见 [unit-model](unit-model.md) §4 声明边界 |
+| **单元服务声明字段**（manifest 声明 systemd unit 等服务副作用） | 出现跨单元或系统级服务效果的真实需求 | **已部分落地（KM3）**：副作用走单元钩子（`post_install` / `post_remove`）+ `[privilege]` 声明（greeter 案例：服务启停在钩子内部，manifest 只声明事实）。独立服务字段仍不设，出现真实需求再议。详见 [unit-model](unit-model.md) §4 与 [manifest-schema](manifest-schema.md) |
 
 ## 这次重构已落地（主动覆盖延迟）
 
@@ -20,6 +20,6 @@
 
 ## `manifest.toml` schema（字段全可选，无文件 = 全默认）
 
-详见 [manifest-schema](manifest-schema.md)。如 fastfetch 这种"目录名=二进制名=单包=无例外"的直接不写 manifest。kitty 仅声明 `[presets] reload` 信号。niri 声明 `preserve` 与 `[parts.*]` 零件插槽。fcitx5-rime 在自己的 `manifest.toml` 里声明包名与 `post_install` 钩子（旧 `.optional-apps.toml` 中心登记簿已随 KM1 ② 物理删除）。
+详见 [manifest-schema](manifest-schema.md)。如 fastfetch 这种"目录名=二进制名=单包=无例外"的直接不写 manifest。kitty 仅声明 `[presets] reload` 信号。niri 声明 `preserve` 与 `[parts.*]` 零件插槽。fcitx5-rime 在自己的 `manifest.toml` 里声明包名与 `post_install` 单元钩子（KM3 起 `module:function` 旧形态退役，钩子只执行单元目录内脚本；旧 `.optional-apps.toml` 中心登记簿已随 KM1 ② 物理删除）。
 
 不放进 manifest 的：doctor 检查项、i18n 键（防 manifest 膨胀成 DSL）。

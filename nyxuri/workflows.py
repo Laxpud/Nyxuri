@@ -5,7 +5,7 @@ import subprocess
 import sys
 from typing import List
 
-from nyxuri.constants import FCITX_THEME, GREETER_PKG, SUPPORTED_WMS, detect_preferred_wm
+from nyxuri.constants import SUPPORTED_WMS, detect_preferred_wm
 from nyxuri.core import get_env, log_msg
 from nyxuri.deploy import (
     config_item_dest,
@@ -18,8 +18,7 @@ from nyxuri.deploy import (
     wallpapers_pack_present,
 )
 from nyxuri.deps import get_missing_deps, install_selected_deps
-from nyxuri.modules.fcitx import fcitx_enabled, fcitx_install
-from nyxuri.modules.greeter import greeter_install
+from nyxuri import transaction
 from nyxuri.i18n import msg
 from nyxuri.tui import MenuItem, Menu, prompt_confirm
 from nyxuri.menus import run_master_component_menu
@@ -27,22 +26,16 @@ from nyxuri.menus import run_master_component_menu
 def _phase_preflight_check(
     mode: str,
     chosen_configs: List[str],
-    do_fcitx: bool,
-    do_greeter: bool,
     do_wallpapers: bool,
     do_backup: bool,
 ) -> None:
     """Pre-flight checklist & upfront sudo access validation."""
-    needs_sudo = mode == "full" or do_greeter
+    needs_sudo = mode == "full"
 
     print(msg("preflight_express_summary"))
     print(msg("preflight_comp_config", len(chosen_configs)))
     if do_wallpapers:
         print(msg("preflight_comp_assets"))
-    if do_fcitx:
-        print(msg("preflight_comp_module_fcitx", FCITX_THEME))
-    if do_greeter:
-        print(msg("preflight_comp_module_greeter", GREETER_PKG))
     if mode == "full":
         print(msg("preflight_comp_deps"))
     if do_backup:
@@ -72,7 +65,7 @@ def _finish_successful_deploy(mode: str, **completion_args) -> None:
 
 
 def install_configs_workflow(mode: str = "full") -> bool:
-    """Full execution pipeline for dotfiles, dependencies, wallpapers, and optional modules."""
+    """Full execution pipeline for dotfiles, dependencies, wallpapers, and hooks."""
     if mode == "full" and not shutil.which("pacman"):
         print(msg("distro_unsupported"))
         print(msg("distro_unsupported_hint"))
@@ -85,11 +78,9 @@ def install_configs_workflow(mode: str = "full") -> bool:
 
         chosen_configs = chosen_dict["configs"]
         do_wallpapers = chosen_dict["wallpapers"]
-        do_fcitx = chosen_dict["fcitx"]
-        do_greeter = chosen_dict["greeter"]
         do_backup = chosen_dict["backup"]
 
-        if not chosen_configs and not do_wallpapers and not do_fcitx and not do_greeter:
+        if not chosen_configs and not do_wallpapers:
             print(msg("install_cancelled"))
             return True
     else:
@@ -100,8 +91,6 @@ def install_configs_workflow(mode: str = "full") -> bool:
             if item not in SUPPORTED_WMS or item == preferred_wm
         ]
         do_wallpapers = not wallpapers_pack_present()
-        do_fcitx = fcitx_enabled()
-        do_greeter = False
         do_backup = False
 
     # Safety: ensure at most one WM is selected
@@ -111,16 +100,12 @@ def install_configs_workflow(mode: str = "full") -> bool:
         chosen_wm = preferred if preferred in selected_wms else selected_wms[0]
         chosen_configs = [c for c in chosen_configs if c not in SUPPORTED_WMS or c == chosen_wm]
 
-    _phase_preflight_check(mode, chosen_configs, do_fcitx, do_greeter, do_wallpapers, do_backup)
+    _phase_preflight_check(mode, chosen_configs, do_wallpapers, do_backup)
 
     # Step counting
-    steps = 2  # configs + wallpapers
+    steps = 3  # configs + wallpapers + unit hooks
     if mode == "full":
         steps += 1  # deps
-    if do_fcitx:
-        steps += 1
-    if do_greeter:
-        steps += 1
     cur_step = 0
 
     # 1. Deps
@@ -155,19 +140,14 @@ def install_configs_workflow(mode: str = "full") -> bool:
         print(msg("msg_wallpapers_download_failed"))
         return False
 
-    # 4. Fcitx5
-    if do_fcitx:
-        cur_step += 1
-        print(msg("install_step_fcitx", f"{cur_step}/{steps}"))
-        if not fcitx_install():
-            return False
-
-    # 5. Greeter
-    if do_greeter:
-        cur_step += 1
-        print(msg("install_step_greeter", f"{cur_step}/{steps}"))
-        if not greeter_install():
-            return False
+    # 4. Unit hook replay: already-enabled units re-run their declared
+    # on-side hooks (skins, renders). Activation of NEW units belongs to
+    # `nyxuri on <unit>` — the installer never invents switch state.
+    cur_step += 1
+    print(msg("install_step_unit_hooks", f"{cur_step}/{steps}"))
+    for step in transaction.replay_enabled_hooks():
+        if not step.ok:
+            log_msg("WARN", f"unit hook replay failed for {step.unit}: {step.detail}")
 
     # Completion
     _finish_successful_deploy(
@@ -175,8 +155,6 @@ def install_configs_workflow(mode: str = "full") -> bool:
         chosen_items=chosen_configs,
         preserved_lines=preserved_log,
         wallpaper_result=wallpaper_result,
-        do_fcitx=do_fcitx,
-        do_greeter=do_greeter,
     )
     return True
 
@@ -190,15 +168,7 @@ def offer_overwrite_upgrade(flag: str = "") -> bool:
             render_completion_screen("update", failed_items=failed_items)
             return False
         wallpaper_result = deploy_wallpapers(do_download=True)
-        if fcitx_enabled():
-            if not fcitx_install():
-                return False
-        try:
-            if not greeter_install():
-                return False
-        except Exception as e:
-            log_msg("WARN", f"Greeter install skipped during --force update: {e}")
-            return False
+        transaction.replay_enabled_hooks()
         _finish_successful_deploy("update", wallpaper_result=wallpaper_result)
         return True
     elif flag == "--no-deploy":
@@ -212,8 +182,7 @@ def offer_overwrite_upgrade(flag: str = "") -> bool:
             render_completion_screen("update", failed_items=failed_items)
             return False
         wallpaper_result = deploy_wallpapers(do_download=False)
-        if fcitx_enabled() and not fcitx_install():
-            return False
+        transaction.replay_enabled_hooks()
         _finish_successful_deploy("update", wallpaper_result=wallpaper_result)
         return True
 
@@ -229,7 +198,7 @@ def offer_overwrite_upgrade(flag: str = "") -> bool:
     if choice == 0:
         chosen = run_master_component_menu(is_update=True, mode="full")
         if chosen:
-            if not chosen["configs"] and not chosen["wallpapers"] and not chosen["fcitx"] and not chosen["greeter"]:
+            if not chosen["configs"] and not chosen["wallpapers"]:
                 print(msg("log_no_components_selected"))
                 return True
             print(msg("upgrading_selected"))
@@ -242,12 +211,7 @@ def offer_overwrite_upgrade(flag: str = "") -> bool:
             wallpaper_result = None
             if chosen["wallpapers"]:
                 wallpaper_result = deploy_wallpapers(do_download=True)
-            if chosen["fcitx"]:
-                if not fcitx_install():
-                    return False
-            if chosen["greeter"]:
-                if not greeter_install():
-                    return False
+            transaction.replay_enabled_hooks()
             _finish_successful_deploy(
                 "update",
                 chosen_items=chosen["configs"],

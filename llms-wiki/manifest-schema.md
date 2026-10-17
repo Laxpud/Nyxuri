@@ -22,8 +22,25 @@
 | `category` | `""` | 菜单分组键，显示名走 i18n `apps_cat_<key>` |
 | `detect` | `<目录名>` | 检测是否安装的命令名（纯名字，无 `binary:` 前缀 DSL） |
 | `optional` | `false` | 可选单元：进应用菜单与 PKGBUILD `optdepends`，不占硬依赖 |
-| `post_install` | `""` | 可选模块安装完成钩子，格式 `<module>:<function>`（如 `fcitx:setup_rime_ice`） |
+| `post_install` | `""` | on 侧生命周期钩子：`configs/<unit>/hooks/<名字>` 可执行脚本名（如 `"setup-rime"`），事务在蓝图部署后、账本快照前执行 |
+| `post_remove` | `""` | off 侧生命周期钩子：同形态，实机抹白之后执行，负责清理生活区**外**的产物（KM3） |
+| `[privilege]` | 无表 | 特权副作用声明：`requires_root = true` + `system_paths = [...]`（如 greeter 的 `/etc/greetd`）。只声明事实供展示与审计，不改变执行方式 |
 | `dependencies` | `[]` | 依赖的其他 Nyxuri 单元（内核 resolver 的输入） |
+
+### 单元生命周期钩子（KM3 契约）
+
+钩子是**单元自己的行为**，不是内核业务代码——落点固定为单元目录内
+`configs/<unit>/hooks/<名字>`（任意解释器，`#!/usr/bin/env python3` 或 `sh` 均可，
+必须带可执行位）。`<module>:<function>` 旧形态随 `nyxuri/modules/` 退役（KM3 死刑）。
+
+- **执行归属**：只有 transaction 执行钩子（内核唯一副作用层），注入
+  `NYXURI_UNIT` / `NYXURI_UNIT_SRC` / `NYXURI_UNIT_DEST` 环境变量，不解释钩子内部；
+- **快照口径**：`post_install` 在账本快照**之前**运行——钩子落进单元自身生活区的
+  文件自动进入 `files` 快照，`off` 走正常抹白（如 fisher 装进 `~/.config/fish` 的
+  插件文件无需自记账）；
+- **生活区外**（`~/.local/share`、`/etc` 等）的产物 `post_remove` 自清；
+- `hooks/` 是仓库元数据，永不部署进 `~/.config`，也不计入 `is_deployable`；
+- 钩子失败降级 WARN，Step detail 标 `hook-failed: <名字>`，不阻断事务。
 
 ### 通用零件插槽（`[parts.<slot>]` 表，可选）
 
@@ -116,13 +133,28 @@ label = "Mission Center"
 category = "system"
 detect = "mission-center"
 
-# configs/fcitx5-rime/manifest.toml
+# configs/fcitx5-rime/manifest.toml — KM3 起皮肤入单元，配置整文件化
 optional = true
 packages = ["fcitx5", "fcitx5-gtk", "fcitx5-qt", "fcitx5-configtool", "fcitx5-rime"]
 packages_aur = ["rime-ice-git"]
 label = "Fcitx5 Rime"
 category = "system"
-post_install = "fcitx:setup_rime_ice"
+preserve = ["conf/classicui.conf", "profile"]   # 用户层随行：部署不倒灌，off 入 Vault
+post_install = "activate"       # → hooks/activate：皮肤落 ~/.local/share + rime patch
+post_remove = "deactivate"      # → hooks/deactivate：撤皮肤 + 按 owned 标记回滚 rime patch
+
+# configs/greeter/manifest.toml — /etc + root + systemd 副作用全声明
+optional = true
+packages = ["greetd"]
+packages_aur = ["noctalia-greeter"]
+label = "Noctalia Greeter"
+category = "system"
+post_install = "activate"
+post_remove = "deactivate"
+
+[privilege]
+requires_root = true
+system_paths = ["/etc/greetd/config.toml", "/etc/polkit-1/rules.d/50-noctalia-greeter.rules", "/var/lib/noctalia-greeter"]
 ```
 
 单元 id = 目录名；菜单显示名必须配 i18n `app_<name>`（zh/en 成对，`-` 换 `_`）。
@@ -132,10 +164,11 @@ post_install = "fcitx:setup_rime_ice"
 
 - `configs/` 顶层**只认目录**——每个子目录即一个单元；散落文件不是单元（死刑断言守卫顶层无文件）；
 - 目录里只有 `manifest.toml`（无其他文件）→ manifest-only 单元，可声明包、不部署；
-- `manifest.toml` 与 `__pycache__` 是仓库元数据，永不落进 `~/.config`。
+- `manifest.toml`、`__pycache__`、`hooks/` 是仓库元数据，永不落进 `~/.config`。
 
 ## 边界
 
 不放进 manifest 的（会让它膨胀成小语言）：doctor 检查项、i18n 键。
 这些是 `DOCTOR_CHECKS` 列表 / `translations.toml` 的事，manifest 只管单元的包定义、
-配置例外与极轻量生命周期钩子（如 `post_install` 转发至模块函数）。
+配置例外与极轻量生命周期钩子（`post_install` / `post_remove`，见上文钩子契约；
+`nyxuri/modules/` 专用业务模块已随 KM3 退役，钩子只执行单元自己的脚本）。

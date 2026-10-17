@@ -56,9 +56,8 @@ class TestOptionalAppPackageMapping(unittest.TestCase):
             with patch("nyxuri.pkg.preferred_manager", return_value="paru"):
                 with patch("nyxuri.deps.aur_helper_usable", return_value="paru"):
                     with patch("shutil.which", return_value="/usr/bin/fcitx5"):
-                        with patch("nyxuri.modules.fcitx.fcitx_install", return_value=True):
-                            with patch("builtins.print"):
-                                install_optional_apps(["fcitx5-rime"])
+                        with patch("builtins.print"):
+                            install_optional_apps(["fcitx5-rime"])
 
         # Find the repo packages command
         repo_cmd = captured_cmds[0]
@@ -69,33 +68,21 @@ class TestOptionalAppPackageMapping(unittest.TestCase):
         aur_cmd = captured_cmds[1]
         self.assertIn("rime-ice-git", aur_cmd, "rime-ice-git must be installed from AUR")
 
-    def test_fcitx_skin_hook_after_install(self):
-        """Installing packages does not select a skin or change input settings."""
+    def test_installer_does_not_activate_units(self):
+        """Installing packages neither activates a unit nor runs its hooks."""
         from nyxuri.deps import install_optional_apps
 
         with patch("subprocess.run", return_value=MagicMock(returncode=0)):
             with patch("nyxuri.pkg.preferred_manager", return_value="paru"):
                 with patch("nyxuri.deps.aur_helper_usable", return_value="paru"):
                     with patch("shutil.which", return_value="/usr/bin/fcitx5"):
-                        with patch("nyxuri.modules.fcitx.fcitx_install") as mock_fcitx:
+                        with patch("nyxuri.transaction._run_unit_hook") as mock_hook, \
+                             patch("nyxuri.transaction.unit_on") as mock_on:
                             with patch("builtins.print"):
                                 install_optional_apps(["fcitx5-rime"])
 
-                        mock_fcitx.assert_not_called()
-
-    def test_post_install_hook_triggered_after_install(self):
-        """Installing fcitx5-rime triggers its declared post_install hook."""
-        from nyxuri.deps import install_optional_apps
-
-        with patch("subprocess.run", return_value=MagicMock(returncode=0)):
-            with patch("nyxuri.pkg.preferred_manager", return_value="paru"):
-                with patch("nyxuri.deps.aur_helper_usable", return_value="paru"):
-                    with patch("shutil.which", return_value="/usr/bin/fcitx5"):
-                        with patch("nyxuri.modules.fcitx.setup_rime_ice") as mock_rime:
-                            with patch("builtins.print"):
-                                install_optional_apps(["fcitx5-rime"])
-
-                        mock_rime.assert_called_once()
+                        mock_hook.assert_not_called()
+                        mock_on.assert_not_called()
 
 
 class TestMpvpaperDetection(unittest.TestCase):

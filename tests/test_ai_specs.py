@@ -104,7 +104,6 @@ class TestAISpecs(unittest.TestCase):
             "i18n.md",
             "assets-deploy.md",
             "backup-snapshot.md",
-            "modules.md",
             "packaging.md",
             "writing-voice.md",
             "changelog-spec.md",
@@ -172,7 +171,6 @@ class TestAISpecs(unittest.TestCase):
         content = (self.wiki_dir / "unit-model.md").read_text(encoding="utf-8")
         rows = [line for line in content.splitlines() if line.startswith("|")]
         for name, stage in (
-            ("nyxuri/modules/", "KM3"),
             ("nyxuri/cli.py", "KM5"),
             ("install.sh", "KM5"),
         ):
@@ -180,6 +178,45 @@ class TestAISpecs(unittest.TestCase):
                 any(name in row and stage in row for row in rows),
                 f"death-row object '{name}' must be registered with stage {stage} in unit-model.md §7",
             )
+
+    def test_km3_module_death_row_enforced(self):
+        """KM3 enforcement step: nyxuri/modules/ is physically deleted — the
+        dedicated business modules live on as configs/<unit>/hooks/ scripts,
+        the engine holds zero references, and §7 marks the row enforced.
+        """
+        # 1. §7 row marked enforced.
+        content = (self.wiki_dir / "unit-model.md").read_text(encoding="utf-8")
+        rows = [line for line in content.splitlines() if line.startswith("|")]
+        self.assertTrue(
+            any("nyxuri/modules/" in row and "KM3（已执法" in row for row in rows),
+            "death-row object 'nyxuri/modules/' must be marked KM3（已执法） in unit-model.md §7",
+        )
+
+        # 2. Physical absence of the package.
+        self.assertFalse((self.root_dir / "nyxuri" / "modules").exists())
+
+        # 3. Zero engine references to the retired package.
+        for py in (self.root_dir / "nyxuri").rglob("*.py"):
+            self.assertNotIn(
+                "nyxuri.modules",
+                py.read_text(encoding="utf-8"),
+                f"{py.relative_to(self.root_dir)} still references the retired nyxuri.modules package",
+            )
+
+        # 4. The retired wiki page is gone and not indexed.
+        self.assertFalse((self.wiki_dir / "modules.md").exists())
+        llms_txt = (self.wiki_dir / "llms.txt").read_text(encoding="utf-8")
+        self.assertNotIn("modules.md", llms_txt)
+
+        # 5. The unit-owned hook scripts took over.
+        hooks = self.root_dir / "configs"
+        for unit, name in (
+            ("fcitx5-rime", "activate"), ("fcitx5-rime", "deactivate"),
+            ("fish", "install-fisher"), ("fish", "remove-fisher"),
+            ("greeter", "activate"), ("greeter", "deactivate"),
+            ("noctalia", "render-gtk"), ("noctalia", "remove-gtk-css"),
+        ):
+            self.assertTrue((hooks / unit / "hooks" / name).is_file(), f"{unit}/hooks/{name}")
 
     def test_km1_death_row_enforced(self):
         """KM1 enforcement step: the three sidecar mechanisms are physically
