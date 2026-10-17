@@ -26,73 +26,73 @@ Singleton {
             "id": "wallpaper",
             "label": "Wallpaper",
             "slot": "surface:desktop",
-            "source": "../modules/wallpaper/WallpaperBackground.qml"
+            "source": "../units/wallpaper/WallpaperBackground.qml"
         },
         {
             "id": "desktopcards",
             "label": "Desktop Cards",
             "slot": "surface:desktop",
-            "source": "../modules/desktopcards/DesktopCardHost.qml"
+            "source": "../units/desktopcards/DesktopCardHost.qml"
         },
         {
             "id": "bar",
             "label": "Status Bar",
             "slot": "edge",
-            "source": "../modules/bar/Bar.qml"
+            "source": "../units/bar/Bar.qml"
         },
         {
             "id": "dock",
             "label": "Dock",
             "slot": "edge",
-            "source": "../modules/dock/DockHost.qml"
+            "source": "../units/dock/DockHost.qml"
         },
         {
             "id": "keystone",
             "label": "Keystone Island",
             "slot": "island",
-            "source": "../modules/keystone/Keystone.qml"
+            "source": "../units/keystone/Keystone.qml"
         },
         {
             "id": "notifications",
             "label": "Notifications",
             "slot": "popup:notification",
-            "source": "../modules/notifications/NotificationPopupHost.qml"
+            "source": "../units/notifications/NotificationPopupHost.qml"
         },
         {
             "id": "regionselector",
             "label": "Region Selector",
             "slot": "overlay",
-            "source": "../modules/regionselector/RegionSelector.qml"
+            "source": "../units/regionselector/RegionSelector.qml"
         },
         {
             "id": "sidebars",
             "label": "Sidebars",
             "slot": "drawer",
-            "source": "../modules/sidebars/SidebarHostWindow.qml"
+            "source": "../units/sidebars/SidebarHostWindow.qml"
         },
         {
             "id": "lock",
             "label": "Lock Screen",
             "slot": "overlay",
-            "source": "../modules/lock/Lock.qml"
+            "source": "../units/lock/Lock.qml"
         },
         {
             "id": "session",
             "label": "Session",
             "slot": "overlay",
-            "source": "../modules/session/SessionHost.qml"
+            "source": "../units/session/SessionHost.qml"
         },
         {
             "id": "settings",
             "label": "Settings",
             "slot": "overlay",
-            "source": "../modules/settings/SettingsHost.qml"
+            "source": "../units/settings/SettingsHost.qml"
         },
         {
             "id": "launcher",
             "label": "Launcher",
             "slot": "overlay",
-            "source": "../modules/launcher/LauncherHost.qml"
+            "source": "../units/launcher/LauncherHost.qml"
         }
     ]
 }

@@ -238,7 +238,9 @@ Nyxuri Shell 绝非特权单体，其内部亦彻底单元化（宿主侧契约�
    shell.dock`），统一挂入 `state.json` 与 4 大动词管辖。内核只认点分 ID 本身，
    不特判任何前缀。
 
-**内核侧承载（KM4 落地）**：Shell 单元物理住在 `shell/units/<domain>/`（文件树表达架构），
+**内核侧承载（KM4 落地，KM4.5 正名）**：Shell 单元物理住在 `shell/units/<domain>/`
+（文件树表达架构；KM4.5 后 `modules/` 已整体正名并入——manifest 与代码同目录，
+目录即单元，registry 仍只读 `iterdir` 的目录名，单元内文件布局对内核不可见），
 registry 以**命名空间根**解析——`units/` 产裸 ID，`shell/units/` 产 `shell.` 前缀 ID，
 前缀属于根不属于逐 ID 特判；manifest `name` 一律补齐为全点分 ID（账本键、Vault 路径、
 报告所见即 registry ID）。Shell 单元以 `runtime = true` 声明**运行态单元**：无载荷、

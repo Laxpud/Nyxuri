@@ -2,32 +2,21 @@ import QtQuick
 import qs.app
 import qs.app.services
 // Unit module warm-up (see note below): registers every synthesized
-// qs.modules.* import graph at engine startup, before any Loader fires.
-import qs.modules.bar
-import qs.modules.desktopcards
-import qs.modules.dock
-import qs.modules.keystone
-import qs.modules.launcher
-import qs.modules.lock
-import qs.modules.notifications
-import qs.modules.regionselector
-import qs.modules.session
-import qs.modules.settings
-import qs.modules.sidebars
-import qs.modules.wallpaper
+// qs.units.* import graph at engine startup, before any Loader fires.
+import qs.units.bar
+import qs.units.desktopcards
+import qs.units.dock
+import qs.units.keystone
+import qs.units.launcher
+import qs.units.lock
+import qs.units.notifications
+import qs.units.regionselector
+import qs.units.session
+import qs.units.settings
+import qs.units.sidebars
+import qs.units.wallpaper
 
 // SlotHost — the microkernel's geometric slot host (unit-model.md §6).
-//
-// WHY THE STATIC IMPORTS: Quickshell 0.3.2 resolves qs.* imports
-// unreliably when they are first processed inside Loader-loaded components
-// — units die with nondeterministic "module not installed" / "X is not a
-// type" (verified independent of the QML disk cache). Registering the
-// module graphs statically here restores deterministic resolution while
-// instantiation stays purely Loader-driven: these imports never create a
-// unit component. Disabled units still get Loader.active = false — zero
-// instantiation, zero windows, zero retained memory; the parse-only cost
-// of warm registration is a documented 0.3.2 constraint, revisited on
-// quickshell upgrade.
 //
 // WHY THE STATIC IMPORTS: Quickshell 0.3.2's qs-import resolution is
 // unreliable for imports processed inside Loader-loaded components at cold

@@ -54,17 +54,14 @@ Nyxuri Shell 以完整 Clavis 母体为起点，就地净化、重构；当前�
 封存只解决当前隔离，不能代替最终清理。记录保留理由、入口、依赖、检查范围和重新启用
 条件；无消费者且无保留理由的代码核实后删除。重新启用须验证接口、依赖、生命周期与视觉。
 
-## 四层边界
+## 三层边界与单元目录（KM4.5 拆迁正名后）
 
-目标运行代码严格分为 `app/`、`modules/`、`shared/` 三层（原 `native/` 层已于 R4-C 彻底解耦并物理删除，全库转为纯 QML/JS/Script 架构）。遗留母体结构 `Modules/`、`Components/`、`Widgets/`、`Common/`、`Services/` 与 `core/` 已全面清算归并；旧平铺目录已移除，但功能是否完整保留必须按恢复矩阵逐项验证。静态资源统一由 `assets/` 枢纽归口（吸收 `i18n` 与 `matugen`），所有模块与深层目录严格遵循全小写规范，根目录已消除上游独立发行残余（`install.sh`、`scripts/ci/`）。测试、资源、工具和许可证保留各自合理位置。
+目标运行代码严格分为 `app/`、`units/`、`shared/` 三层（原 `native/` 层已于 R4-C 彻底解耦并物理删除，全库转为纯 QML/JS/Script 架构；原 `modules/` 层已于 KM4.5 整体正名为 `units/`，代码与 `manifest.toml` 同目录——目录即单元，内核 registry 以目录名派生 `shell.<domain>` id）。遗留母体结构 `Modules/`、`Components/`、`Widgets/`、`Common/`、`Services/` 与 `core/` 已全面清算归并。静态资源统一由 `assets/` 枢纽归口（吸收 `i18n` 与 `matugen`），所有单元与深层目录严格遵循全小写规范，根目录已消除上游独立发行残余（`install.sh`、`scripts/ci/`）。测试、资源、工具和许可证保留各自合理位置。
 
-- **app**：顶层装配、环境与能力感知、IPC、全局快捷键意图、生命周期与存储协调；
-  业务执行归明确 backend，不把 app 变成包揽所有业务的控制中心。
-- **modules**：功能域自治；视图、模型和专属 backend 内聚，通过显式属性注入依赖。
-  禁止跨域随手调用全局 Service；跨模块协调由 app 的窄接口完成。
-- **shared**：复用的原子控件、几何、动画和纯计算。不得读取配置/环境、写文件、发请求、
-  起进程或持有业务连接；接收注入的色板、字体、尺寸与数据。
-- **native**：*(已退役)* 原生 C++ 插件与构建体系已在 R4-C 全量移除，运行时外部可选插件降级由 `fallback/` 纯 QML 桩承载。
+- **app**：顶层装配（`AppShell`/`SlotHost`/`UnitCatalog`）、环境与能力感知、IPC、全局快捷键意图、生命周期与存储协调；业务执行归明确 backend，不把 app 变成包揽所有业务的控制中心。`app/services/` 同时承载宿主能力面（`HotCorners`、`FilePickerWindow`、`IdleInhibitorSurface`）与直读 app 单例的跨单元渲染边（`SystemCardContent`、`SystemClockCard`、`SidebarCookieClock` 等）。
+- **units**：功能域自治，一单元一目录（`manifest.toml` + 视图、模型和专属 backend 内聚），通过显式属性注入依赖。禁止跨域随手调用全局 Service；跨单元协调由 app 的窄接口完成。新增单元 = 加目录 + manifest + 代码，零宿主代码改动。
+- **shared**：复用的原子控件（`controls/`）、纯展示系统卡片（`cards/`）、几何、动画和纯计算（`utils/`）。不得读取配置/环境、写文件、发请求、起进程或持有业务连接；接收注入的色板、字体、尺寸与数据。凡需直读 app 单例的卡片不进 `shared/`，留 `app/services/`。
+- **支撑代码归宿**（KM4.5 裁决，不设第四棵树）：宿主能力面归 `app/services/`；单消费者组件并入唯一消费单元（如 `sidebars/quicksettings/`）；跨单元纯展示组件归 `shared/cards|controls/`。
 
 UI 只呈现和响应输入；桌面意图经 Action Gateway 执行。命令、文件修改、网络请求
 由明确 backend/执行器承担并登记 owner，不在展示组件深处执行。外部命令使用参数数组，
@@ -78,7 +75,8 @@ Shell 是极致精简的**微内核宿主**：宿主只保留装配（`SlotHost`
 主题代币（`ThemeTokens`/ThemeService）与账本投影（`StateProjection`）。内核侧
 三条（同一账本、单一事件通道、点分 ID）冻结在 unit-model §6，此处承载实现契约。
 
-- **六大几何插槽**：所有 Shell 单元（`shell/units/<domain>/`，`runtime = true`）
+- **六大几何插槽**：所有 Shell 单元（`shell/units/<domain>/`，`runtime = true`，
+  manifest 与代码同目录——目录即单元，KM4.5 后 modules/ 已正名并入）
   向唯一的 6 种几何插槽声明挂载——`edge`（bar/dock）、`island`（keystone）、
   `overlay`（launcher/lock/session/settings/regionselector）、`drawer`（sidebars）、
   `surface:desktop`（desktopcards/wallpaper）、`popup:notification`（notifications）。

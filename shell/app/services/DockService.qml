@@ -5,8 +5,8 @@ import Quickshell
 import Quickshell.Io
 import qs.shared.theme
 import qs.app.services
-import "../../modules/dock/DockModel.js" as DockModel
-import qs.modules.dock
+import "../../units/dock/DockModel.js" as DockModel
+import qs.units.dock
 import qs.app
 import qs.shared.i18n
 

@@ -25,6 +25,7 @@
 | KM3 | 命令行收敛（4 动词接管）与 TUI 工坊 | 已完成 |
 | KM3.5 | 拆迁与正名（KM5 前置）：旧世界处决 + 文件树表达架构 | 已完成 |
 | KM4 | Shell 彻底模块化 + 运行态直通（吸收原 Shell P5） | 待验收 |
+| KM4.5 | Shell 拆迁与正名：`modules/` 并入 `units/`（目录即单元）+ 支撑模块裁决 | 待验收 |
 | KM5 | 引导转化（installer/ 处决 + install.sh 引导化）、migrations 清算与五原则总验收 | 待开始 |
 
 P6（整体验收与未来移植）保持在 KM5 之后，台账见 [shell/ROADMAP.md](shell/ROADMAP.md)。
@@ -56,6 +57,23 @@ KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此�
   修复；卸载残留复核实证已清）。全量引擎 966 测试 + Shell 分类 118 测试 +
   check.sh + 沙箱部署绿。六动作与 Noctalia/Wallpaper Picker 双轨稳固的行为、
   视觉实机验收待作者确认。
+- **KM4.5 Shell 拆迁与正名**（模仿 KM3.5，先拆迁后与 KM4 合并一次实机验收）：
+  起因——`modules/`（16 域 392 文件，含 4 个非单元支撑目录）与 `units/`（12 个纯
+  manifest 存根）两棵树表达同一概念，文件树不表达架构。处决——支撑模块裁决归位：
+  `hotcorners` → `app/services/`（宿主能力面）、`filepicker` → `app/services/`
+  （对话框能力）、`quicksettings` → 并入 `sidebars/quicksettings/`（单消费者）、
+  `systemcards` 拆分（纯展示 27 文件 → `shared/cards/`；直读 app 单例的
+  SystemCardContent/SystemWeatherCard/SystemBatteryTank/SystemClockCard/
+  SidebarCookieClock/NetworkInterfaceHistoryService → `app/services/`，并按
+  LIFE002 补齐两时钟的 teardown）；SlotHost 重复注释块、全树 `__pycache__` 清除。
+  正名——`modules/<12 域>` 物理并入 `units/<域>/`，manifest.toml 与代码同目录
+  （目录即单元，兑现内核「Adding a unit = adding a directory」承诺），顶层目录
+  10 → 8，`shell/modules/` 消失；`qs.modules.*` → `qs.units.*` 全量正名（单元 ID
+  `shell.<domain>` 不变，ledger/state/IPC 零影响）。契约同步——shell/AGENTS 三层
+  边界重写、architecture-matrix 重写（12 单元矩阵 + 支撑代码归宿规则）、
+  unit-model §6、shell/development、契约测试改测新真相（test_shell 61 +
+  test_bugfix_regressions 109 全绿）、audit-lifecycle 分层词表。全量引擎 970 测试
+  + Shell 分类 118 测试绿。实机验收与 KM4 合并进行。
 - **KM5 引导转化与终极清算**：`install.sh` 退役为一次性引导脚本，并处决 `nyxuri/installer/` 等死区（workflows / menus 隔离件）；`migrations/` 旧版迁移清算；契约测试强制触发死刑断言，物理删除旧命令兼容层；五原则逐条给出可复现证据。验收：退役清单清空为零，仓库代码实现净减法。（拆迁主体已前置至 KM3.5，本阶段只剩引导收口与总验收。）
 
 ### KM3.5 拆迁与正名（KM5 前置）

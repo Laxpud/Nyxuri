@@ -809,7 +809,7 @@ class TestRuntimeHomeContract(unittest.TestCase):
 class TestLockMarkerDirectory(unittest.TestCase):
 
     def test_lock_creates_the_runtime_directory_before_writing_the_marker(self):
-        lock = Path(__file__).resolve().parent.parent / "shell" / "modules" / "lock" / "Lock.qml"
+        lock = Path(__file__).resolve().parent.parent / "shell" / "units" / "lock" / "Lock.qml"
         source = lock.read_text(encoding="utf-8")
         self.assertIn('command: ["mkdir", "-p", Paths.runtimeHome]', source)
         self.assertIn('path: root.markerReady ? root.lockMarkerPath : ""', source)
@@ -1014,13 +1014,13 @@ class TestDockFolderMenuModelAccess(unittest.TestCase):
         return Path(__file__).resolve().parent.parent / "shell"
 
     def test_list_view_reads_entries_through_the_folder_model_wrapper(self):
-        menu = (self._shell() / "modules" / "dock" / "DockFolderMenu.qml").read_text(
+        menu = (self._shell() / "units" / "dock" / "DockFolderMenu.qml").read_text(
             encoding="utf-8")
         self.assertIn("root.contents.get(i)", menu)
         self.assertNotIn("root.contents.model.get(", menu)
 
     def test_the_wrapper_owns_the_model_alias_that_the_menu_must_not_index(self):
-        model = (self._shell() / "modules" / "dock" / "DockFolderModel.qml").read_text(
+        model = (self._shell() / "units" / "dock" / "DockFolderModel.qml").read_text(
             encoding="utf-8")
         self.assertIn("function get(index)", model)
         self.assertIn("readonly property alias model: dirModel", model)
@@ -1061,17 +1061,17 @@ class TestFolderListModelRoleNames(unittest.TestCase):
         return (self._shell() / relative).read_text(encoding="utf-8")
 
     def test_the_wrapper_reads_the_role_the_plugin_exposes(self):
-        source = self._source("modules/dock/DockFolderModel.qml")
+        source = self._source("units/dock/DockFolderModel.qml")
         self.assertIn('directory.get(index, "fileUrl")', source)
         self.assertNotIn("fileURL", source)
         self.assertNotIn("fileInfo", source)
 
     def test_the_fan_view_indexes_the_wrapper_instead_of_the_raw_model(self):
-        fan = self._source("modules/dock/DockFolderFan.qml")
+        fan = self._source("units/dock/DockFolderFan.qml")
         self.assertIn("model: root.count", fan)
         self.assertIn("required property int index", fan)
         self.assertIn("readonly property var fileInfo: root.model ? root.model.get(index) : ({})", fan)
-        popup = self._source("modules/dock/DockFilePopup.qml")
+        popup = self._source("units/dock/DockFilePopup.qml")
         self.assertIn("model: root.presented && directory.item ? directory.item : null", popup)
 
     def test_the_deployed_wrapper_returns_real_urls(self):
@@ -1079,7 +1079,7 @@ class TestFolderListModelRoleNames(unittest.TestCase):
         if not runner.exists():
             self.skipTest("qml runtime not available")
         probe = """import QtQuick
-import qs.modules.dock
+import qs.units.dock
 Item {
     DockFolderModel { id: model; folder: "___FOLDER___" }
     Timer {
@@ -1106,18 +1106,18 @@ Item {
             (root / "dir" / "a.txt").write_text("x", encoding="utf-8")
             imports = root / "imports"
             (imports / "qs" / "app" / "services").mkdir(parents=True)
-            (imports / "qs" / "modules" / "dock").mkdir(parents=True)
+            (imports / "qs" / "units" / "dock").mkdir(parents=True)
             (imports / "qs" / "qmldir").write_text("module qs\n", encoding="utf-8")
             (imports / "qs" / "app" / "qmldir").write_text("module qs.app\n", encoding="utf-8")
-            (imports / "qs" / "modules" / "qmldir").write_text("module qs.modules\n", encoding="utf-8")
+            (imports / "qs" / "units" / "qmldir").write_text("module qs.units\n", encoding="utf-8")
             (imports / "qs" / "app" / "services" / "qmldir").write_text(
                 "module qs.app.services\nsingleton DesktopFiles 1.0 DesktopFiles.qml\n", encoding="utf-8")
-            (imports / "qs" / "modules" / "dock" / "qmldir").write_text(
-                "module qs.modules.dock\nDockFolderModel 1.0 DockFolderModel.qml\n", encoding="utf-8")
-            os.symlink(shell / "modules" / "dock" / "DesktopFiles.qml",
+            (imports / "qs" / "units" / "dock" / "qmldir").write_text(
+                "module qs.units.dock\nDockFolderModel 1.0 DockFolderModel.qml\n", encoding="utf-8")
+            os.symlink(shell / "units" / "dock" / "DesktopFiles.qml",
                        imports / "qs" / "app" / "services" / "DesktopFiles.qml")
-            os.symlink(shell / "modules" / "dock" / "DockFolderModel.qml",
-                       imports / "qs" / "modules" / "dock" / "DockFolderModel.qml")
+            os.symlink(shell / "units" / "dock" / "DockFolderModel.qml",
+                       imports / "qs" / "units" / "dock" / "DockFolderModel.qml")
             script = root / "probe.qml"
             script.write_text(probe.replace("___FOLDER___", "file://" + str(root / "dir")), encoding="utf-8")
             result = subprocess.run([str(runner), str(script)], capture_output=True, text=True, timeout=120,
@@ -1134,7 +1134,7 @@ Item {
 class TestDesktopCardHostStructure(unittest.TestCase):
 
     def _source(self):
-        return (Path(__file__).resolve().parent.parent / "shell" / "modules" / "desktopcards"
+        return (Path(__file__).resolve().parent.parent / "shell" / "units" / "desktopcards"
                 / "DesktopCardHost.qml").read_text(encoding="utf-8")
 
     def test_no_property_change_signal_is_redeclared(self):
@@ -1153,7 +1153,7 @@ class TestDesktopCardHostStructure(unittest.TestCase):
 class TestTrayMenuScreenContract(unittest.TestCase):
 
     def test_tray_menu_does_not_shadow_the_window_screen(self):
-        source = (Path(__file__).resolve().parent.parent / "shell" / "modules" / "bar" / "tray"
+        source = (Path(__file__).resolve().parent.parent / "shell" / "units" / "bar" / "tray"
                   / "TrayMenu.qml").read_text(encoding="utf-8")
         self.assertNotIn("property var screen", source)
         self.assertIn("screen: root.screen", source)
@@ -1162,7 +1162,7 @@ class TestTrayMenuScreenContract(unittest.TestCase):
 class TestShellPageSingletonImports(unittest.TestCase):
 
     def _page(self):
-        return (Path(__file__).resolve().parents[1] / "shell" / "modules" / "settings"
+        return (Path(__file__).resolve().parents[1] / "shell" / "units" / "settings"
                 / "ShellPage.qml").read_text(encoding="utf-8")
 
     def test_the_control_page_imports_the_singletons_it_binds_to(self):
@@ -1172,7 +1172,7 @@ class TestShellPageSingletonImports(unittest.TestCase):
         self.assertIn("ColorPickerService.probeFinished", source)
         imports = [line.strip() for line in source.splitlines() if line.startswith("import ")]
         self.assertIn("import qs.app", imports)
-        self.assertIn("import qs.modules.keystone.tools", imports)
+        self.assertIn("import qs.units.keystone.tools", imports)
 
 
 class TestQmlSingletonImports(unittest.TestCase):
@@ -1459,8 +1459,8 @@ class TestConfigStoreFailureHandling(unittest.TestCase):
 
     AUXILIARY_STORES = (
         "app/services/IdleService.qml",
-        "modules/bar/tray/TrayService.qml",
-        "modules/quicksettings/QuickToggleConfig.qml",
+        "units/bar/tray/TrayService.qml",
+        "units/sidebars/quicksettings/QuickToggleConfig.qml",
     )
 
     def _relative(self, relative):
@@ -1499,8 +1499,8 @@ class TestConfigStoreFailureHandling(unittest.TestCase):
             self.assertIn("onSaveFailed", source, relative)
 
     STATEFUL_STORES = (
-        "modules/sidebars/dashboard/infotools/InfoDrawerState.qml",
-        "modules/sidebars/dashboard/infotools/TodoService.qml",
+        "units/sidebars/dashboard/infotools/InfoDrawerState.qml",
+        "units/sidebars/dashboard/infotools/TodoService.qml",
     )
 
     def test_stateful_stores_only_seed_a_missing_file(self):
@@ -1516,7 +1516,7 @@ class TestConfigStoreFailureHandling(unittest.TestCase):
 
     def test_info_drawer_skips_the_rewrite_after_a_failed_parse(self):
         handler = self._handler(
-            self._relative("modules/sidebars/dashboard/infotools/InfoDrawerState.qml"),
+            self._relative("units/sidebars/dashboard/infotools/InfoDrawerState.qml"),
             "onLoaded:", "onLoadFailed:")
         self.assertIn("let loaded = false;", handler)
         self.assertIn("loaded = true;", handler)

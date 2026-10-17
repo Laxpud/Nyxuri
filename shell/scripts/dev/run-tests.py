@@ -54,7 +54,7 @@ class ResourceIntegrityTests(unittest.TestCase):
 
     def test_zen_palette_renderer_has_no_dangling_qrc(self):
         """Assert ZenPaletteRenderer.qml uses Paths.fileUrl instead of old qrc:/clavis."""
-        renderer = SHELL_DIR / "modules" / "wallpaper" / "ZenPaletteRenderer.qml"
+        renderer = SHELL_DIR / "units" / "wallpaper" / "ZenPaletteRenderer.qml"
         content = renderer.read_text(encoding="utf-8")
         self.assertNotIn("qrc:/", content)
         self.assertIn("zen-palette.frag.qsb", content)

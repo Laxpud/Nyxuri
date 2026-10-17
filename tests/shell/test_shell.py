@@ -342,12 +342,12 @@ class TestShellManagement(unittest.TestCase):
         # Verify 4-layer directories exist
         self.assertTrue(os.path.isdir(os.path.join(repo_root, "shell", "app")))
         self.assertTrue(os.path.isdir(os.path.join(repo_root, "shell", "shared")))
-        self.assertTrue(os.path.isdir(os.path.join(repo_root, "shell", "modules", "session")))
+        self.assertTrue(os.path.isdir(os.path.join(repo_root, "shell", "units", "session")))
 
         # Verify ActionGateway and SessionHost exist
         self.assertTrue(os.path.isfile(os.path.join(repo_root, "shell", "app", "ActionGateway.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(repo_root, "shell", "modules", "session", "SessionHost.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(repo_root, "shell", "modules", "session", "SessionPanel.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(repo_root, "shell", "units", "session", "SessionHost.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(repo_root, "shell", "units", "session", "SessionPanel.qml")))
 
         # Verify old PowerMenu directory and service are completely deleted
         self.assertFalse(os.path.exists(os.path.join(repo_root, "shell", "Modules", "PowerMenu")))
@@ -370,9 +370,9 @@ class TestShellManagement(unittest.TestCase):
     def test_p3_settings_decoupling_and_module_structure(self):
         import os
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        settings_dir = os.path.join(repo_root, "shell", "modules", "settings")
+        settings_dir = os.path.join(repo_root, "shell", "units", "settings")
 
-        # Verify modules/settings exists and contains required host/backend
+        # Verify units/settings exists and contains required host/backend
         self.assertTrue(os.path.isdir(settings_dir))
         self.assertTrue(os.path.isfile(os.path.join(settings_dir, "SettingsHost.qml")))
         self.assertTrue(os.path.isfile(os.path.join(settings_dir, "SettingsBackend.qml")))
@@ -385,7 +385,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(repo_root, "shell", "Modules", "ControlCenter")))
         self.assertFalse(os.path.exists(os.path.join(repo_root, "shell", "Services", "ControlCenterService.qml")))
 
-        # Verify no QML file under modules/settings statically imports Clavis.WeatherMap (except backend/WeatherMapBackend.qml)
+        # Verify no QML file under units/settings statically imports Clavis.WeatherMap (except backend/WeatherMapBackend.qml)
         for root_path, _, files in os.walk(settings_dir):
             for file in files:
                 if file.endswith(".qml") and file != "WeatherMapBackend.qml":
@@ -457,30 +457,43 @@ class TestShellManagement(unittest.TestCase):
         # 3. Capitalized Modules/ directory completely eliminated
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "Modules")))
 
-        # 4. Modules unified under modules/ in uniform lowercase with all functional code preserved
-        expected_modules = [
-            "bar", "desktopcards", "dock", "filepicker", "hotcorners",
-            "keystone", "launcher", "lock", "quicksettings",
-            "regionselector", "session", "settings", "sidebars",
-            "systemcards", "wallpaper"
+        # 4. Units unified under units/ in uniform lowercase with all functional code preserved
+        # KM4.5: units/<domain>/ = manifest.toml + code (one domain, one directory).
+        expected_units = [
+            "bar", "desktopcards", "dock", "keystone", "launcher", "lock",
+            "notifications", "regionselector", "session", "settings",
+            "sidebars", "wallpaper"
         ]
-        self.assertFalse(os.path.exists(os.path.join(shell_dir, "modules", "map")))
-        for mod in expected_modules:
-            self.assertTrue(
-                os.path.isdir(os.path.join(shell_dir, "modules", mod)),
-                f"Expected module directory missing: shell/modules/{mod}"
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "units", "map")))
+        # Support modules demolished at KM4.5: no fourth tree beside the units.
+        for demolished in ("filepicker", "hotcorners", "quicksettings", "systemcards"):
+            self.assertFalse(
+                os.path.exists(os.path.join(shell_dir, "units", demolished)),
+                f"Demolished support module must not exist under units/: {demolished}"
             )
-        # Assert no PascalCase/uppercase directories anywhere in modules/ (strictly all lowercase)
-        for root_path, dirs, _ in os.walk(os.path.join(shell_dir, "modules")):
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "modules")),
+                         "shell/modules/ must be gone after KM4.5 (renamed to units/)")
+        for mod in expected_units:
+            self.assertTrue(
+                os.path.isdir(os.path.join(shell_dir, "units", mod)),
+                f"Expected unit directory missing: shell/units/{mod}"
+            )
+        for mod in expected_units:
+            self.assertTrue(
+                os.path.isfile(os.path.join(shell_dir, "units", mod, "manifest.toml")),
+                f"Unit blueprint missing manifest.toml: shell/units/{mod}"
+            )
+        # Assert no PascalCase/uppercase directories anywhere in units/ (strictly all lowercase)
+        for root_path, dirs, _ in os.walk(os.path.join(shell_dir, "units")):
             for entry in dirs:
                 self.assertEqual(
                     entry, entry.lower(),
-                    f"Non-lowercase directory found in modules: {os.path.join(root_path, entry)}"
+                    f"Non-lowercase directory found in units: {os.path.join(root_path, entry)}"
                 )
 
         # 5. Zero occurrences of obsolete imports across all QML/JS files
         import re
-        qs_mod_re = re.compile(r"import\s+qs\.modules\.([A-Za-z0-9_.]+)")
+        qs_mod_re = re.compile(r"import\s+qs\.units\.([A-Za-z0-9_.]+)")
         for root_path, dirs, files in os.walk(shell_dir):
             if root_path == shell_dir:
                 dirs[:] = [entry for entry in dirs if entry != "references"]
@@ -496,36 +509,37 @@ class TestShellManagement(unittest.TestCase):
                     self.assertNotIn("qs.Widgets.", content, f"Obsolete qs.Widgets. import found in {full_path}")
                     self.assertNotIn("Common/functions", content, f"Obsolete Common/functions import found in {full_path}")
                     self.assertNotIn("qs.shared.compositor", content, f"Obsolete qs.shared.compositor import found in {full_path}")
+                    self.assertNotIn("qs.modules.", content, f"Obsolete qs.modules. import found in {full_path} (KM4.5 renamed to qs.units.)")
                     for match in qs_mod_re.finditer(content):
                         mod_path = match.group(1)
                         for seg in mod_path.split("."):
                             self.assertEqual(
                                 seg, seg.lower(),
-                                f"Non-lowercase qs.modules import '{mod_path}' found in {full_path}"
+                                f"Non-lowercase qs.units import '{mod_path}' found in {full_path}"
                             )
 
     def test_p3_appshell_host_assembly_and_wheel_contract(self):
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         shell_dir = os.path.join(repo_root, "shell")
 
-        # 1. Base hosts exist in modules/
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "keystone", "Keystone.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "wallpaper", "WallpaperBackground.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "desktopcards", "DesktopCardHost.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "dock", "DockHost.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "regionselector", "RegionSelector.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "hotcorners", "HotCorners.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "settings", "DisplayOverlays.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "sidebars", "SidebarHostWindow.qml")))
+        # 1. Base hosts exist in units/
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "keystone", "Keystone.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "wallpaper", "WallpaperBackground.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "desktopcards", "DesktopCardHost.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "dock", "DockHost.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "regionselector", "RegionSelector.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "app", "services", "HotCorners.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "settings", "DisplayOverlays.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "sidebars", "SidebarHostWindow.qml")))
 
         # 2. NotificationContent and KeystoneSurface exist for native notification chain
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "keystone", "styles", "shared", "KeystoneSurface.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "notifications", "NotificationContent.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "keystone", "styles", "shared", "KeystoneSurface.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "notifications", "NotificationContent.qml")))
 
         # 3. Bar quicksettings controls exist
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "bar", "quicksettings", "Volume.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "bar", "quicksettings", "Microphone.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "bar", "quicksettings", "BrightnessButton.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "bar", "quicksettings", "Volume.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "bar", "quicksettings", "Microphone.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "bar", "quicksettings", "BrightnessButton.qml")))
 
     def test_r4c_c05_cpp_toolchain_elimination(self):
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -536,13 +550,14 @@ class TestShellManagement(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "CMakeLists.txt")), "shell/CMakeLists.txt must be eliminated")
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "build")), "shell/build must not exist")
 
-        # 2. Pure QML directory modules/keystone does not have handwritten qmldir
-        self.assertFalse(os.path.isfile(os.path.join(shell_dir, "modules", "keystone", "qmldir")), "Pure QML directory should not have handwritten qmldir")
+        # 2. Pure QML directory units/keystone does not have handwritten qmldir
+        self.assertFalse(os.path.isfile(os.path.join(shell_dir, "units", "keystone", "qmldir")), "Pure QML directory should not have handwritten qmldir")
 
-        # 3. shared layer strictly contains only controls, i18n, theme, utils
+        # 3. shared layer strictly contains only cards, controls, i18n, theme, utils
+        # (KM4.5: cards/ holds the pure presentational system cards)
         shared_dir = os.path.join(shell_dir, "shared")
         shared_entries = sorted(os.listdir(shared_dir))
-        self.assertEqual(shared_entries, ["controls", "i18n", "theme", "utils"])
+        self.assertEqual(shared_entries, ["cards", "controls", "i18n", "theme", "utils"])
 
         # 4. Pure QML fallback stubs exist for external optional runtime modules (M3Shapes, Qt.labs.lottieqt)
         fallback_dir = os.path.join(shell_dir, "fallback")
@@ -594,7 +609,7 @@ class TestShellManagement(unittest.TestCase):
         # 2. SettingsHost self-registers on the gateway (unit-model.md §6):
         # the host reference exists exactly while the unit is loaded, and
         # AppShell no longer wires it by id.
-        sh_path = os.path.join(shell_dir, "modules", "settings", "SettingsHost.qml")
+        sh_path = os.path.join(shell_dir, "units", "settings", "SettingsHost.qml")
         with open(sh_path, "r", encoding="utf-8") as f:
             sh_content = f.read()
         self.assertIn("ActionGateway.settingsHost = root", sh_content)
@@ -626,7 +641,7 @@ class TestShellManagement(unittest.TestCase):
         shell_dir = os.path.join(repo_root, "shell")
 
         # 1. Pruned Cava: AudioRecordingVisual provides local fallback levelProvider without Clavis.Cava
-        arv_path = os.path.join(shell_dir, "modules", "keystone", "styles", "recording", "AudioRecordingVisual.qml")
+        arv_path = os.path.join(shell_dir, "units", "keystone", "styles", "recording", "AudioRecordingVisual.qml")
         with open(arv_path, "r", encoding="utf-8") as f:
             arv_content = f.read()
         self.assertNotIn("Clavis.Cava", arv_content)
@@ -638,7 +653,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertFalse(os.path.exists(asp_path))
 
         # 2. ControlCenterWindow cleans up child windows on destruction
-        cc_window = os.path.join(shell_dir, "modules", "settings", "ControlCenterWindow.qml")
+        cc_window = os.path.join(shell_dir, "units", "settings", "ControlCenterWindow.qml")
         with open(cc_window, "r", encoding="utf-8") as f:
             cc_content = f.read()
         self.assertIn("Component.onDestruction: root.closeChildWindows()", cc_content)
@@ -661,7 +676,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("root.wheelAction(wheel)", rb_content)
 
         # 2. Volume.qml handles wheelAction with 0.05 step
-        vol_path = os.path.join(shell_dir, "modules", "bar", "quicksettings", "Volume.qml")
+        vol_path = os.path.join(shell_dir, "units", "bar", "quicksettings", "Volume.qml")
         with open(vol_path, "r", encoding="utf-8") as f:
             vol_content = f.read()
         self.assertIn("wheelAction: wheel =>", vol_content)
@@ -669,7 +684,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("0.05", vol_content)
 
         # 3. Microphone.qml handles wheelAction with 0.05 step
-        mic_path = os.path.join(shell_dir, "modules", "bar", "quicksettings", "Microphone.qml")
+        mic_path = os.path.join(shell_dir, "units", "bar", "quicksettings", "Microphone.qml")
         with open(mic_path, "r", encoding="utf-8") as f:
             mic_content = f.read()
         self.assertIn("wheelAction: wheel =>", mic_content)
@@ -677,7 +692,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("0.05", mic_content)
 
         # 4. BrightnessButton.qml handles wheelAction with 0.05 step
-        br_path = os.path.join(shell_dir, "modules", "bar", "quicksettings", "BrightnessButton.qml")
+        br_path = os.path.join(shell_dir, "units", "bar", "quicksettings", "BrightnessButton.qml")
         with open(br_path, "r", encoding="utf-8") as f:
             br_content = f.read()
         self.assertIn("wheelAction: wheel =>", br_content)
@@ -685,7 +700,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("0.05", br_content)
 
         # 5. LongStatusItem handles onWheel with pixelDelta/angleDelta support
-        long_item = os.path.join(shell_dir, "modules", "keystone", "styles", "long", "LongStatusItem.qml")
+        long_item = os.path.join(shell_dir, "units", "keystone", "styles", "long", "LongStatusItem.qml")
         with open(long_item, "r", encoding="utf-8") as f:
             long_content = f.read()
         self.assertIn("onWheel: wheel =>", long_content)
@@ -711,7 +726,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("!root.arraysEqual(root.barLeadingComponents, root.barLayoutLeft)", pc_content)
 
         # 2. BarContent delegates 3 lanes to Repeaters with BarComponentLoader
-        bc_path = os.path.join(shell_dir, "modules", "bar", "BarContent.qml")
+        bc_path = os.path.join(shell_dir, "units", "bar", "BarContent.qml")
         with open(bc_path, "r", encoding="utf-8") as f:
             bc_content = f.read()
         self.assertIn("model: PersonalizationConfig.barLayoutLeft", bc_content)
@@ -724,7 +739,7 @@ class TestShellManagement(unittest.TestCase):
         shell_dir = os.path.join(repo_root, "shell")
 
         # 1. KeystoneSurface embeds NotificationContent with isNotifMode binding
-        surface_path = os.path.join(shell_dir, "modules", "keystone", "styles", "shared", "KeystoneSurface.qml")
+        surface_path = os.path.join(shell_dir, "units", "keystone", "styles", "shared", "KeystoneSurface.qml")
         with open(surface_path, "r", encoding="utf-8") as f:
             surface_content = f.read()
         self.assertIn("NotificationContent {", surface_content)
@@ -732,7 +747,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("NotificationService.hasNotifs", surface_content)
 
         # 2. NotificationContent provides ListView, sanitizedBody, normalActions, dismiss
-        notif_content = os.path.join(shell_dir, "modules", "notifications", "NotificationContent.qml")
+        notif_content = os.path.join(shell_dir, "units", "notifications", "NotificationContent.qml")
         with open(notif_content, "r", encoding="utf-8") as f:
             nc_content = f.read()
         self.assertIn("StyledListView {", nc_content)
@@ -751,15 +766,15 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("popupInhibited:", nm_content)
 
         # 4. Notification history components exist in sidebar
-        hist_list = os.path.join(shell_dir, "modules", "sidebars", "dashboard", "notifications", "NotificationList.qml")
-        hist_center = os.path.join(shell_dir, "modules", "sidebars", "dashboard", "notifications", "NotificationCenterCard.qml")
+        hist_list = os.path.join(shell_dir, "units", "sidebars", "dashboard", "notifications", "NotificationList.qml")
+        hist_center = os.path.join(shell_dir, "units", "sidebars", "dashboard", "notifications", "NotificationCenterCard.qml")
         self.assertTrue(os.path.isfile(hist_list))
         self.assertTrue(os.path.isfile(hist_center))
 
     def test_keystone_audio_osd_startup_suppression_contracts(self):
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         shell_dir = os.path.join(repo_root, "shell")
-        surface_path = os.path.join(shell_dir, "modules", "keystone", "styles", "shared", "KeystoneSurface.qml")
+        surface_path = os.path.join(shell_dir, "units", "keystone", "styles", "shared", "KeystoneSurface.qml")
         with open(surface_path, "r", encoding="utf-8") as f:
             surface_content = f.read()
 
@@ -794,7 +809,7 @@ class TestShellManagement(unittest.TestCase):
         shell_dir = os.path.join(repo_root, "shell")
 
         # 1. Lock screen structure: Lock.qml, DefaultLockContent, CaelestiaLock, PAM config
-        lock_path = os.path.join(shell_dir, "modules", "lock", "Lock.qml")
+        lock_path = os.path.join(shell_dir, "units", "lock", "Lock.qml")
         with open(lock_path, "r", encoding="utf-8") as f:
             lock_content = f.read()
         self.assertIn("WlSessionLock {", lock_content)
@@ -804,7 +819,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("password.conf", lock_content)
 
         # 2. Lock cards exist
-        cards_dir = os.path.join(shell_dir, "modules", "lock", "cards")
+        cards_dir = os.path.join(shell_dir, "units", "lock", "cards")
         for card in ["NotificationCard.qml", "MediaCard.qml", "WeatherCard.qml", "MottoCard.qml", "SystemGrid.qml"]:
             self.assertTrue(os.path.isfile(os.path.join(cards_dir, card)), f"Lock card missing: {card}")
 
@@ -832,7 +847,7 @@ class TestShellManagement(unittest.TestCase):
         shell that died while locked is taken over again on restart."""
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         shell_dir = os.path.join(repo_root, "shell")
-        lock_dir = os.path.join(shell_dir, "modules", "lock")
+        lock_dir = os.path.join(shell_dir, "units", "lock")
 
         # 1. The lock module must not instantiate text-input controls anywhere:
         # with QT_IM_MODULE=fcitx a focused TextInput lets fcitx5-qt raise a
@@ -888,7 +903,7 @@ class TestShellManagement(unittest.TestCase):
         shell_dir = os.path.join(repo_root, "shell")
 
         # 1. Standalone notification fallback host exists
-        host_path = os.path.join(shell_dir, "modules", "notifications", "NotificationPopupHost.qml")
+        host_path = os.path.join(shell_dir, "units", "notifications", "NotificationPopupHost.qml")
         self.assertTrue(os.path.isfile(host_path))
         with open(host_path, "r", encoding="utf-8") as f:
             host_content = f.read()
@@ -935,7 +950,7 @@ class TestShellManagement(unittest.TestCase):
 
         # 2. ActionGateway is the single convergence point for execDetached
         app_dir = os.path.join(shell_dir, "app")
-        modules_dir = os.path.join(shell_dir, "modules")
+        modules_dir = os.path.join(shell_dir, "units")
         shared_dir = os.path.join(shell_dir, "shared")
 
         for scan_root in [app_dir, modules_dir, shared_dir]:
@@ -958,15 +973,15 @@ class TestShellManagement(unittest.TestCase):
         high_risk_files = [
             "app/services/SystemMonitorService.qml",
             "app/services/KeyboardLockService.qml",
-            "modules/keystone/tools/AudioRecordingService.qml",
-            "modules/keystone/tools/RecordingService.qml",
+            "units/keystone/tools/AudioRecordingService.qml",
+            "units/keystone/tools/RecordingService.qml",
             "app/services/NetworkService.qml",
             "app/services/NetworkManagerExtras.qml",
             "app/services/BluetoothService.qml",
-            "modules/launcher/FileSearchService.qml",
-            "modules/launcher/SpotlightSearchService.qml",
-            "modules/launcher/SpotlightToolService.qml",
-            "modules/wallpaper/WallpaperService.qml",
+            "units/launcher/FileSearchService.qml",
+            "units/launcher/SpotlightSearchService.qml",
+            "units/launcher/SpotlightToolService.qml",
+            "units/wallpaper/WallpaperService.qml",
         ]
         for rel in high_risk_files:
             fp = os.path.join(shell_dir, rel)
@@ -1038,7 +1053,7 @@ class TestShellManagement(unittest.TestCase):
             "Clavis.WeatherMap",
             "Clavis.Lyrics",
             "Clavis.WindowPreview",
-            "qs.modules.map",
+            "qs.units.map",
         ]
         for root_path, dirs, files in os.walk(shell_dir):
             if root_path == shell_dir:
@@ -1061,7 +1076,7 @@ class TestShellManagement(unittest.TestCase):
             os.path.join(shell_dir, "native", "plugin", "lyrics"),
             os.path.join(shell_dir, "native", "plugin", "weathermap"),
             os.path.join(shell_dir, "native", "plugin", "windowpreview"),
-            os.path.join(shell_dir, "modules", "map"),
+            os.path.join(shell_dir, "units", "map"),
             os.path.join(shell_dir, "native", "tools", "window-preview"),
         ]
         for d in deleted_dirs:
@@ -1077,7 +1092,7 @@ class TestShellManagement(unittest.TestCase):
 
         # 5. WeatherMapBridge is physically deleted (R10): zero consumers, the
         # "not supported" stub answered no real call site
-        wmb_file = os.path.join(shell_dir, "modules", "settings", "WeatherMapBridge.qml")
+        wmb_file = os.path.join(shell_dir, "units", "settings", "WeatherMapBridge.qml")
         self.assertFalse(os.path.exists(wmb_file))
 
         # 6. Native directory and build files are completely eliminated
@@ -1118,7 +1133,7 @@ class TestShellManagement(unittest.TestCase):
 
         # 2b. DesktopCardHost gates its own windows on configured cards;
         # slot loading stays pure existence.
-        dch_file = os.path.join(shell_dir, "modules", "desktopcards", "DesktopCardHost.qml")
+        dch_file = os.path.join(shell_dir, "units", "desktopcards", "DesktopCardHost.qml")
         with open(dch_file, "r", encoding="utf-8") as f:
             dch_content = f.read()
         self.assertIn("SystemCardService.desktopCardIds.length > 0", dch_content)
@@ -1135,26 +1150,26 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("function status(): string", app_content)
 
         # 5. RegionSelector gated by RegionSelectionService.active
-        reg_file = os.path.join(shell_dir, "modules", "regionselector", "RegionSelector.qml")
+        reg_file = os.path.join(shell_dir, "units", "regionselector", "RegionSelector.qml")
         with open(reg_file, "r", encoding="utf-8") as f:
             reg_content = f.read()
         self.assertIn("active: RegionSelectionService.active", reg_content)
 
         # 6. DisplayOverlays markers and confirmation dialog gated
-        disp_file = os.path.join(shell_dir, "modules", "settings", "DisplayOverlays.qml")
+        disp_file = os.path.join(shell_dir, "units", "settings", "DisplayOverlays.qml")
         with open(disp_file, "r", encoding="utf-8") as f:
             disp_content = f.read()
         self.assertIn("model: DisplayConfigService.identify ? Quickshell.screens : []", disp_content)
         self.assertIn("active: DisplayConfigService.confirming", disp_content)
 
         # 7. SidebarHostWindow visibility gated on open or panel presented
-        sb_file = os.path.join(shell_dir, "modules", "sidebars", "SidebarHostWindow.qml")
+        sb_file = os.path.join(shell_dir, "units", "sidebars", "SidebarHostWindow.qml")
         with open(sb_file, "r", encoding="utf-8") as f:
             sb_content = f.read()
         self.assertIn("root.anySidebarOpen || dashboardSidebar.panelPresented || quickSettingsSidebar.panelPresented", sb_content)
 
         # 8. Keystone avatar file picker is lazy loaded
-        ks_file = os.path.join(shell_dir, "modules", "keystone", "Keystone.qml")
+        ks_file = os.path.join(shell_dir, "units", "keystone", "Keystone.qml")
         with open(ks_file, "r", encoding="utf-8") as f:
             ks_content = f.read()
         self.assertIn("id: avatarFilePickerLoader", ks_content)
@@ -1179,7 +1194,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("ipc call shell isReady", runner_content)
 
         # 11. ClockContent defines font.weight: Font.Black fallback for rolling digits
-        clock_file = os.path.join(shell_dir, "modules", "keystone", "clock", "ClockContent.qml")
+        clock_file = os.path.join(shell_dir, "units", "keystone", "clock", "ClockContent.qml")
         with open(clock_file, "r", encoding="utf-8") as f:
             clock_content = f.read()
         self.assertIn("font.weight: Font.Black", clock_content)
@@ -1305,7 +1320,7 @@ class TestShellManagement(unittest.TestCase):
         with open(matrix_file, "r", encoding="utf-8") as f:
             matrix_content = f.read()
         self.assertIn("app/", matrix_content)
-        self.assertIn("modules/", matrix_content)
+        self.assertIn("units/", matrix_content)
         self.assertIn("shared/", matrix_content)
         self.assertIn("native/", matrix_content)
 
@@ -1326,47 +1341,48 @@ class TestShellManagement(unittest.TestCase):
                     self.assertNotIn("Quickshell.execDetached", qml_text, f"{file} in shared/ must not call execDetached")
 
         # 3. Cross-domain module imports removed / decoupled
-        launcher_file = os.path.join(shell_dir, "modules", "launcher", "LauncherWindow.qml")
+        launcher_file = os.path.join(shell_dir, "units", "launcher", "LauncherWindow.qml")
         with open(launcher_file, "r", encoding="utf-8") as f:
             launcher_content = f.read()
-            self.assertNotIn("import qs.modules.settings", launcher_content, "LauncherWindow must not import settings")
+            self.assertNotIn("import qs.units.settings", launcher_content, "LauncherWindow must not import settings")
             self.assertNotIn("LocationPicker", launcher_content, "LauncherWindow must not instantiate LocationPicker")
             self.assertNotIn("locationPickerLoader", launcher_content, "LauncherWindow must not retain locationPickerLoader")
 
-        dashboard_file = os.path.join(shell_dir, "modules", "sidebars", "dashboard", "DashboardSidebar.qml")
+        dashboard_file = os.path.join(shell_dir, "units", "sidebars", "dashboard", "DashboardSidebar.qml")
         with open(dashboard_file, "r", encoding="utf-8") as f:
             sidebar_content = f.read()
-            # DashboardSidebar legitimately requires settings & filepicker for WallpaperColorPicker & FilePickerWindow (whitelisted)
-            self.assertIn("import qs.modules.settings", sidebar_content, "DashboardSidebar needs settings for WallpaperColorPicker")
-            self.assertIn("import qs.modules.filepicker", sidebar_content, "DashboardSidebar needs filepicker for FilePickerWindow")
-            self.assertNotIn("import qs.modules.keystone", sidebar_content, "DashboardSidebar must not import keystone")
-            self.assertNotIn("import qs.modules.launcher", sidebar_content, "DashboardSidebar must not import launcher")
-            self.assertNotIn("import qs.modules.bar", sidebar_content, "DashboardSidebar must not import bar")
+            # DashboardSidebar legitimately requires settings & the app services pool
+            # for WallpaperColorPicker & FilePickerWindow (KM4.5: picker lives in app/services)
+            self.assertIn("import qs.units.settings", sidebar_content, "DashboardSidebar needs settings for WallpaperColorPicker")
+            self.assertIn("import qs.app.services", sidebar_content, "DashboardSidebar needs app services for FilePickerWindow")
+            self.assertNotIn("import qs.units.keystone", sidebar_content, "DashboardSidebar must not import keystone")
+            self.assertNotIn("import qs.units.launcher", sidebar_content, "DashboardSidebar must not import launcher")
+            self.assertNotIn("import qs.units.bar", sidebar_content, "DashboardSidebar must not import bar")
 
-        storage_card = os.path.join(shell_dir, "modules", "systemcards", "SystemStorageCard.qml")
+        storage_card = os.path.join(shell_dir, "shared", "cards", "SystemStorageCard.qml")
         with open(storage_card, "r", encoding="utf-8") as f:
             storage_content = f.read()
-            self.assertNotIn("import qs.modules.settings", storage_content, "SystemStorageCard must not import settings")
+            self.assertNotIn("import qs.units.settings", storage_content, "SystemStorageCard must not import settings")
             self.assertIn("inputRegionService: PopupInputRegionService", storage_content, "SystemStorageCard must inject inputRegionService")
 
-        network_card = os.path.join(shell_dir, "modules", "systemcards", "SystemNetworkCard.qml")
+        network_card = os.path.join(shell_dir, "shared", "cards", "SystemNetworkCard.qml")
         with open(network_card, "r", encoding="utf-8") as f:
             network_content = f.read()
-            self.assertNotIn("import qs.modules.settings", network_content, "SystemNetworkCard must not import settings")
+            self.assertNotIn("import qs.units.settings", network_content, "SystemNetworkCard must not import settings")
             self.assertIn("inputRegionService: PopupInputRegionService", network_content, "SystemNetworkCard must inject inputRegionService")
 
-        notif_host = os.path.join(shell_dir, "modules", "notifications", "NotificationPopupHost.qml")
+        notif_host = os.path.join(shell_dir, "units", "notifications", "NotificationPopupHost.qml")
         with open(notif_host, "r", encoding="utf-8") as f:
-            self.assertNotIn("import qs.modules.keystone.notifications", f.read(), "NotificationPopupHost must not import keystone")
+            self.assertNotIn("import qs.units.keystone.notifications", f.read(), "NotificationPopupHost must not import keystone")
 
-        keystone_surface = os.path.join(shell_dir, "modules", "keystone", "styles", "shared", "KeystoneSurface.qml")
+        keystone_surface = os.path.join(shell_dir, "units", "keystone", "styles", "shared", "KeystoneSurface.qml")
         with open(keystone_surface, "r", encoding="utf-8") as f:
             keystone_content = f.read()
-            self.assertIn("import qs.modules.notifications", keystone_content, "KeystoneSurface must import from qs.modules.notifications")
-            self.assertNotIn("import qs.modules.keystone.notifications", keystone_content, "Legacy keystone.notifications import must be gone")
+            self.assertIn("import qs.units.notifications", keystone_content, "KeystoneSurface must import from qs.units.notifications")
+            self.assertNotIn("import qs.units.keystone.notifications", keystone_content, "Legacy keystone.notifications import must be gone")
 
         # Keystone notifications directory must be removed to avoid duplication
-        keystone_notif_dir = os.path.join(shell_dir, "modules", "keystone", "notifications")
+        keystone_notif_dir = os.path.join(shell_dir, "units", "keystone", "notifications")
         self.assertFalse(os.path.exists(keystone_notif_dir), "keystone/notifications directory must be removed to avoid duplication")
 
         # 4. SplitMenuButton is in shared/controls as a pure UI control
@@ -1376,9 +1392,9 @@ class TestShellManagement(unittest.TestCase):
             btn_content = f.read()
             self.assertNotIn("import qs.app.services", btn_content, "shared/controls/SplitMenuButton must be pure")
 
-        # 5. NotificationContent is in modules/notifications/
-        notif_content = os.path.join(shell_dir, "modules", "notifications", "NotificationContent.qml")
-        self.assertTrue(os.path.isfile(notif_content), "NotificationContent must exist in modules/notifications")
+        # 5. NotificationContent is in units/notifications/
+        notif_content = os.path.join(shell_dir, "units", "notifications", "NotificationContent.qml")
+        self.assertTrue(os.path.isfile(notif_content), "NotificationContent must exist in units/notifications")
 
         # 6. Lifecycle inventory schema separates static inventory and runtime evidence
         inv_file = os.path.join(repo_root, "llms-wiki", "shell", "lifecycle-inventory.json")
@@ -1412,22 +1428,26 @@ class TestShellManagement(unittest.TestCase):
 
         # 2. Assert 12 single-module services relocated into their functional domains
         migrated_services = [
-            "modules/launcher/FileSearchService.qml",
-            "modules/launcher/SpotlightSearchService.qml",
-            "modules/launcher/SpotlightToolService.qml",
-            "modules/keystone/tools/AudioRecordingService.qml",
-            "modules/keystone/tools/RecordingService.qml",
-            "modules/keystone/media/MediaPalette.qml",
-            "modules/bar/tray/TrayService.qml",
-            "modules/quicksettings/QuickToggleConfig.qml",
-            "modules/systemcards/NetworkInterfaceHistoryService.qml",
-            "modules/sidebars/dashboard/infotools/TodoService.qml",
-            "modules/settings/AutostartService.qml",
-            "modules/settings/DisplayConfigService.qml",
+            "units/launcher/FileSearchService.qml",
+            "units/launcher/SpotlightSearchService.qml",
+            "units/launcher/SpotlightToolService.qml",
+            "units/keystone/tools/AudioRecordingService.qml",
+            "units/keystone/tools/RecordingService.qml",
+            "units/keystone/media/MediaPalette.qml",
+            "units/bar/tray/TrayService.qml",
+            "units/sidebars/quicksettings/QuickToggleConfig.qml",
+            "units/sidebars/dashboard/infotools/TodoService.qml",
+            "units/settings/AutostartService.qml",
+            "units/settings/DisplayConfigService.qml",
         ]
         for rel in migrated_services:
             target_file = os.path.join(shell_dir, rel)
             self.assertTrue(os.path.isfile(target_file), f"Migrated service missing in domain: {target_file}")
+
+        # KM4.5: systemcards demolished — its stateful network history singleton is a
+        # genuine app-layer service and lives in app/services (not a duplicate).
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "app", "services", "NetworkInterfaceHistoryService.qml")),
+                        "NetworkInterfaceHistoryService must live in app/services after KM4.5")
 
         # 3. Assert old app/services/ locations no longer exist
         old_service_names = [
@@ -1439,7 +1459,6 @@ class TestShellManagement(unittest.TestCase):
             "MediaPalette.qml",
             "TrayService.qml",
             "QuickToggleConfig.qml",
-            "NetworkInterfaceHistoryService.qml",
             "TodoService.qml",
             "AutostartService.qml",
             "DisplayConfigService.qml",
@@ -1449,11 +1468,11 @@ class TestShellManagement(unittest.TestCase):
             self.assertFalse(os.path.exists(old_file), f"Old service duplicate must not exist in app/services: {old_file}")
 
         # 4. Redundant forwarders and duplicate wrappers physically deleted
-        self.assertFalse(os.path.exists(os.path.join(shell_dir, "modules", "keystone", "tools", "ToolsBackend.qml")),
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "units", "keystone", "tools", "ToolsBackend.qml")),
                          "Redundant ToolsBackend.qml must be deleted")
-        self.assertFalse(os.path.exists(os.path.join(shell_dir, "modules", "settings", "SplitMenuButton.qml")),
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "units", "settings", "SplitMenuButton.qml")),
                          "Duplicate settings/SplitMenuButton.qml must be deleted")
-        self.assertFalse(os.path.exists(os.path.join(shell_dir, "modules", "settings", "backend")),
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "units", "settings", "backend")),
                          "Empty settings/backend directory must not exist")
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "native", "tools")),
                          "Empty native/tools directory must not exist")
@@ -1472,11 +1491,11 @@ class TestShellManagement(unittest.TestCase):
         shell_dir = os.path.join(repo_root, "shell")
 
         # 1. Keystone lyrics directory and files physically deleted
-        lyrics_dir = os.path.join(shell_dir, "modules", "keystone", "lyrics")
+        lyrics_dir = os.path.join(shell_dir, "units", "keystone", "lyrics")
         self.assertFalse(os.path.exists(lyrics_dir), "Keystone lyrics directory must be deleted")
 
         # 2. Dock preview fake capture image physically deleted
-        dock_preview_dir = os.path.join(shell_dir, "modules", "dock", "preview")
+        dock_preview_dir = os.path.join(shell_dir, "units", "dock", "preview")
         self.assertFalse(os.path.exists(dock_preview_dir), "Dock preview directory must be deleted")
 
         # 3. Deprecated Cava template stays deleted; the Tera asset tree is
@@ -1509,14 +1528,14 @@ class TestShellManagement(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(services_dir, old_name)), f"Old {old_name} must not exist")
 
         # 6. Bar quicksettings Brightness button renamed to BrightnessButton.qml
-        bar_qs_dir = os.path.join(shell_dir, "modules", "bar", "quicksettings")
+        bar_qs_dir = os.path.join(shell_dir, "units", "bar", "quicksettings")
         self.assertTrue(os.path.isfile(os.path.join(bar_qs_dir, "BrightnessButton.qml")))
         self.assertFalse(os.path.exists(os.path.join(bar_qs_dir, "Brightness.qml")))
 
         # 7. JS tools 100% PascalCase.js
-        calendar_layout = os.path.join(shell_dir, "modules", "sidebars", "dashboard", "infotools", "CalendarLayout.js")
+        calendar_layout = os.path.join(shell_dir, "units", "sidebars", "dashboard", "infotools", "CalendarLayout.js")
         self.assertTrue(os.path.isfile(calendar_layout))
-        self.assertFalse(os.path.exists(os.path.join(shell_dir, "modules", "sidebars", "dashboard", "infotools", "calendar_layout.js")))
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "units", "sidebars", "dashboard", "infotools", "calendar_layout.js")))
 
         import re
         pascal_case_re = re.compile(r"^[A-Z][a-zA-Z0-9]*\.js$")
@@ -1557,19 +1576,19 @@ class TestShellManagement(unittest.TestCase):
 
         # 1. Assert 9 domain-specific files migrated into functional domains
         migrated_services = [
-            "modules/wallpaper/WallpaperService.qml",
-            "modules/wallpaper/WallpaperSceneService.qml",
-            "modules/wallpaper/WallpaperPaletteSession.qml",
-            "modules/desktopcards/DesktopPresentationService.qml",
-            "modules/desktopcards/SystemCardDragSession.qml",
-            "modules/desktopcards/SystemCardDragState.js",
-            "modules/sidebars/dashboard/infotools/TimerService.qml",
-            "modules/sidebars/dashboard/infotools/InfoDrawerState.qml",
+            "units/wallpaper/WallpaperService.qml",
+            "units/wallpaper/WallpaperSceneService.qml",
+            "units/wallpaper/WallpaperPaletteSession.qml",
+            "units/desktopcards/DesktopPresentationService.qml",
+            "units/desktopcards/SystemCardDragSession.qml",
+            "units/desktopcards/SystemCardDragState.js",
+            "units/sidebars/dashboard/infotools/TimerService.qml",
+            "units/sidebars/dashboard/infotools/InfoDrawerState.qml",
         ]
         for rel in migrated_services:
             target_file = os.path.join(shell_dir, rel)
             self.assertTrue(os.path.isfile(target_file), f"Migrated service missing in domain: {target_file}")
-        self.assertFalse(os.path.exists(os.path.join(shell_dir, "modules", "wallpaper", "AwwwWallpaperService.qml")),
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "units", "wallpaper", "AwwwWallpaperService.qml")),
                          "AwwwWallpaperService.qml must be deleted")
 
         # 2. Assert old app/services/ locations no longer exist
@@ -1588,16 +1607,20 @@ class TestShellManagement(unittest.TestCase):
             old_file = os.path.join(services_dir, name)
             self.assertFalse(os.path.exists(old_file), f"Old service duplicate must not exist in app/services: {old_file}")
 
-        # 3. Assert app/ file count strictly converged: 48 files total
+        # 3. Assert app/ file count strictly converged: 56 files total
         # (7 app root + services/*; KM4 adds SlotHost/UnitCatalog/
         # StateProjection/UnitControlService/LogService — the microkernel
-        # assembly, catalog, ledger projection, unit verb and log surfaces)
+        # assembly, catalog, ledger projection, unit verb and log surfaces.
+        # KM4.5 absorbs the demolished support modules' service-facing edge:
+        # HotCorners, FilePickerWindow, SystemCardContent, SystemWeatherCard,
+        # SystemBatteryTank, SystemClockCard, SidebarCookieClock,
+        # NetworkInterfaceHistoryService)
         app_files = []
         for root_dir, _, files in os.walk(os.path.join(shell_dir, "app")):
             for f in files:
                 if f.endswith((".qml", ".js")):
                     app_files.append(os.path.join(root_dir, f))
-        self.assertEqual(len(app_files), 48, f"app/ must strictly contain 48 files, found {len(app_files)}: {app_files}")
+        self.assertEqual(len(app_files), 56, f"app/ must strictly contain 56 files, found {len(app_files)}: {app_files}")
 
         # 5. Static lifecycle audit passes clean with zero violations
         import subprocess
@@ -1629,9 +1652,9 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("supportsMinimize: false", niri_service_content)
         self.assertIn("supportsMinimizeAnimation: false", niri_service_content)
 
-        # 2. Assert zero imports of Clavis.Niri in app/, modules/, shared/
+        # 2. Assert zero imports of Clavis.Niri in app/, units/, shared/
         violating_files = []
-        for scope_dir in ["app", "modules", "shared"]:
+        for scope_dir in ["app", "units", "shared"]:
             target_path = os.path.join(shell_dir, scope_dir)
             for root_dir, _, files in os.walk(target_path):
                 for f in files:
@@ -1642,19 +1665,19 @@ class TestShellManagement(unittest.TestCase):
                             if "import Clavis.Niri" in content:
                                 violating_files.append(os.path.relpath(full_path, shell_dir))
 
-        self.assertEqual(violating_files, [], f"No QML file in app/, modules/, shared/ may import Clavis.Niri: {violating_files}")
+        self.assertEqual(violating_files, [], f"No QML file in app/, units/, shared/ may import Clavis.Niri: {violating_files}")
 
         # 3. Assert former consumers reference NiriService
         consumer_samples = [
             ("app/AppShell.qml", "NiriService"),
             ("app/services/DockService.qml", "NiriService"),
-            ("modules/bar/workspaces/Workspaces.qml", "NiriService"),
-            ("modules/bar/activewindow/ActiveWindow.qml", "NiriService"),
-            ("modules/dock/DockSurface.qml", "NiriService"),
-            ("modules/hotcorners/HotCorners.qml", "NiriService"),
-            ("modules/keystone/styles/long/LongWorkspaces.qml", "NiriService"),
-            ("modules/settings/DisplayConfigService.qml", "NiriService"),
-            ("modules/wallpaper/WallpaperSceneService.qml", "NiriService"),
+            ("units/bar/workspaces/Workspaces.qml", "NiriService"),
+            ("units/bar/activewindow/ActiveWindow.qml", "NiriService"),
+            ("units/dock/DockSurface.qml", "NiriService"),
+            ("app/services/HotCorners.qml", "NiriService"),
+            ("units/keystone/styles/long/LongWorkspaces.qml", "NiriService"),
+            ("units/settings/DisplayConfigService.qml", "NiriService"),
+            ("units/wallpaper/WallpaperSceneService.qml", "NiriService"),
         ]
         for rel_path, pattern in consumer_samples:
             target_f = os.path.join(shell_dir, rel_path)
@@ -1714,7 +1737,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(repo_root, "toml.js")))
 
         # 6. SystemCardCatalog.js has no .import and preserves raw static names for Qt.include stability
-        catalog_path = os.path.join(shell_dir, "modules", "systemcards", "SystemCardCatalog.js")
+        catalog_path = os.path.join(shell_dir, "shared", "cards", "SystemCardCatalog.js")
         with open(catalog_path, "r", encoding="utf-8") as f:
             cat_code = f.read()
         self.assertNotIn(".import", cat_code)
@@ -1736,15 +1759,15 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("property var windows:", ns_content)
         self.assertIn("property string currentOutput:", ns_content)
 
-        # 2. Modules tier self-containment: expected domains exist
-        modules_dir = os.path.join(shell_dir, "modules")
+        # 2. Units tier self-containment: expected domains exist (KM4.5: 12 units)
+        units_dir = os.path.join(shell_dir, "units")
         expected_domains = [
-            "bar", "desktopcards", "dock", "filepicker", "hotcorners",
-            "keystone", "launcher", "lock", "notifications", "quicksettings",
-            "regionselector", "session", "settings", "sidebars", "systemcards", "wallpaper"
+            "bar", "desktopcards", "dock", "keystone", "launcher", "lock",
+            "notifications", "regionselector", "session", "settings",
+            "sidebars", "wallpaper"
         ]
         for domain in expected_domains:
-            self.assertTrue(os.path.isdir(os.path.join(modules_dir, domain)), f"Domain {domain} must exist in modules/")
+            self.assertTrue(os.path.isdir(os.path.join(units_dir, domain)), f"Domain {domain} must exist in units/")
 
         # 3. Shared layer is strictly pure with no upward dependencies
         shared_dir = os.path.join(shell_dir, "shared")
@@ -1775,7 +1798,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertTrue(os.path.isfile(zen_qsb), "zen-palette.frag.qsb must be precompiled")
         self.assertGreater(os.path.getsize(zen_qsb), 0)
 
-        zen_renderer = os.path.join(shell_dir, "modules", "wallpaper", "ZenPaletteRenderer.qml")
+        zen_renderer = os.path.join(shell_dir, "units", "wallpaper", "ZenPaletteRenderer.qml")
         with open(zen_renderer, "r", encoding="utf-8") as f:
             zr_code = f.read()
         self.assertNotIn("qrc:/", zr_code, "ZenPaletteRenderer must not use deleted qrc: paths")
@@ -1854,7 +1877,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertNotIn("player.positionChanged()", ms_code)
         self.assertIn("onObjectRemovedPost", ms_code)
 
-        media_content_path = os.path.join(shell_dir, "modules", "keystone", "media", "MediaContent.qml")
+        media_content_path = os.path.join(shell_dir, "units", "keystone", "media", "MediaContent.qml")
         with open(media_content_path, "r", encoding="utf-8") as f:
             mc_code = f.read()
         self.assertIn("MediaService.acquirePositionTracking()", mc_code)
@@ -1877,14 +1900,14 @@ class TestShellManagement(unittest.TestCase):
                     )
 
         # TimerService stopwatchTimer interval is 50ms (not 10ms)
-        timer_service_path = os.path.join(shell_dir, "modules", "sidebars", "dashboard", "infotools", "TimerService.qml")
+        timer_service_path = os.path.join(shell_dir, "units", "sidebars", "dashboard", "infotools", "TimerService.qml")
         with open(timer_service_path, "r", encoding="utf-8") as f:
             ts_code = f.read()
         self.assertIn("interval: 50", ts_code)
         self.assertNotIn("interval: 10", ts_code)
 
         # ClockContent clockTimer.running is bound to root.visible
-        clock_content_path = os.path.join(shell_dir, "modules", "keystone", "clock", "ClockContent.qml")
+        clock_content_path = os.path.join(shell_dir, "units", "keystone", "clock", "ClockContent.qml")
         with open(clock_content_path, "r", encoding="utf-8") as f:
             cc_code = f.read()
         self.assertIn("running: root.visible", cc_code)
@@ -1944,23 +1967,25 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("active: root.slotActive(modelData)", slot_code)
 
         # 2. Layer-shell surfaces physically unmount when disabled or inactive
-        ov_path = os.path.join(shell_dir, "modules", "wallpaper", "OverviewWallpaper.qml")
+        ov_path = os.path.join(shell_dir, "units", "wallpaper", "OverviewWallpaper.qml")
         with open(ov_path, "r", encoding="utf-8") as f:
             ov_code = f.read()
         self.assertIn("model: PersonalizationConfig.overviewEnabled ? Quickshell.screens : []", ov_code)
 
-        dw_path = os.path.join(shell_dir, "modules", "wallpaper", "DesktopWallpaper.qml")
+        dw_path = os.path.join(shell_dir, "units", "wallpaper", "DesktopWallpaper.qml")
         with open(dw_path, "r", encoding="utf-8") as f:
             dw_code = f.read()
         self.assertIn("model: Quickshell.screens", dw_code)
         self.assertNotIn("AwwwWallpaperService", dw_code)
 
-        hc_path = os.path.join(shell_dir, "modules", "hotcorners", "HotCorners.qml")
+        hc_path = os.path.join(shell_dir, "app", "services", "HotCorners.qml")
         with open(hc_path, "r", encoding="utf-8") as f:
             hc_code = f.read()
-        self.assertIn('model: PersonalizationConfig.hotCornerIds.filter(id => (PersonalizationConfig.hotCornerActions[id] || "disabled") !== "disabled")', hc_code)
+        # Whitespace-stripped: qmlformat may re-wrap long expressions.
+        hc_compact = "".join(hc_code.split())
+        self.assertIn('model:PersonalizationConfig.hotCornerIds.filter(id=>(PersonalizationConfig.hotCornerActions[id]||"disabled")!=="disabled")', hc_compact)
 
-        rs_path = os.path.join(shell_dir, "modules", "regionselector", "RegionSelector.qml")
+        rs_path = os.path.join(shell_dir, "units", "regionselector", "RegionSelector.qml")
         with open(rs_path, "r", encoding="utf-8") as f:
             rs_code = f.read()
         self.assertIn("model: RegionSelectionService.active ? Quickshell.screens : []", rs_code)
@@ -1977,26 +2002,26 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("target: root.enabled ? SpotlightAppUsage : null", dock_code)
 
         # 4. Service lifecycle teardown hooks
-        ws_path = os.path.join(shell_dir, "modules", "wallpaper", "WallpaperSceneService.qml")
+        ws_path = os.path.join(shell_dir, "units", "wallpaper", "WallpaperSceneService.qml")
         with open(ws_path, "r", encoding="utf-8") as f:
             ws_code = f.read()
         self.assertIn("function pruneScenes()", ws_code)
         self.assertIn("target: Quickshell", ws_code)
         self.assertIn("Component.onDestruction:", ws_code)
 
-        disp_path = os.path.join(shell_dir, "modules", "settings", "DisplayConfigService.qml")
+        disp_path = os.path.join(shell_dir, "units", "settings", "DisplayConfigService.qml")
         with open(disp_path, "r", encoding="utf-8") as f:
             disp_code = f.read()
         self.assertIn("function cancelPreview()", disp_code)
         self.assertIn("identifyTimer.stop();", disp_code)
 
-        auto_path = os.path.join(shell_dir, "modules", "settings", "AutostartService.qml")
+        auto_path = os.path.join(shell_dir, "units", "settings", "AutostartService.qml")
         with open(auto_path, "r", encoding="utf-8") as f:
             auto_code = f.read()
         self.assertIn("property var deleteProcess: null", auto_code)
         self.assertIn("deleteProcess.running = false;", auto_code)
 
-        sb_path = os.path.join(shell_dir, "modules", "settings", "SettingsBackend.qml")
+        sb_path = os.path.join(shell_dir, "units", "settings", "SettingsBackend.qml")
         with open(sb_path, "r", encoding="utf-8") as f:
             sb_code = f.read()
         self.assertIn("Component.onDestruction:", sb_code)
@@ -2055,13 +2080,13 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("PersonalizationConfig.themeMode;", app)
 
         # 2b. Unit-owned IPC surfaces live in the unit roots.
-        self.assertIn('target: "lock"', read("modules/lock/Lock.qml"))
-        self.assertIn('target: "spotlight"', read("modules/launcher/LauncherHost.qml"))
-        self.assertIn('target: "power-menu"', read("modules/session/SessionHost.qml"))
-        self.assertIn('target: "control-center"', read("modules/settings/SettingsHost.qml"))
+        self.assertIn('target: "lock"', read("units/lock/Lock.qml"))
+        self.assertIn('target: "spotlight"', read("units/launcher/LauncherHost.qml"))
+        self.assertIn('target: "power-menu"', read("units/session/SessionHost.qml"))
+        self.assertIn('target: "control-center"', read("units/settings/SettingsHost.qml"))
 
         # 3. WallpaperService owns its catalog action surface.
-        self.assertIn("function runCatalogAction", read("modules/wallpaper/WallpaperService.qml"))
+        self.assertIn("function runCatalogAction", read("units/wallpaper/WallpaperService.qml"))
 
         # 4. Theme truth closure: system scheme changes reach themeMode, the
         # generated palette moved to nyxuri/ with legacy clavis read fallback.
@@ -2079,7 +2104,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn('"/nyxuri/palette-modes.json"', template_svc)
 
         # The previews FileView left the page: UI files carry no file I/O.
-        themes_page = read("modules/settings/dashboard/DashboardThemesPage.qml")
+        themes_page = read("units/settings/dashboard/DashboardThemesPage.qml")
         self.assertNotIn("FileView", themes_page)
         self.assertNotIn("Quickshell.Io", themes_page)
         self.assertIn("TemplateService.schemePreviews", themes_page)
@@ -2097,21 +2122,21 @@ class TestShellManagement(unittest.TestCase):
         # 6. LIFE008 registered with allowlist; auditor stays green.
         audit_src = read("scripts/dev/audit-lifecycle.py")
         self.assertIn("LIFE008", audit_src)
-        for allowlisted in ("modules/lock/Lock.qml", "modules/lock/PreLockCapture.qml",
-                            "modules/keystone/media/MediaPalette.qml"):
+        for allowlisted in ("units/lock/Lock.qml", "units/lock/PreLockCapture.qml",
+                            "units/keystone/media/MediaPalette.qml"):
             self.assertIn(allowlisted, audit_src)
 
         # 7. Dock force-quit is a gateway action, not a popup-owned Process.
-        popup = read("modules/dock/DockPreviewPopup.qml")
+        popup = read("units/dock/DockPreviewPopup.qml")
         self.assertNotIn("Process {", popup)
         self.assertNotIn("property Process", popup)
         self.assertIn('"dock:force-quit"', popup)
 
         # 8. Color picker degrades explicitly through its domain service.
-        tools = read("modules/keystone/tools/ToolsContent.qml")
+        tools = read("units/keystone/tools/ToolsContent.qml")
         self.assertNotIn("hyprpicker", tools)
         self.assertIn("ColorPickerService.launch()", tools)
-        picker = read("modules/keystone/tools/ColorPickerService.qml")
+        picker = read("units/keystone/tools/ColorPickerService.qml")
         self.assertIn('"keystone:color-picker"', picker)
         self.assertIn("hyprpicker is missing", picker)
         probe_script = os.path.join(shell_dir, "scripts", "theme", "probe-tool.sh")
@@ -2119,7 +2144,7 @@ class TestShellManagement(unittest.TestCase):
                         "probe-tool.sh missing or not executable")
 
         # 9. The deleted map stub stays deleted.
-        self.assertFalse(os.path.exists(os.path.join(shell_dir, "modules", "settings", "WeatherMapBridge.qml")))
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "units", "settings", "WeatherMapBridge.qml")))
 
     def test_r11_shell_control_plane_and_transparency(self):
         """R11 Contract: on-demand shell control page, gated self sampling,
@@ -2140,7 +2165,7 @@ class TestShellManagement(unittest.TestCase):
                 return f.read()
 
         # 1. Route registration: top-level entry, nav auto-derives from it.
-        with open(os.path.join(shell_dir, "modules", "settings", "settings-routes.json"),
+        with open(os.path.join(shell_dir, "units", "settings", "settings-routes.json"),
                   "r", encoding="utf-8") as f:
             routes = json.load(f)
         shell_routes = [r for r in routes["routes"] if r["id"] == "shell"]
@@ -2148,11 +2173,11 @@ class TestShellManagement(unittest.TestCase):
         self.assertEqual(shell_routes[0]["path"], ["shell"])
         self.assertEqual(shell_routes[0]["source"], "ShellPage.qml")
         self.assertIn("control-plane", shell_routes[0]["aliases"])
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "modules", "settings", "ShellPage.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "settings", "ShellPage.qml")))
 
         # 2. The page is a pure view: mounting arms the sampler, unmounting
         # disarms it; no I/O primitives in the view (LIFE008 spirit).
-        page = read("modules/settings/ShellPage.qml")
+        page = read("units/settings/ShellPage.qml")
         self.assertIn("Component.onCompleted: ShellControlService.setPageMounted(true)", page)
         self.assertIn("Component.onDestruction: ShellControlService.setPageMounted(false)", page)
         self.assertNotIn("FileView", page)
@@ -2161,7 +2186,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertNotIn("Timer {", page)
 
         # 3. The service owns the only sampler and the only export writer.
-        service = read("modules/settings/ShellControlService.qml")
+        service = read("units/settings/ShellControlService.qml")
         self.assertIn("import \"ShellDiagnostics.js\" as ShellDiagnostics", service)
         self.assertIn("import \"ShellSamplerMath.js\" as SamplerMath", service)
         self.assertIn("readonly property bool samplingActive: pageMounted && UiPreferences.controlPlaneResourceSampling",
@@ -2179,11 +2204,11 @@ class TestShellManagement(unittest.TestCase):
         self.assertNotIn('"bash"', service)
 
         # 4. Sampling math and diagnostics sanitization are pure JS seams.
-        sampler_math = read("modules/settings/ShellSamplerMath.js")
+        sampler_math = read("units/settings/ShellSamplerMath.js")
         self.assertIn(".pragma library", sampler_math)
         self.assertNotIn("Quickshell", sampler_math)
         self.assertNotIn("XMLHttpRequest", sampler_math)
-        diagnostics_js = read("modules/settings/ShellDiagnostics.js")
+        diagnostics_js = read("units/settings/ShellDiagnostics.js")
         self.assertIn(".pragma library", diagnostics_js)
         self.assertNotIn("Quickshell", diagnostics_js)
         self.assertNotIn("XMLHttpRequest", diagnostics_js)
@@ -2212,11 +2237,11 @@ class TestShellManagement(unittest.TestCase):
         self.assertNotIn("JSON.stringify(ShellControlService.buildDiagnostics()", app)
 
         # 8. Dashboard-style routes land somewhere sensible.
-        dashboard = read("modules/settings/dashboard/DashboardContent.qml")
+        dashboard = read("units/settings/dashboard/DashboardContent.qml")
         self.assertIn('"shell": "settings"', dashboard)
 
         # 9. The shipped search catalog carries the new route and sections.
-        catalog = read("modules/settings/generated/SearchCatalog.js")
+        catalog = read("units/settings/generated/SearchCatalog.js")
         self.assertIn('"shell.section.modules"', catalog)
         self.assertIn('"shell.section.sampling"', catalog)
         self.assertIn('"shell.section.diagnostics"', catalog)
@@ -2230,7 +2255,7 @@ class TestShellManagement(unittest.TestCase):
         shell_dir = os.path.join(repo_root, "shell")
 
         # 1. SessionPanel actions and badges: 5 items (1~5), no hibernate
-        panel_path = os.path.join(shell_dir, "modules", "session", "SessionPanel.qml")
+        panel_path = os.path.join(shell_dir, "units", "session", "SessionPanel.qml")
         with open(panel_path, "r", encoding="utf-8") as f:
             panel_content = f.read()
         self.assertIn('"action": "lock"', panel_content)
@@ -2253,7 +2278,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertNotIn("Qt.Key_H:", panel_content)
 
         # 2. SessionHost closes immediately before triggering action
-        host_path = os.path.join(shell_dir, "modules", "session", "SessionHost.qml")
+        host_path = os.path.join(shell_dir, "units", "session", "SessionHost.qml")
         with open(host_path, "r", encoding="utf-8") as f:
             host_content = f.read()
         self.assertIn("root.close();", host_content)
@@ -2288,7 +2313,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn('ActionGateway.powerAction("suspend", "idle")', app_shell_content)
 
         # 4. Lock.qml has heartbeat timer, screensChanged listener, and uses PersonalizationConfig.lockScreenStyle
-        lock_path = os.path.join(shell_dir, "modules", "lock", "Lock.qml")
+        lock_path = os.path.join(shell_dir, "units", "lock", "Lock.qml")
         with open(lock_path, "r", encoding="utf-8") as f:
             lock_content = f.read()
         self.assertIn("property string sessionStyle: PersonalizationConfig.lockScreenStyle", lock_content)
@@ -2298,7 +2323,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("onScreensChanged", lock_content)
 
         # 5. LockSurface does NOT gate loader on locked state (unconditional load) and has global focus re-grab
-        surface_path = os.path.join(shell_dir, "modules", "lock", "LockSurface.qml")
+        surface_path = os.path.join(shell_dir, "units", "lock", "LockSurface.qml")
         with open(surface_path, "r", encoding="utf-8") as f:
             surface_content = f.read()
         self.assertNotIn("active: root.lock && root.lock.locked", surface_content)
@@ -2306,14 +2331,14 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("onShouldReFocus", surface_content)
 
         # 6. CaelestiaLock & DefaultLock have 500ms safety fallback timer and uninhibited focusAuth
-        caelestia_path = os.path.join(shell_dir, "modules", "lock", "CaelestiaLock.qml")
+        caelestia_path = os.path.join(shell_dir, "units", "lock", "CaelestiaLock.qml")
         with open(caelestia_path, "r", encoding="utf-8") as f:
             caelestia_content = f.read()
         self.assertIn("layer.enabled: visible && status === Image.Ready && root.backgroundBlur > 0", caelestia_content)
         self.assertIn("id: safetyFallbackTimer", caelestia_content)
         self.assertIn("function focusAuth() {\n        lockContent.forceAuthFocus();", caelestia_content)
 
-        default_lock_path = os.path.join(shell_dir, "modules", "lock", "DefaultLock.qml")
+        default_lock_path = os.path.join(shell_dir, "units", "lock", "DefaultLock.qml")
         with open(default_lock_path, "r", encoding="utf-8") as f:
             default_lock_content = f.read()
         self.assertIn("id: safetyFallbackTimer", default_lock_content)
@@ -2334,7 +2359,7 @@ class TestDashboardTransitionCatalogContract(unittest.TestCase):
         shell_dir = os.path.join(repo_root, "shell")
 
         # 1. DashboardSettingsCatalog configures transition cards as 'combo'
-        catalog_path = os.path.join(shell_dir, "modules", "settings", "dashboard", "DashboardSettingsCatalog.qml")
+        catalog_path = os.path.join(shell_dir, "units", "settings", "dashboard", "DashboardSettingsCatalog.qml")
         with open(catalog_path, "r", encoding="utf-8") as f:
             catalog_content = f.read()
 
@@ -2349,7 +2374,7 @@ class TestDashboardTransitionCatalogContract(unittest.TestCase):
         self.assertEqual(overview_match.group(1), "combo", "wallpaper:Overview transition must be combo")
 
         # 2. SettingsControlCatalog binds overview transition to PersonalizationConfig.transitionTypes
-        control_path = os.path.join(shell_dir, "modules", "settings", "dashboard", "SettingsControlCatalog.qml")
+        control_path = os.path.join(shell_dir, "units", "settings", "dashboard", "SettingsControlCatalog.qml")
         with open(control_path, "r", encoding="utf-8") as f:
             control_content = f.read()
 
@@ -2364,7 +2389,7 @@ class TestDashboardTransitionCatalogContract(unittest.TestCase):
         self.assertNotIn("awwwTransitionTypes", control_content)
 
         # 3. DashboardSelectCard hides MaterialSymbol when no icon is present
-        select_card_path = os.path.join(shell_dir, "modules", "settings", "dashboard", "DashboardSelectCard.qml")
+        select_card_path = os.path.join(shell_dir, "units", "settings", "dashboard", "DashboardSelectCard.qml")
         with open(select_card_path, "r", encoding="utf-8") as f:
             select_card_content = f.read()
 
@@ -2386,7 +2411,7 @@ class TestDashboardSettingsCatalogIntegrity(unittest.TestCase):
 
     def _read(self, *parts):
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        path = os.path.join(repo_root, "shell", "modules", "settings", "dashboard", *parts)
+        path = os.path.join(repo_root, "shell", "units", "settings", "dashboard", *parts)
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
@@ -2570,7 +2595,7 @@ class TestP4ThemeEngineContract(unittest.TestCase):
         self.assertIn("~/.local/share/fcitx5/themes/nyxmellow/templates/highlight.svg", content)
         self.assertIn("ReloadAddonConfig", content)
 
-        dashboard_page = os.path.join(self.shell_dir, "modules", "settings", "dashboard", "DashboardThemesPage.qml")
+        dashboard_page = os.path.join(self.shell_dir, "units", "settings", "dashboard", "DashboardThemesPage.qml")
         with open(dashboard_page, "r", encoding="utf-8") as f:
             dash_content = f.read()
         self.assertIn('"id": "fcitx5"', dash_content)

@@ -249,9 +249,9 @@ class ShellPresentationTests(unittest.TestCase):
 import Quickshell
 import Quickshell.Io
 import qs.app.services
-import qs.modules.settings
-import "modules/settings/ShellDiagnostics.js" as ShellDiagnostics
-import "modules/settings/ShellSamplerMath.js" as SamplerMath
+import qs.units.settings
+import "units/settings/ShellDiagnostics.js" as ShellDiagnostics
+import "units/settings/ShellSamplerMath.js" as SamplerMath
 
 ShellRoot {
     IpcHandler {
@@ -331,9 +331,9 @@ import Quickshell.Io
 import qs.app.services
 import qs.shared.theme
 import qs.shared.controls
-import qs.modules.settings
-import qs.modules.dock
-import qs.modules.wallpaper
+import qs.units.settings
+import qs.units.dock
+import qs.units.wallpaper
 
 ShellRoot {
     Component.onCompleted: {
@@ -887,9 +887,9 @@ import Quickshell
 import Quickshell.Io
 import qs.app
 import qs.app.services
-import qs.modules.bar.tray
-import qs.modules.quicksettings
-import qs.modules.sidebars.dashboard.infotools
+import qs.units.bar.tray
+import qs.units.quicksettings
+import qs.units.sidebars.dashboard.infotools
 
 ShellRoot {
     IpcHandler {

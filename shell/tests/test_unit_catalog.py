@@ -100,10 +100,10 @@ class TestHostClosure(unittest.TestCase):
 
     def test_unit_roots_self_register_on_gateway(self):
         expectations = {
-            os.path.join("modules", "lock", "Lock.qml"): "ActionGateway.sessionLocker = root",
-            os.path.join("modules", "settings", "SettingsHost.qml"):
+            os.path.join("units", "lock", "Lock.qml"): "ActionGateway.sessionLocker = root",
+            os.path.join("units", "settings", "SettingsHost.qml"):
                 "ActionGateway.settingsHost = root",
-            os.path.join("modules", "keystone", "Keystone.qml"):
+            os.path.join("units", "keystone", "Keystone.qml"):
                 "ActionGateway.keystoneHost = root",
         }
         for rel, marker in expectations.items():

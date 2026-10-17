@@ -91,6 +91,39 @@ hooks 的实机行为证据与视觉验收待作者确认。镜像色板是否�
 - 资源策略区分运行时资产、生成文件、缓存和测试 fixture；天气图标采用 Material Symbols。
 - 文档体系按 [docs-charter](../llms-wiki/docs-charter.md) 分层治理；归档只进不改。
 
+## KM4.5 拆迁与正名（2026-10-17，随主线 KM4.5）
+
+> 起因：`modules/`（16 域，混居 4 个非单元支撑目录）与 `units/`（12 个纯 manifest
+> 存根）两棵树表达同一概念且数目对不上，"bar 在哪"要查三处——文件树不表达架构，
+> KM3.5 的成果在 Shell 侧未兑现。本阶段模仿 KM3.5：先处决、再正名、一次契约同步。
+> 单元 ID（`shell.<domain>`）不变，ledger/state/IPC 零影响；实机验收与 KM4 合并。
+
+**处决清单（全部落地）**：
+`hotcorners/` → `app/services/HotCorners.qml`（唯一消费者 AppShell，宿主能力面）；
+`filepicker/` → `app/services/FilePickerWindow.qml`（keystone + settings 共用对话框
+能力）；`quicksettings/` → 并入 `sidebars/quicksettings/`（唯一消费者）；`systemcards/`
+拆分——纯展示 27 文件 → `shared/cards/`，直读 app 单例的 6 文件
+（SystemCardContent、SystemWeatherCard、SystemBatteryTank、SystemClockCard、
+SidebarCookieClock、NetworkInterfaceHistoryService）→ `app/services/`，其中两时钟卡
+按 LIFE002 服务层规则补齐 `Component.onDestruction` teardown；SlotHost 重复注释块、
+全树 `__pycache__` 清除。
+
+**正名**：`modules/<12 域>` 物理并入 `units/<域>/`，manifest.toml 与代码同目录——
+目录即单元，兑现内核「Adding a unit = adding a directory」承诺；顶层目录 10 → 8，
+`shell/modules/` 消失；`qs.modules.*` → `qs.units.*` 全量正名（实树 96 行 import +
+SlotHost 预热 12 行 + UnitCatalog source ×12 + 工具链与测试）。
+
+**契约同步**：shell/AGENTS 三层边界重写（app/units/shared + 支撑代码归宿规则）；
+architecture-matrix 重写（12 单元矩阵）；unit-model §6 承载修订；shell/development
+分层词表；audit-lifecycle / generate-search-catalog / run-tests / check.sh /
+test_unit_catalog 路径改判；契约测试改测新真相（test_shell 61 绿、
+test_bugfix_regressions 109 绿，含 app/ 56 文件收敛断言与 units/ 死刑断言：
+`shell/modules/` 必须不存在、4 个已处决支撑目录不得复辟）。
+
+**验证**：全量引擎 970 测试绿（14 跳过 = 基线）+ Shell 分类 118 测试绿 +
+audit-lifecycle clean（560 文件）+ 单例纯度扫描零 offender。实机行为/视觉验收与
+KM4 合并进行。
+
 ## 当前门禁
 
 - 每个保留文件必须有真实消费者；每个设置项和动作必须有唯一业务 owner。

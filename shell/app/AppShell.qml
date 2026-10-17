@@ -3,10 +3,9 @@ import Quickshell
 import Quickshell.Io
 import qs.app
 import qs.app.services
-import qs.modules.hotcorners
-import qs.modules.settings
-import qs.modules.sidebars.dashboard.infotools
-import qs.modules.wallpaper
+import qs.units.settings
+import qs.units.sidebars.dashboard.infotools
+import qs.units.wallpaper
 import qs.shared.theme
 
 // AppShell — the microkernel host (unit-model.md §6). It owns assembly
@@ -108,12 +107,12 @@ Item {
 
     Loader {
         active: DisplayConfigService.identify || DisplayConfigService.confirming
-        source: Qt.resolvedUrl("../modules/settings/DisplayOverlays.qml")
+        source: Qt.resolvedUrl("../units/settings/DisplayOverlays.qml")
     }
 
     Loader {
         active: ShortcutMapService.visible
-        source: Qt.resolvedUrl("../modules/settings/ShortcutMap.qml")
+        source: Qt.resolvedUrl("../units/settings/ShortcutMap.qml")
         onLoaded: {
             if (item) {
                 item.targetScreen = ShortcutMapService.targetScreen;

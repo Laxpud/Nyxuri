@@ -6,7 +6,7 @@ import qs.shared.theme
 import "../../shared/utils/SidebarPolicy.js" as SidebarPolicy
 import "../../shared/utils/WallpaperSource.js" as WallpaperSource
 import qs.app.services
-import qs.modules.wallpaper
+import qs.units.wallpaper
 import qs.app
 import qs.shared.i18n
 
@@ -1320,9 +1320,8 @@ Singleton {
             const t = TemplateService.templateById("fcitx5_theme");
             if (!t || !t.valid)
                 return false;
-            return root.isMatugenTemplateEnabled("fcitx5_theme")
-                && root.isMatugenTemplateEnabled("fcitx5_panel")
-                && root.isMatugenTemplateEnabled("fcitx5_highlight");
+            return root.isMatugenTemplateEnabled("fcitx5_theme") && root.isMatugenTemplateEnabled(
+                        "fcitx5_panel") && root.isMatugenTemplateEnabled("fcitx5_highlight");
         }
         const template = TemplateService.templateById(id);
         if (!template || !template.valid)
