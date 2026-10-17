@@ -154,6 +154,11 @@ KM4 合并进行。
   为写死字符串，无限重试刷到 pass 11/2）——per-unit `failedHeals` 计数、超限
   给决断性日志、unit-changed 清零重新武装。登记 KNOWN-ISSUES 已修复段；
   AGENTS 约束①增补推广条款：新 qs.* 池必须进预热名单。
+  同日复核：上述修正未根治 compiled empty——真因是重构残留的失效相对 import
+  （DesktopCardCanvas import `../systemcards/…`、SystemCardContent import
+  `../shared/cards/…` 少一级 `../`，SystemCards 模块解散后真身在 `shared/cards/`），
+  文件不存在属硬错误；两处正名后恢复，settings ShellPage 误引 `UnitControl`
+  一并正名 `UnitControlService`（预热与自愈上限修正独立成立，保留）。
 
 ## 当前门禁
 

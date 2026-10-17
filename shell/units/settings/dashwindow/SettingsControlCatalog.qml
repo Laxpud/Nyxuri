@@ -244,7 +244,7 @@ Singleton {
                                          // ── Bar ──────────────────────────────────────────────────────
                                          // Unit existence routes through the kernel verb (unit-model.md §6).
                                          "bar:Enabled": root.toggle(() => StateProjection.isEnabled("bar"),
-                                         value => UnitControl.setUnit("bar", value)),
+                                         value => UnitControlService.setUnit("bar", value)),
                                          "bar:Position": root.select(() => PersonalizationConfig.barPosition,
                                          value => PersonalizationConfig.setBarPosition(value),
                                          PersonalizationConfig.edgePositions),
@@ -264,7 +264,7 @@ Singleton {
                                          // private config field (unit-model.md §6).
                                          "keystone:Enabled": root.toggle(() => StateProjection.isEnabled(
                                                                                    "keystone"), value
-                                         => UnitControl.setUnit("keystone", value)),
+                                         => UnitControlService.setUnit("keystone", value)),
                                          "keystone:Style": root.select(()
                                                                        => PersonalizationConfig.keystoneStyle,
                                                                        value => PersonalizationConfig.setKeystoneStyle(
@@ -583,7 +583,7 @@ Singleton {
 
 // ── Dock ─────────────────────────────────────────────────────
 // Unit existence routes through the kernel verb (unit-model.md §6).
-"dock:Show dock": root.toggle(() => StateProjection.isEnabled("dock"), value => UnitControl.setUnit("dock",
+"dock:Show dock": root.toggle(() => StateProjection.isEnabled("dock"), value => UnitControlService.setUnit("dock",
                                                                                                     value)),
 "dock:Screen edge": root.select(() => DockService.position, value => DockService.setOption("position", value),
 [

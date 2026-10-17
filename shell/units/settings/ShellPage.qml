@@ -99,14 +99,14 @@ StyledFlickable {
 
             // The twelve Shell units, projected straight off the ledger
             // (unit-model.md §6). Flipping dispatches `nyxuri on/off
-            // shell.<domain>` via UnitControl; this page mirrors nothing.
+            // shell.<domain>` via UnitControlService; this page mirrors nothing.
             Repeater {
                 model: UnitCatalog.units
 
                 delegate: SettingsRow {
                     required property var modelData
 
-                    readonly property bool pending: UnitControl.pendingUnitId === modelData.id
+                    readonly property bool pending: UnitControlService.pendingUnitId === modelData.id
 
                     Layout.fillWidth: true
                     title: I18n.tr(modelData.label)
@@ -115,9 +115,9 @@ StyledFlickable {
 
                     trailing: StyledSwitch {
                         checked: StateProjection.isEnabled(modelData.id)
-                        enabled: !pending && UnitControl.canToggle(modelData.id)
+                        enabled: !pending && UnitControlService.canToggle(modelData.id)
                         Accessible.name: I18n.tr(modelData.label)
-                        onToggled: UnitControl.setUnit(modelData.id, checked)
+                        onToggled: UnitControlService.setUnit(modelData.id, checked)
                     }
                 }
             }
@@ -131,9 +131,9 @@ StyledFlickable {
 
             InlineStatusBanner {
                 Layout.fillWidth: true
-                visible: UnitControl.lastError.length > 0
+                visible: UnitControlService.lastError.length > 0
                 tone: "error"
-                message: UnitControl.lastError
+                message: UnitControlService.lastError
             }
 
             InlineStatusBanner {

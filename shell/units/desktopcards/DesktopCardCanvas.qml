@@ -3,7 +3,7 @@ import Quickshell
 import qs.shared.theme
 import qs.app.services
 import "./DesktopCardLayout.js" as DesktopCardLayout
-import "../systemcards/SystemCardPlacement.js" as Placement
+import "../../shared/cards/SystemCardPlacement.js" as Placement
 
 Item {
     id: root

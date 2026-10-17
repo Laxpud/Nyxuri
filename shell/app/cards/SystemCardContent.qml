@@ -1,5 +1,5 @@
 import "../../shared/utils/SystemFormat.js" as Format
-import "../shared/cards/SystemCardCatalog.js" as CardCatalog
+import "../../shared/cards/SystemCardCatalog.js" as CardCatalog
 import M3Shapes
 import QtQuick
 import QtQuick.Effects

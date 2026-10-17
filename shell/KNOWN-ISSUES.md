@@ -14,14 +14,19 @@
 
 ## 已修复
 
-- [x] **desktopcards 永久 compiled empty + 自愈无限重试**（2026-10-17，KM4.6 实机
-  验收发现）：`settings` 窗口逐个 on/off 时 `shell.desktopcards` 反复「enabled but
-  compiled empty — reloading (pass N/2)」刷屏——根因有二：① `qs.app.cards` 是
-  KM4.6 新建的合成池，全库无顶层 import，首次解析落在 Loader 内，正中 0.3.2
-  约束①（SlotHost 预热名单补 `import qs.app.cards`）；② SlotHost 自愈的 "/2"
-  是写死字符串，`_healPasses` 无上限增长、healTimer 永不放弃，与注释「重试两次
-  后放弃」不符（per-unit `failedHeals` 计数坐实上限，超限给决断性 ERROR 日志，
-  unit-changed 时 `noteUnitChanged()` 清零重新武装）。
+- [x] **desktopcards/sidebars 永久 compiled empty + 自愈无限重试**（2026-10-17，KM4.6 实机
+  验收发现）：`settings` 窗口逐个 on/off 时 `shell.desktopcards`、`shell.sidebars`
+  反复「enabled but compiled empty」直至放弃。终局根因是重构残留的两条失效相对
+  import——文件不存在属硬错误，预热与自愈救不了：① `units/desktopcards/
+  DesktopCardCanvas.qml` import `../systemcards/SystemCardPlacement.js`（SystemCards
+  模块 KM4.5 解散后真身在 `shared/cards/`）；② `app/cards/SystemCardContent.qml`
+  import `../shared/cards/SystemCardCatalog.js` 少一级 `../`（真身 `shared/cards/`），
+  经 DrawerGridTile 拖死 sidebars 整条链。两处正名为 `../../shared/cards/` 后恢复。
+  同场附带修复：settings `ShellPage.qml` 引用不存在的 `UnitControl` 单例（实名
+  `UnitControlService`），每点一次开关刷两条 ReferenceError、开关全部失效。
+  保留的两项修正各自独立成立：`qs.app.cards` 进 SlotHost 预热名单（0.3.2 约束①的
+  防御性条款）；自愈上限坐实（原 "/2" 是写死字符串，per-unit `failedHeals` 计数、
+  超限给决断性 ERROR、unit-changed 清零重新武装）。
 - [x] **quickshell 依赖未声明**（2026-10-17 KM4 清算）：根 `catalog.toml` 新增
   `quickshell` 条目（`detect` + `packages_aur`），`deps apps` 菜单与 gen-deps
   optdepends 同源可见；顺带修复 KM3.5 搬家后 PKGBUILD 生成标记 stale 导致
