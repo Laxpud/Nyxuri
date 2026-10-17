@@ -63,7 +63,7 @@ Item {
     Process {
         id: cavaProc
 
-        command: ["cava", "-p", Paths.scriptPath("cava", "raw_output_config.txt")]
+        command: ["cava", "-p", Paths.scriptPath("media", "cava_raw_output_config.txt")]
         onExited: code => root.cavaAvailable = code === 0
         onRunningChanged: {
             root.cavaAvailable = running;

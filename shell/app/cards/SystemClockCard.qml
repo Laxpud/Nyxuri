@@ -2,6 +2,7 @@ import "../../shared/utils/DateFormat.js" as DateFormat
 import QtQuick
 import QtQuick.Effects
 import qs.shared.theme
+import qs.app.services
 import qs.shared.i18n
 
 Item {

@@ -4,7 +4,7 @@ import Quickshell.Wayland
 import qs.shared.theme
 import qs.app.services
 import qs.shared.controls
-import qs.shared.cards
+import qs.app.cards
 import qs.units.wallpaper
 import "./DesktopCardLayout.js" as DesktopCardLayout
 import "../../shared/cards/SystemCardPlacement.js" as Placement

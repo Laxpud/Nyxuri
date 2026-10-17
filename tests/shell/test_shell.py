@@ -415,8 +415,15 @@ class TestShellManagement(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "tools")))
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "core")))
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "native", "tools", "window-preview")))
+        # KM4.6: assets/ dissolved; third-party provenance lives in the LICENSE
+        # third-party appendix (verbatim texts preserved).
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "assets")),
+                         "shell/assets/ must stay dissolved (KM4.6)")
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "licenses")))
-        self.assertTrue(os.path.isdir(os.path.join(shell_dir, "assets", "licenses")))
+        license_text = open(os.path.join(shell_dir, "LICENSE"), encoding="utf-8").read()
+        self.assertIn("APPENDIX: THIRD-PARTY LICENSES AND PROVENANCE", license_text)
+        self.assertIn("VERBATIM LICENSE TEXT: M3Shapes-Apache-2.0.txt", license_text)
+        self.assertIn("VERBATIM LICENSE TEXT: ZenBrowser-MPL-2.0.txt", license_text)
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "Components")))
         self.assertTrue(os.path.isfile(os.path.join(shell_dir, "shared", "controls", "ThemeIcon.qml")))
         self.assertTrue(os.path.isfile(os.path.join(shell_dir, "shared", "controls", "FileThemeIcon.qml")))
@@ -430,8 +437,8 @@ class TestShellManagement(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "i18n")))
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "matugen")))
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "assets", "matugen")))
-        self.assertTrue(os.path.isdir(os.path.join(shell_dir, "assets", "i18n")))
-        self.assertTrue(os.path.isdir(os.path.join(shell_dir, "assets", "templates")))
+        self.assertTrue(os.path.isdir(os.path.join(shell_dir, "app", "i18n")))
+        self.assertTrue(os.path.isdir(os.path.join(shell_dir, "app", "templates")))
         self.assertTrue(os.path.isdir(os.path.join(shell_dir, "app", "services")))
         self.assertTrue(os.path.isdir(os.path.join(shell_dir, "shared", "controls")))
         self.assertTrue(os.path.isfile(os.path.join(shell_dir, "shared", "controls", "CompositorBlurRegion.qml")))
@@ -448,7 +455,8 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn('exec qs -p "${SHELL_DIR}"', runner_txt)
         self.assertNotIn("NATIVE_PLUGIN_PATH", runner_txt)
         self.assertNotIn("native/fallback", runner_txt)
-        self.assertIn("${SHELL_DIR}/fallback", runner_txt)
+        self.assertNotIn("FALLBACK_QML_PATH", runner_txt)
+        self.assertIn("${SHELL_DIR}/shared/controls/shapes", runner_txt)
 
         # 2. AppShell encapsulated in app/
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "AppShell.qml")))
@@ -537,9 +545,9 @@ class TestShellManagement(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "notifications", "NotificationContent.qml")))
 
         # 3. Bar quicksettings controls exist
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "bar", "quicksettings", "Volume.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "bar", "quicksettings", "Microphone.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "bar", "quicksettings", "BrightnessButton.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "bar", "quickpanel", "Volume.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "bar", "quickpanel", "Microphone.qml")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "bar", "quickpanel", "BrightnessButton.qml")))
 
     def test_r4c_c05_cpp_toolchain_elimination(self):
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -559,30 +567,30 @@ class TestShellManagement(unittest.TestCase):
         shared_entries = sorted(os.listdir(shared_dir))
         self.assertEqual(shared_entries, ["cards", "controls", "i18n", "theme", "utils"])
 
-        # 4. Pure QML fallback stubs exist for external optional runtime modules (M3Shapes, Qt.labs.lottieqt)
-        fallback_dir = os.path.join(shell_dir, "fallback")
-        self.assertTrue(os.path.isfile(os.path.join(fallback_dir, "M3Shapes", "qmldir")))
-        self.assertTrue(os.path.isfile(os.path.join(fallback_dir, "M3Shapes", "MaterialShape.qml")))
-        self.assertTrue(os.path.isfile(os.path.join(fallback_dir, "Qt", "labs", "lottieqt", "qmldir")))
-        self.assertTrue(os.path.isfile(os.path.join(fallback_dir, "Qt", "labs", "lottieqt", "LottieAnimation.qml")))
+        # 4. KM4.6: fallback/ executed. The M3Shapes named-module shim (pure-QML
+        # stand-in for the retired external plugin) lives beside the vendored
+        # shape math in shared/controls/shapes; the dead lottieqt stub is gone.
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "fallback")),
+                         "shell/fallback/ must stay executed (KM4.6)")
+        shapes_dir = os.path.join(shell_dir, "shared", "controls", "shapes")
+        self.assertTrue(os.path.isfile(os.path.join(shapes_dir, "M3Shapes", "qmldir")))
+        self.assertTrue(os.path.isfile(os.path.join(shapes_dir, "M3Shapes", "MaterialShape.qml")))
+        self.assertFalse(os.path.exists(os.path.join(shapes_dir, "Qt")),
+                         "the dead lottieqt stub must not be resurrected")
 
         # 5. nyxuri-shell launcher mounts pure fallback but does not reference native plugins
         launcher_path = os.path.join(shell_dir, "nyxuri-shell")
         with open(launcher_path, "r", encoding="utf-8") as f:
             launcher_content = f.read()
-        self.assertIn("FALLBACK_QML_PATH", launcher_content)
-        self.assertIn("${SHELL_DIR}/fallback", launcher_content)
+        self.assertIn("SHAPES_QML_PATH", launcher_content)
+        self.assertIn("${SHELL_DIR}/shared/controls/shapes", launcher_content)
         self.assertNotIn("NATIVE_PLUGIN_PATH", launcher_content)
         self.assertNotIn("native/fallback", launcher_content)
 
-        # 6. dependencies.json build section contains zero C++ toolchain entries
-        deps_path = os.path.join(shell_dir, "packaging", "dependencies.json")
-        with open(deps_path, "r", encoding="utf-8") as f:
-            deps_content = f.read()
-        self.assertNotIn("cmake", deps_content.lower())
-        self.assertNotIn("ninja", deps_content.lower())
-        self.assertNotIn("gcc", deps_content.lower())
-        self.assertNotIn("clang", deps_content.lower())
+        # 6. KM4.6: the shell's standalone release/packaging pipeline is executed —
+        # the shell ships via repo mode; gen-deps owns the repo-root packaging/ only.
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "packaging")),
+                         "shell/packaging/ must stay executed (KM4.6)")
 
         # 7. No leftover C++ formatter or C++ source files
         self.assertFalse(os.path.exists(os.path.join(shell_dir, ".clang-format")))
@@ -676,7 +684,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("root.wheelAction(wheel)", rb_content)
 
         # 2. Volume.qml handles wheelAction with 0.05 step
-        vol_path = os.path.join(shell_dir, "units", "bar", "quicksettings", "Volume.qml")
+        vol_path = os.path.join(shell_dir, "units", "bar", "quickpanel", "Volume.qml")
         with open(vol_path, "r", encoding="utf-8") as f:
             vol_content = f.read()
         self.assertIn("wheelAction: wheel =>", vol_content)
@@ -684,7 +692,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("0.05", vol_content)
 
         # 3. Microphone.qml handles wheelAction with 0.05 step
-        mic_path = os.path.join(shell_dir, "units", "bar", "quicksettings", "Microphone.qml")
+        mic_path = os.path.join(shell_dir, "units", "bar", "quickpanel", "Microphone.qml")
         with open(mic_path, "r", encoding="utf-8") as f:
             mic_content = f.read()
         self.assertIn("wheelAction: wheel =>", mic_content)
@@ -692,7 +700,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("0.05", mic_content)
 
         # 4. BrightnessButton.qml handles wheelAction with 0.05 step
-        br_path = os.path.join(shell_dir, "units", "bar", "quicksettings", "BrightnessButton.qml")
+        br_path = os.path.join(shell_dir, "units", "bar", "quickpanel", "BrightnessButton.qml")
         with open(br_path, "r", encoding="utf-8") as f:
             br_content = f.read()
         self.assertIn("wheelAction: wheel =>", br_content)
@@ -1245,14 +1253,14 @@ class TestShellManagement(unittest.TestCase):
         shell_dir = os.path.join(repo_root, "shell")
 
         # 1. Obsolete 26,000-line XML .ts files are completely purged from git
-        ts_zh = os.path.join(shell_dir, "assets", "i18n", "clavis_zh_CN.ts")
-        ts_en = os.path.join(shell_dir, "assets", "i18n", "clavis_en_US.ts")
+        ts_zh = os.path.join(shell_dir, "app", "i18n", "clavis_zh_CN.ts")
+        ts_en = os.path.join(shell_dir, "app", "i18n", "clavis_en_US.ts")
         self.assertFalse(os.path.exists(ts_zh), f"Obsolete XML ts file must not exist: {ts_zh}")
         self.assertFalse(os.path.exists(ts_en), f"Obsolete XML ts file must not exist: {ts_en}")
 
         # 2. Modern clean TOML translation dictionaries exist
-        toml_zh = os.path.join(shell_dir, "assets", "i18n", "zh_CN.toml")
-        toml_en = os.path.join(shell_dir, "assets", "i18n", "en_US.toml")
+        toml_zh = os.path.join(shell_dir, "app", "i18n", "zh_CN.toml")
+        toml_en = os.path.join(shell_dir, "app", "i18n", "en_US.toml")
         self.assertTrue(os.path.isfile(toml_zh), f"zh_CN.toml must exist: {toml_zh}")
         self.assertTrue(os.path.isfile(toml_en), f"en_US.toml must exist: {toml_en}")
 
@@ -1502,9 +1510,9 @@ class TestShellManagement(unittest.TestCase):
         # fully replaced by the Noctalia-syntax builtin registry (P4).
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "assets", "matugen")),
                          "the retired matugen Tera asset tree must stay deleted")
-        self.assertFalse(os.path.exists(os.path.join(shell_dir, "assets", "templates", "cava-colors.ini")),
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "app", "templates", "cava-colors.ini")),
                          "cava-colors.ini template must stay deleted")
-        with open(os.path.join(shell_dir, "assets", "templates", "config.toml"), "r", encoding="utf-8") as f:
+        with open(os.path.join(shell_dir, "app", "templates", "config.toml"), "r", encoding="utf-8") as f:
             registry_content = f.read()
         self.assertNotIn("cava", registry_content)
         self.assertNotIn("yazi", registry_content)
@@ -1528,7 +1536,7 @@ class TestShellManagement(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(services_dir, old_name)), f"Old {old_name} must not exist")
 
         # 6. Bar quicksettings Brightness button renamed to BrightnessButton.qml
-        bar_qs_dir = os.path.join(shell_dir, "units", "bar", "quicksettings")
+        bar_qs_dir = os.path.join(shell_dir, "units", "bar", "quickpanel")
         self.assertTrue(os.path.isfile(os.path.join(bar_qs_dir, "BrightnessButton.qml")))
         self.assertFalse(os.path.exists(os.path.join(bar_qs_dir, "Brightness.qml")))
 
@@ -1549,7 +1557,7 @@ class TestShellManagement(unittest.TestCase):
         # 8. CLI scripts unified to kebab-case
         self.assertTrue(os.path.isfile(os.path.join(shell_dir, "scripts", "dev", "compile-i18n.py")))
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "scripts", "dev", "compile_i18n.py")))
-        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "scripts", "capture", "lock-snapshot.sh")))
+        self.assertTrue(os.path.isfile(os.path.join(shell_dir, "units", "lock", "lock-snapshot.sh")))
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "scripts", "capture", "lock_snapshot.sh")))
 
         theme_scripts = [
@@ -1719,7 +1727,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn('code: "en_US"', content)
 
         # 3. Translation catalog zh_CN.toml exists and has core mappings
-        zh_toml = os.path.join(shell_dir, "assets", "i18n", "zh_CN.toml")
+        zh_toml = os.path.join(shell_dir, "app", "i18n", "zh_CN.toml")
         self.assertTrue(os.path.isfile(zh_toml))
         with open(zh_toml, "r", encoding="utf-8") as f:
             toml_text = f.read()
@@ -1733,7 +1741,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(shell_dir, "shared", "utils", "Toml.js")))
 
         # 5. Cleanliness: zh_CN.json and root toml.js do not exist (pure TOML single source)
-        self.assertFalse(os.path.exists(os.path.join(shell_dir, "assets", "i18n", "zh_CN.json")))
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "app", "i18n", "zh_CN.json")))
         self.assertFalse(os.path.exists(os.path.join(repo_root, "toml.js")))
 
         # 6. SystemCardCatalog.js has no .import and preserves raw static names for Qt.include stability
@@ -1794,7 +1802,7 @@ class TestShellManagement(unittest.TestCase):
         shell_dir = os.path.join(repo_root, "shell")
 
         # 1. Shader QSB integrity & ZenPaletteRenderer fix
-        zen_qsb = os.path.join(shell_dir, "assets", "shaders", "wallpaper", "qsb", "zen-palette.frag.qsb")
+        zen_qsb = os.path.join(shell_dir, "units", "wallpaper", "shaders", "qsb", "zen-palette.frag.qsb")
         self.assertTrue(os.path.isfile(zen_qsb), "zen-palette.frag.qsb must be precompiled")
         self.assertGreater(os.path.getsize(zen_qsb), 0)
 
@@ -1802,12 +1810,15 @@ class TestShellManagement(unittest.TestCase):
         with open(zen_renderer, "r", encoding="utf-8") as f:
             zr_code = f.read()
         self.assertNotIn("qrc:/", zr_code, "ZenPaletteRenderer must not use deleted qrc: paths")
-        self.assertIn("Paths.fileUrl", zr_code)
+        # KM4.6: the precompiled qsb is unit-owned and loaded as a real file URL —
+        # a unit-relative Qt.resolvedUrl resolves to file: just like Paths.fileUrl;
+        # a bare relative string (compiler-dependent) would not.
+        self.assertIn('Qt.resolvedUrl("shaders/qsb/zen-palette.frag.qsb")', zr_code)
         self.assertIn("zen-palette.frag.qsb", zr_code)
 
         # 2. Dead icons and orphaned SvgIcon.qml eliminated
         for dead_icon in ["play.svg", "pause.svg", "previous.svg", "next.svg"]:
-            self.assertFalse(os.path.exists(os.path.join(shell_dir, "assets", "icons", dead_icon)))
+            self.assertFalse(os.path.exists(os.path.join(shell_dir, "app", "icons", dead_icon)))
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "shared", "controls", "SvgIcon.qml")))
 
         # 3. Conflicting upstream docs removed
@@ -1846,13 +1857,13 @@ class TestShellManagement(unittest.TestCase):
         shell_dir = os.path.join(repo_root, "shell")
 
         # 1. Weather Icon Subtraction (R6-01): 48.5MB meteocons bloat eliminated
-        meteocons_dir = os.path.join(shell_dir, "assets", "icons", "weather", "meteocons")
+        meteocons_dir = os.path.join(shell_dir, "app", "icons", "weather", "meteocons")
         self.assertFalse(os.path.exists(meteocons_dir), "meteocons directory must be physically eliminated")
 
-        deps_json_path = os.path.join(shell_dir, "packaging", "dependencies.json")
-        with open(deps_json_path, "r", encoding="utf-8") as f:
-            deps_data = json.load(f)
-        self.assertEqual(deps_data.get("resources", []), [], "resources array in dependencies.json must be empty")
+        # KM4.6: packaging/ executed — meteocons subtraction contract is pinned by
+        # the shared MeteoIcon implementation instead of a release manifest.
+        self.assertFalse(os.path.exists(os.path.join(shell_dir, "packaging", "dependencies.json")),
+                         "packaging/dependencies.json must stay executed (KM4.6)")
 
         meteo_icon_path = os.path.join(shell_dir, "shared", "controls", "MeteoIcon.qml")
         with open(meteo_icon_path, "r", encoding="utf-8") as f:
@@ -2104,7 +2115,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn('"/nyxuri/palette-modes.json"', template_svc)
 
         # The previews FileView left the page: UI files carry no file I/O.
-        themes_page = read("units/settings/dashboard/DashboardThemesPage.qml")
+        themes_page = read("units/settings/dashwindow/DashboardThemesPage.qml")
         self.assertNotIn("FileView", themes_page)
         self.assertNotIn("Quickshell.Io", themes_page)
         self.assertIn("TemplateService.schemePreviews", themes_page)
@@ -2237,7 +2248,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertNotIn("JSON.stringify(ShellControlService.buildDiagnostics()", app)
 
         # 8. Dashboard-style routes land somewhere sensible.
-        dashboard = read("units/settings/dashboard/DashboardContent.qml")
+        dashboard = read("units/settings/dashwindow/DashboardContent.qml")
         self.assertIn('"shell": "settings"', dashboard)
 
         # 9. The shipped search catalog carries the new route and sections.
@@ -2359,7 +2370,7 @@ class TestDashboardTransitionCatalogContract(unittest.TestCase):
         shell_dir = os.path.join(repo_root, "shell")
 
         # 1. DashboardSettingsCatalog configures transition cards as 'combo'
-        catalog_path = os.path.join(shell_dir, "units", "settings", "dashboard", "DashboardSettingsCatalog.qml")
+        catalog_path = os.path.join(shell_dir, "units", 'settings', 'dashwindow', "DashboardSettingsCatalog.qml")
         with open(catalog_path, "r", encoding="utf-8") as f:
             catalog_content = f.read()
 
@@ -2374,7 +2385,7 @@ class TestDashboardTransitionCatalogContract(unittest.TestCase):
         self.assertEqual(overview_match.group(1), "combo", "wallpaper:Overview transition must be combo")
 
         # 2. SettingsControlCatalog binds overview transition to PersonalizationConfig.transitionTypes
-        control_path = os.path.join(shell_dir, "units", "settings", "dashboard", "SettingsControlCatalog.qml")
+        control_path = os.path.join(shell_dir, "units", 'settings', 'dashwindow', "SettingsControlCatalog.qml")
         with open(control_path, "r", encoding="utf-8") as f:
             control_content = f.read()
 
@@ -2389,7 +2400,7 @@ class TestDashboardTransitionCatalogContract(unittest.TestCase):
         self.assertNotIn("awwwTransitionTypes", control_content)
 
         # 3. DashboardSelectCard hides MaterialSymbol when no icon is present
-        select_card_path = os.path.join(shell_dir, "units", "settings", "dashboard", "DashboardSelectCard.qml")
+        select_card_path = os.path.join(shell_dir, "units", 'settings', 'dashwindow', "DashboardSelectCard.qml")
         with open(select_card_path, "r", encoding="utf-8") as f:
             select_card_content = f.read()
 
@@ -2411,7 +2422,7 @@ class TestDashboardSettingsCatalogIntegrity(unittest.TestCase):
 
     def _read(self, *parts):
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        path = os.path.join(repo_root, "shell", "units", "settings", "dashboard", *parts)
+        path = os.path.join(repo_root, "shell", "units", 'settings', 'dashwindow', *parts)
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
@@ -2584,7 +2595,7 @@ class TestP4ThemeEngineContract(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(self.shell_dir, rel)), rel)
 
     def test_builtin_templates_include_fcitx5(self):
-        config_path = os.path.join(self.shell_dir, "assets", "templates", "config.toml")
+        config_path = os.path.join(self.shell_dir, "app", "templates", "config.toml")
         with open(config_path, "r", encoding="utf-8") as f:
             content = f.read()
         self.assertIn("[templates.fcitx5_theme]", content)
@@ -2595,7 +2606,7 @@ class TestP4ThemeEngineContract(unittest.TestCase):
         self.assertIn("~/.local/share/fcitx5/themes/nyxmellow/templates/highlight.svg", content)
         self.assertIn("ReloadAddonConfig", content)
 
-        dashboard_page = os.path.join(self.shell_dir, "units", "settings", "dashboard", "DashboardThemesPage.qml")
+        dashboard_page = os.path.join(self.shell_dir, "units", 'settings', 'dashwindow', "DashboardThemesPage.qml")
         with open(dashboard_page, "r", encoding="utf-8") as f:
             dash_content = f.read()
         self.assertIn('"id": "fcitx5"', dash_content)
@@ -2628,7 +2639,7 @@ class TestP4ThemeEngineContract(unittest.TestCase):
             conf_path = kitty_dir / "kitty.conf"
             conf_path.write_text(dirty_conf, encoding="utf-8")
 
-            hook_script = os.path.join(self.shell_dir, "assets", "templates", "kitty", "kitty-apply.sh")
+            hook_script = os.path.join(self.shell_dir, "app", "templates", "kitty", "kitty-apply.sh")
             res = subprocess.run(["bash", hook_script], capture_output=True, text=True,
                                  env=dict(os.environ, XDG_CONFIG_HOME=str(env.home / ".config")))
             self.assertEqual(res.returncode, 0, f"kitty-apply failed: {res.stderr}")
@@ -2698,7 +2709,7 @@ class TestP4ThemeEngineContract(unittest.TestCase):
                 encoding="utf-8"
             )
 
-            hook_script = os.path.join(self.shell_dir, "assets", "templates", "starship", "starship-apply.sh")
+            hook_script = os.path.join(self.shell_dir, "app", "templates", "starship", "starship-apply.sh")
 
             # Even if XDG_CACHE_HOME points to private /nyxuri-shell namespace, the hook must succeed
             isolated_cache = env.home / ".cache" / "nyxuri-shell"

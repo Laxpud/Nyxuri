@@ -3,7 +3,7 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/.
 *
 * Adapted from Zen Browser, commit 412731f37e567223097101d9fae9f9d364708b6b.
-* See licenses/README.md for source mapping and modification details.
+* See the LICENSE third-party appendix for source mapping and modification details.
 * Alternatively, the contents of this file may be used under the terms
 * of the GNU General Public License Version 3 or (at your option) later.
 * This file is free software: you may copy, redistribute and/or modify it

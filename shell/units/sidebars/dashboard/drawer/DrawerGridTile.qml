@@ -1,7 +1,7 @@
 import QtQuick
 import qs.shared.theme
 import qs.app.services
-import qs.shared.cards
+import qs.app.cards
 import qs.units.desktopcards
 
 Item {

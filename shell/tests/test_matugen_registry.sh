@@ -132,9 +132,9 @@ reject remove kitty
 installed="$test_root/package/shell"
 mkdir -p "$installed/scripts"
 cp -r "$repo_root/scripts/lib" "$repo_root/scripts/theme" "$installed/scripts/"
-mkdir -p "$installed/assets"
-cp -r "$repo_root/assets/templates" "$installed/assets/templates"
-bash "$installed/scripts/theme/manage-matugen-templates.sh" list | jq -e --arg prefix "$installed/assets/templates/" 'all(.templates[] | select(.origin == "builtin" and (.id == "kitty" or .id == "btop" or .id == "starship")); .inputPath | startswith($prefix))' >/dev/null
+mkdir -p "$installed/app"
+cp -r "$repo_root/app/templates" "$installed/app/templates"
+bash "$installed/scripts/theme/manage-matugen-templates.sh" list | jq -e --arg prefix "$installed/app/templates/" 'all(.templates[] | select(.origin == "builtin" and (.id == "kitty" or .id == "btop" or .id == "starship")); .inputPath | startswith($prefix))' >/dev/null
 bash "$installed/scripts/theme/generate-matugen-colors.sh" --color '#aabbcc' --mode light > /dev/null
 assert test -s "$CLAVIS_GENERATED_HOME/nyxuri/colors.json"
 

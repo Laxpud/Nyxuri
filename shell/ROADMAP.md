@@ -123,6 +123,31 @@ test_bugfix_regressions 109 绿，含 app/ 56 文件收敛断言与 units/ 死�
 **验证**：全量引擎 970 测试绿（14 跳过 = 基线）+ Shell 分类 118 测试绿 +
 audit-lifecycle clean（560 文件）+ 单例纯度扫描零 offender。实机行为/视觉验收与
 KM4 合并进行。
+- **KM4.6 Shell 结构微整**（2026-10-17，结构层不碰行为；先行提交 KM4.5 后开工）：
+  处决——`packaging/`（死独立发行管线：release.py 已不存在，gen-deps 只写仓库根
+  packaging/，dependencies.json 引用旧 modules 树）整目录处决；`fallback/` 解散
+  （lottieqt 桩零消费者删除；M3Shapes 具名模块桩以真身份迁
+  `shared/controls/shapes/M3Shapes/`，wrapper `FALLBACK_QML_PATH` →
+  `SHAPES_QML_PATH` 指向 shapes 目录——桩紧邻其未来要吸收的 vendored 数学）；
+  `assets/` Junk Drawer 解散——shaders 按域归 `units/{keystone,launcher,wallpaper}/
+  shaders/`（frag+qsb 同迁，消费改 unit 相对 `Qt.resolvedUrl`），i18n 词典 →
+  `app/i18n/`，icons → `app/icons/`，内置模板注册表 → `app/templates/`
+  （matugen-registry.sh builtin 根同步），第三方许可证 12 件折入 `LICENSE`
+  第三方附录（逐字保留）；Paths 死属性清算（builtinMatugenDir/audioScriptsDir/
+  weatherIconsDir/weatherScriptsDir/scriptsDir 旁挂）。
+  分池——`app/cards/` 新建：SystemCardContent/SystemWeatherCard/SystemBatteryTank/
+  SystemClockCard/SidebarCookieClock 5 个直读单例的 UI 渲染件出 `services/`
+  （services 50 → 45 只剩服务+配置+能力面；NetworkInterfaceHistoryService 留列）。
+  scripts 收拢 9 → 5（dev/lib/media/system/theme）：build→dev、lyrics+cava→media、
+  capture 解散（LockSnapshot.qml + lock-snapshot.sh 一体归 `units/lock/`——
+  QML 混居 scripts 的错位纠正）。
+  正名——`settings/dashboard` → `settings/dashwindow`（语义钉死：它是
+  settingsPanelStyle==="dashboard" 的卡片窗变体，非页面）；`bar/quicksettings` →
+  `bar/quickpanel`；`sidebars/{dashboard,quicksettings}` 保留（对齐
+  `WidgetState.dashboardSidebarView` 的运行时 view id）。
+  验证：全量引擎 970 + Shell 分类 118 + audit-lifecycle clean（562 文件）+
+  单例纯度零 offender + check.sh + 沙箱部署绿。终态顶层：app/units/shared/scripts/
+  tests 五目录 + 8 根文件。
 
 ## 当前门禁
 

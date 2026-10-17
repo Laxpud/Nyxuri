@@ -4,8 +4,8 @@ set -euo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 project_dir=$(cd -- "${script_dir}/../.." && pwd)
-source_file="${project_dir}/assets/shaders/launcher/frag/spotlight_mode_field.frag"
-output_dir="${project_dir}/assets/shaders/launcher/qsb"
+source_file="${project_dir}/units/launcher/shaders/frag/spotlight_mode_field.frag"
+output_dir="${project_dir}/units/launcher/shaders/qsb"
 output_file="${output_dir}/spotlight_mode_field.frag.qsb"
 
 if command -v qsb >/dev/null 2>&1; then

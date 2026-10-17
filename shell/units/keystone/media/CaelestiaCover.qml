@@ -1,5 +1,5 @@
 // Adapted from Caelestia Shell's CoverVisualiser.qml and CoverArt.qml.
-// GPL-3.0; source mapping and modifications: licenses/README.md.
+// GPL-3.0; source mapping and modifications: the LICENSE third-party appendix.
 pragma ComponentBehavior: Bound
 
 import QtQuick

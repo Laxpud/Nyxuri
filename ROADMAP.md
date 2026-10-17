@@ -26,6 +26,7 @@
 | KM3.5 | 拆迁与正名（KM5 前置）：旧世界处决 + 文件树表达架构 | 已完成 |
 | KM4 | Shell 彻底模块化 + 运行态直通（吸收原 Shell P5） | 待验收 |
 | KM4.5 | Shell 拆迁与正名：`modules/` 并入 `units/`（目录即单元）+ 支撑模块裁决 | 待验收 |
+| KM4.6 | Shell 结构微整：assets/fallback/packaging 解散、services 分池、scripts 收拢、撞名正名 | 待验收 |
 | KM5 | 引导转化（installer/ 处决 + install.sh 引导化）、migrations 清算与五原则总验收 | 待开始 |
 
 P6（整体验收与未来移植）保持在 KM5 之后，台账见 [shell/ROADMAP.md](shell/ROADMAP.md)。
@@ -74,6 +75,13 @@ KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此�
   unit-model §6、shell/development、契约测试改测新真相（test_shell 61 +
   test_bugfix_regressions 109 全绿）、audit-lifecycle 分层词表。全量引擎 970 测试
   + Shell 分类 118 测试绿。实机验收与 KM4 合并进行。
+- **KM4.6 Shell 结构微整**：处决 `packaging/`（死独立发行管线）与 `fallback/`
+  （lottieqt 死桩删除，M3Shapes 具名桩迁 `shared/controls/shapes/` 邻真数学）；
+  `assets/` Junk Drawer 解散（shaders 按域归 units、i18n/icons/templates 归 app、
+  许可证折入 LICENSE 第三方附录）；`app/cards/` 分池（5 个直读单例 UI 渲染件出
+  services）；scripts 收拢 9 → 5；撞名正名 `settings/dashwindow`、
+  `bar/quickpanel`（sidebars 侧保 view id 对齐）。顶层目录 8 → 5。
+  详见 [shell/ROADMAP](shell/ROADMAP.md) KM4.6 节。
 - **KM5 引导转化与终极清算**：`install.sh` 退役为一次性引导脚本，并处决 `nyxuri/installer/` 等死区（workflows / menus 隔离件）；`migrations/` 旧版迁移清算；契约测试强制触发死刑断言，物理删除旧命令兼容层；五原则逐条给出可复现证据。验收：退役清单清空为零，仓库代码实现净减法。（拆迁主体已前置至 KM3.5，本阶段只剩引导收口与总验收。）
 
 ### KM3.5 拆迁与正名（KM5 前置）

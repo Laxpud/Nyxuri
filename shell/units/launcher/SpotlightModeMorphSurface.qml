@@ -142,7 +142,7 @@ Item {
 
         // A distinct resource URL for this uniform layout also invalidates
         // Qt's process-wide cache of the previous circle/bridge shader.
-        fragmentShader: Paths.fileUrl(Paths.assetsDir + "/shaders/launcher/qsb/spotlight_mode_field.frag.qsb")
+        fragmentShader: Qt.resolvedUrl("shaders/qsb/spotlight_mode_field.frag.qsb")
     }
 
     MultiEffect {

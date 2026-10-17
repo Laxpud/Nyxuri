@@ -14,6 +14,7 @@ ShellRoot {
     Timer {
         interval: 1200
         running: true
+        repeat: false // one-shot self-quit watchdog: the capture process exits via Qt.quit()
         onTriggered: Qt.quit()
     }
 

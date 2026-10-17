@@ -84,14 +84,14 @@ class ShellLauncherTests(unittest.TestCase):
         self.assertEqual(call["qml"], "/user/qt6")
         self.assertEqual(call["qml2"], "/user/legacy")
 
-    def test_pure_qml_launcher_mounts_fallback_path(self):
-        fallback = self.shell / "fallback"
-        fallback.mkdir()
+    def test_pure_qml_launcher_mounts_named_module_path(self):
+        module_root = self.shell / "shared" / "controls" / "shapes"
+        module_root.mkdir(parents=True)
         result = self.invoke("-v", QML_IMPORT_PATH="/user/qt6", QML2_IMPORT_PATH="/user/legacy")
         self.assertEqual(result.returncode, 0, result.stderr)
         call = json.loads(result.stdout)
-        self.assertEqual(call["qml"], f"/user/qt6:{fallback}")
-        self.assertEqual(call["qml2"], f"/user/legacy:{fallback}")
+        self.assertEqual(call["qml"], f"/user/qt6:{module_root}")
+        self.assertEqual(call["qml2"], f"/user/legacy:{module_root}")
 
     def test_action_shape_and_missing_argument(self):
         for action, target, method, trailing in [
@@ -216,7 +216,7 @@ class ShellPresentationTests(unittest.TestCase):
             # stalled render.
             trace = self.ctx.home / "hook-trace"
             for hook in ["kitty-apply.sh", "btop-apply.sh", "starship-apply.sh"]:
-                path = self.shell / "assets/templates" / hook.split("-")[0] / hook
+                path = self.shell / "app/templates" / hook.split("-")[0] / hook
                 path.write_text('printf "%s\\n" "$0" >> "' + str(trace) + '"\n' + path.read_text(
                     encoding="utf-8"))
             # Trace FileView operation internals: a lost saved()/loaded() emit
@@ -394,7 +394,7 @@ ShellRoot {
             FontService.setConfiguredFamily("ui", "NyxuriMissingFont123");
             if (Fonts.ui === "NyxuriMissingFont123" || !Fonts.mono)
                 return "font fallback failed";
-            if (!Resources.iconsRoot.endsWith("/assets/icons/"))
+            if (!Resources.iconsRoot.endsWith("/app/icons/"))
                 return "resource injection failed";
             PersonalizationConfig.shellBackgroundOpacity = 0.37;
             return "OK";

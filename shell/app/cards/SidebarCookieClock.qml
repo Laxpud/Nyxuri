@@ -1,5 +1,6 @@
 import QtQuick
 import qs.shared.theme
+import qs.app.services
 import "../../shared/cards/cookieclock"
 import qs.shared.i18n
 

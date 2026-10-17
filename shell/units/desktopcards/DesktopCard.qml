@@ -4,7 +4,7 @@ import QtQuick.Controls.Material
 import qs.shared.controls
 import qs.shared.theme
 import qs.app.services
-import qs.shared.cards
+import qs.app.cards
 import "./DesktopCardLayout.js" as DesktopCardLayout
 import qs.shared.i18n
 

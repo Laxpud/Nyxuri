@@ -6,7 +6,7 @@ import qs.units.bar.activewindow
 import qs.units.bar.tray
 import qs.units.bar.sysmonitor
 import qs.units.bar.media
-import qs.units.bar.quicksettings
+import qs.units.bar.quickpanel
 import qs.units.bar.clock
 
 Loader {

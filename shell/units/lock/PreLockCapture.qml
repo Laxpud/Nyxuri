@@ -136,7 +136,8 @@ Scope {
                 activeRequestId = captureRequestId;
                 published = false;
                 startedAt = Date.now();
-                captureProcess.command = ["bash", Paths.captureScriptsDir + "/lock-snapshot.sh", screenName];
+                captureProcess.command = ["bash", Paths.shellDir + "/units/lock/lock-snapshot.sh",
+                                          screenName];
                 captureProcess.running = true;
             }
 

@@ -350,7 +350,7 @@ Item {
             property real imageHeight2: root.height
             property real screenWidth: root.width
             property real screenHeight: root.height
-            fragmentShader: Paths.fileUrl(Paths.assetsDir + "/shaders/wallpaper/qsb/wp_fade.frag.qsb")
+            fragmentShader: Qt.resolvedUrl("shaders/qsb/wp_fade.frag.qsb")
         }
     }
 
@@ -372,7 +372,7 @@ Item {
             property real imageHeight2: root.height
             property real screenWidth: root.width
             property real screenHeight: root.height
-            fragmentShader: Paths.fileUrl(Paths.assetsDir + "/shaders/wallpaper/qsb/wp_wipe.frag.qsb")
+            fragmentShader: Qt.resolvedUrl("shaders/qsb/wp_wipe.frag.qsb")
         }
     }
 
@@ -396,7 +396,7 @@ Item {
             property real imageHeight2: root.height
             property real screenWidth: root.width
             property real screenHeight: root.height
-            fragmentShader: Paths.fileUrl(Paths.assetsDir + "/shaders/wallpaper/qsb/wp_disc.frag.qsb")
+            fragmentShader: Qt.resolvedUrl("shaders/qsb/wp_disc.frag.qsb")
         }
     }
 
@@ -420,7 +420,7 @@ Item {
             property real imageHeight2: root.height
             property real screenWidth: root.width
             property real screenHeight: root.height
-            fragmentShader: Paths.fileUrl(Paths.assetsDir + "/shaders/wallpaper/qsb/wp_stripes.frag.qsb")
+            fragmentShader: Qt.resolvedUrl("shaders/qsb/wp_stripes.frag.qsb")
         }
     }
 
@@ -444,7 +444,7 @@ Item {
             property real imageHeight2: root.height
             property real screenWidth: root.width
             property real screenHeight: root.height
-            fragmentShader: Paths.fileUrl(Paths.assetsDir + "/shaders/wallpaper/qsb/wp_iris_bloom.frag.qsb")
+            fragmentShader: Qt.resolvedUrl("shaders/qsb/wp_iris_bloom.frag.qsb")
         }
     }
 
@@ -468,7 +468,7 @@ Item {
             property real centerX: root.discCenterX
             property real centerY: root.discCenterY
             property real aspectRatio: root.width / Math.max(1, root.height)
-            fragmentShader: Paths.fileUrl(Paths.assetsDir + "/shaders/wallpaper/qsb/wp_pixelate.frag.qsb")
+            fragmentShader: Qt.resolvedUrl("shaders/qsb/wp_pixelate.frag.qsb")
         }
     }
 
@@ -492,7 +492,7 @@ Item {
             property real imageHeight2: root.height
             property real screenWidth: root.width
             property real screenHeight: root.height
-            fragmentShader: Paths.fileUrl(Paths.assetsDir + "/shaders/wallpaper/qsb/wp_portal.frag.qsb")
+            fragmentShader: Qt.resolvedUrl("shaders/qsb/wp_portal.frag.qsb")
         }
     }
 

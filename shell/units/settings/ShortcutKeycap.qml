@@ -53,7 +53,7 @@ Rectangle {
             width: 20
             height: 20
             visible: false
-            source: root.logo ? Qt.resolvedUrl("../../assets/icons/keyboard/" + root.superStyle + ".svg") : ""
+            source: root.logo ? Qt.resolvedUrl("../../app/icons/keyboard/" + root.superStyle + ".svg") : ""
             sourceSize: Qt.size(20, 20)
         }
         MultiEffect {
