@@ -110,28 +110,42 @@ engine_is_complete() {
     local target_dir="$1"
     local module
     [ -f "$target_dir/install.sh" ] || return 1
+    [ -f "$target_dir/catalog.toml" ] || return 1
     [ -f "$target_dir/nyxuri/translations.toml" ] || return 1
     [ -f "$target_dir/nyxuri/migrations/__init__.py" ] || return 1
-    # Top-level engine modules (infrastructure + kernel + entrypoints, §13)
-    for module in __init__ __main__ clean cli constants core deps doctor i18n ledger menus network registry resolver shell_switcher template_registry theme tui workflows; do
+    # nyxuri/ 顶层: 5 文件 (KM3.5 终态一屏图; 内核/供给/桌面/安装器各居其包)
+    for module in __init__ __main__ cli core sysdoctor tui; do
         [ -f "$target_dir/nyxuri/$module.py" ] || return 1
     done
-    # deploy/ subpackage (atomic · manifest · templates · assets · hardware · preset · deploy)
-    for module in __init__ atomic assets deploy hardware manifest preset templates; do
+    # kernel/ (registry · resolver · ledger · transaction)
+    for module in __init__ ledger registry resolver transaction; do
+        [ -f "$target_dir/nyxuri/kernel/$module.py" ] || return 1
+    done
+    # deploy/ (atomic · manifest · templates · hardware · preset 引擎半)
+    for module in __init__ atomic deploy hardware manifest preset templates; do
         [ -f "$target_dir/nyxuri/deploy/$module.py" ] || return 1
     done
-    # pkg/ subpackage (cli · detection)
-    for module in __init__ cli detection; do
+    # pkg/ (包管理抽象 + 供给: fzf · detection · deps · net · catalog)
+    for module in __init__ catalog deps detection fzf net; do
         [ -f "$target_dir/nyxuri/pkg/$module.py" ] || return 1
     done
-    # state/ subpackage (backup · uninstall; ledger is a kernel module at nyxuri/ledger.py)
+    # state/ (backup · uninstall)
     for module in __init__ backup uninstall; do
         [ -f "$target_dir/nyxuri/state/$module.py" ] || return 1
     done
-    [ -d "$target_dir/configs" ] \
-        && [ -f "$target_dir/configs/fish/config.fish" ] \
-        && [ -d "$target_dir/assets/wallpapers" ] \
-        && [ -d "$target_dir/configs/fcitx5-rime/hooks/skin" ]
+    # desktop/ (theme · shell_switcher · clean · presets 流程半)
+    for module in __init__ clean presets shell_switcher theme; do
+        [ -f "$target_dir/nyxuri/desktop/$module.py" ] || return 1
+    done
+    # installer/ (等死区, KM5 随引导化整目录处决)
+    for module in __init__ menus workflows; do
+        [ -f "$target_dir/nyxuri/installer/$module.py" ] || return 1
+    done
+    # 蓝图: units/ 12 目录 + 壁纸单元 hook + fish 主配置
+    [ -d "$target_dir/units" ] \
+        && [ -f "$target_dir/units/fish/config.fish" ] \
+        && [ -f "$target_dir/units/wallpapers/hooks/install-pack" ] \
+        && [ -d "$target_dir/units/fcitx5-rime/hooks/skin" ]
 }
 
 legacy_tree_detected() {
@@ -202,7 +216,7 @@ main() {
 
     # 4. Local repository execution
     if [ -n "$script_dir" ] \
-        && { [ -d "$script_dir/nyxuri" ] || [ -d "$script_dir/configs" ] || [ -d "$script_dir/assets" ]; }; then
+        && { [ -d "$script_dir/nyxuri" ] || [ -d "$script_dir/units" ]; }; then
         if ! engine_is_complete "$script_dir"; then
             printf '%s[✗] %s: %s%s\n' "$RED" "$(say "Nyxuri 源码不完整" "Nyxuri source is incomplete")" "$script_dir" "$OFF" >&2
             printf '    %s\n' "$(say "请恢复或重新克隆仓库后再运行 ./install.sh。" "Restore or clone the repository again, then rerun ./install.sh.")" >&2

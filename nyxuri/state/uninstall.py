@@ -12,7 +12,7 @@ import json
 import sys
 from pathlib import Path
 
-from nyxuri.constants import CLI_CMD, PROJECT_NAME, STORAGE_NAME
+from nyxuri.core import CLI_CMD, PROJECT_NAME, STORAGE_NAME
 from nyxuri.core import (
     get_env,
     get_pics_dir,
@@ -21,10 +21,8 @@ from nyxuri.core import (
     remove_path,
     is_nyxuri_cli_symlink,
     clear_nyxuri_cli_symlink_marker,
-    is_nyxniri_cli_symlink,
-    clear_nyxniri_cli_symlink_marker,
 )
-from nyxuri.i18n import msg
+from nyxuri.core import msg
 from nyxuri.tui import CheckboxEntry, CheckboxList, drain_stdin, prompt_confirm
 from nyxuri.state.backup import get_all_backups, rollback_configs
 
@@ -47,7 +45,7 @@ def uninstall_nyxuri(mode: str = "") -> bool:
     snapshot (folded into `nyxuri rollback`).
     """
     from nyxuri.deploy.deploy import config_item_dest, discover_config_items
-    from nyxuri import ledger, registry, transaction
+    from nyxuri.kernel import ledger, registry, transaction
 
     env = get_env()
     items = discover_config_items()
@@ -226,18 +224,16 @@ def uninstall_nyxuri(mode: str = "") -> bool:
     # 6. CLI entry.
     if "cli" in selected:
         target_bin = env.home / ".local/bin" / CLI_CMD
-        if is_nyxuri_cli_symlink(target_bin) or is_nyxniri_cli_symlink(target_bin):
+        if is_nyxuri_cli_symlink(target_bin):
             target_bin.unlink(missing_ok=True)
             clear_nyxuri_cli_symlink_marker()
-            clear_nyxniri_cli_symlink_marker()
             print(msg("uninstall_removed", str(target_bin)))
         else:
             print(msg("uninstall_skipped", str(target_bin)))
         # Also clean legacy nyxniri symlink if present
         legacy_bin = env.home / ".local/bin" / "nyxniri"
-        if legacy_bin.is_symlink() and (is_nyxuri_cli_symlink(legacy_bin) or is_nyxniri_cli_symlink(legacy_bin)):
+        if legacy_bin.is_symlink() and (is_nyxuri_cli_symlink(legacy_bin)):
             legacy_bin.unlink(missing_ok=True)
-            clear_nyxniri_cli_symlink_marker()
         shell_bin = env.home / ".local/bin" / "nyxuri-shell"
         if shell_bin.is_symlink():
             try:
@@ -271,6 +267,3 @@ def uninstall_nyxuri(mode: str = "") -> bool:
     log_msg("INFO", f"Uninstall completed (selected: {sorted(selected)})")
     return True
 
-
-# Backward compatibility alias
-uninstall_nyxniri = uninstall_nyxuri

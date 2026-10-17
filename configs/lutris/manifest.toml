@@ -1,4 +1,0 @@
-optional = true
-packages = ["lutris"]
-label = "Lutris"
-category = "game"

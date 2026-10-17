@@ -1,7 +1,7 @@
 """Linear, idempotent cleanup migrations for managed user state."""
 
 from nyxuri.core import get_env
-from nyxuri.ledger import read_ledger, update_ledger
+from nyxuri.kernel.ledger import read_ledger, update_ledger
 
 MIGRATION_LEVEL = 2
 # Deprecated paths cleaned during linear migration.

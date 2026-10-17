@@ -1,9 +1,9 @@
 """Contract tests for the KM0 unit model and the KM1 kernel modules.
 
 The Kahn reference copy is retired (unit-model.md §7, KM1 step ①):
-dependency resolution is tested against the real ``nyxuri.resolver``,
-blueprint access against ``nyxuri.registry``, and the five-field unit
-record shape against ``nyxuri.ledger``.
+dependency resolution is tested against the real ``nyxuri.kernel.resolver``,
+blueprint access against ``nyxuri.kernel.registry``, and the five-field unit
+record shape against ``nyxuri.kernel.ledger``.
 """
 
 import json
@@ -11,9 +11,9 @@ import tomllib
 import unittest
 from pathlib import Path
 
-from nyxuri import ledger, registry
+from nyxuri.kernel import ledger, registry
 from nyxuri.deploy.manifest import load_manifest
-from nyxuri.resolver import resolve_order
+from nyxuri.kernel.resolver import resolve_order
 from tests.utils import TempEnv
 
 
@@ -93,7 +93,7 @@ class TestKernelRegistry(unittest.TestCase):
         self.root_dir = Path(__file__).resolve().parent.parent
 
     def _stage_configs(self, ctx, spec: dict[str, str | None]) -> None:
-        """Create unit dirs under a temp configs_src and point the env at it.
+        """Create unit dirs under a temp units_src and point the env at it.
 
         spec maps unit id -> manifest TOML text (None = bare dir, no manifest).
         The manifest name is ``manifest.toml`` (KM1 step-② cutover: the
@@ -106,7 +106,7 @@ class TestKernelRegistry(unittest.TestCase):
             unit.mkdir()
             if toml_text is not None:
                 (unit / "manifest.toml").write_text(toml_text, encoding="utf-8")
-        ctx.env.configs_src = configs
+        ctx.env.units_src = configs
 
     def test_zero_config_discovery(self):
         """A bare directory with no manifest is a first-class unit."""
@@ -121,7 +121,7 @@ class TestKernelRegistry(unittest.TestCase):
     def test_real_repo_units_discovered(self):
         """The repo blueprint is scanned through the same registry."""
         with TempEnv() as ctx:
-            ctx.env.configs_src = self.root_dir / "configs"
+            ctx.env.units_src = self.root_dir / "units"
             ids = registry.unit_ids()
             self.assertIn("kitty", ids)
             self.assertEqual(registry.load_unit("kitty").name, "kitty")

@@ -1,5 +1,0 @@
-optional = true
-packages = []
-packages_aur = ["protonplus"]
-label = "ProtonPlus"
-category = "game"

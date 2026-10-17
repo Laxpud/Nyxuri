@@ -8,18 +8,208 @@ import re
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
-from nyxuri.constants import (
-    ASSETS_DIR_NAME,
-    CLI_CMD,
-    CONFIG_DIR_NAME,
-    LEGACY_CLI_CMDS,
-    LEGACY_STORAGE_NAMES,
-    PROJECT_NAME,
-    STORAGE_NAME,
-)
+
+# --- Project Identity, Paths & Palettes (merged from constants.py, KM3.5) ---
+# --- Project Identity ---
+PROJECT_NAME = "Nyxuri"
+CLI_CMD = "nyxuri"
+STORAGE_NAME = "nyxuri"
+LEGACY_PROJECT_NAMES = ("NyxNiri",)
+LEGACY_CLI_CMDS = ("nyxniri",)
+LEGACY_STORAGE_NAMES = ("NyxNiri", "nyxniri")
+MAIN_WM = "niri"
+SUPPORTED_WMS = ("niri", "mango")
+
+
+def detect_preferred_wm() -> str:
+    """Detect current running or preferred WM from environment."""
+    xdg = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+    for wm in SUPPORTED_WMS:
+        if wm == xdg or wm in xdg:
+            return wm
+    return MAIN_WM
+
+
+THEME_ENGINE = "noctalia"
+GREETER_PKG = "noctalia-greeter"
+GREETER_SESSION_BIN = "noctalia-greeter-session"
+GREETER_ETC_CFG = Path("/etc/greetd/config.toml")
+GREETER_DM_STATE = GREETER_ETC_CFG.parent / "nyxuri-display-manager"
+GREETER_POLKIT_RULE = Path(f"/etc/polkit-1/rules.d/50-{GREETER_PKG}.rules")
+GREETER_STATE_DIR = Path("/var/lib") / GREETER_PKG
+FCITX_THEME = "nyxmellow"
+
+
+def get_compat_env(suffix: str, default: str | None = None) -> str | None:
+    """Retrieve environment variable, checking NYXURI_<suffix> first, then NYXNIRI_<suffix>."""
+    return os.environ.get(f"NYXURI_{suffix}", os.environ.get(f"NYXNIRI_{suffix}", default))
+
+
+# Carries the update deploy flag across the post-update re-exec, so the
+# deploy runs on the freshly pulled code instead of modules already loaded
+# into the old process (mixed old/new imports would crash mid-deploy).
+PENDING_UPGRADE_ENV = "NYXURI_PENDING_UPGRADE"
+# Set alongside PENDING_UPGRADE_ENV when the update came from the interactive
+# menu: the fresh process returns to the menu after deploying instead of exiting.
+PENDING_UPGRADE_MENU_ENV = "NYXURI_PENDING_UPGRADE_MENU"
+
+# --- Directory Constants ---
+CONFIG_DIR_NAME = "units"
+
+# --- Repository & Network Mirrors ---
+REPO_URL = "https://github.com/ech678/Nyxuri.git"
+
+_repo_override = get_compat_env("REPO")
+if _repo_override:
+    GIT_MIRROR_REGISTRY = [("Custom", _repo_override)]
+else:
+    GIT_MIRROR_REGISTRY = [
+        ("Official", "https://github.com/ech678/Nyxuri.git"),
+        ("gh-proxy.org", "https://gh-proxy.org/https://github.com/ech678/Nyxuri.git"),
+    ]
+
+# Single-source override is user-configured, never silently replaced: an
+# address that isn't a git remote is refused loudly at the point of cloning.
+CUSTOM_REPO_URL = get_compat_env("REPO", "")
+CUSTOM_REPO_URL_VALID = CUSTOM_REPO_URL.startswith(("https://", "git@", "ssh://"))
+
+RAW_MIRROR_TEMPLATES = [
+    ("Official", "https://raw.githubusercontent.com/{USER_REPO}/{BRANCH}/{FILE_PATH}"),
+    ("jsDelivr-CDN", "https://fastly.jsdelivr.net/gh/{USER_REPO}@{BRANCH}/{FILE_PATH}"),
+    ("gh-proxy.org", "https://gh-proxy.org/https://raw.githubusercontent.com/{USER_REPO}/{BRANCH}/{FILE_PATH}"),
+]
+
+# --- Dependencies ---
+CORE_DEPS = [
+    "wlsunset",
+    "fish",
+    "starship",
+    "kitty",
+    "fastfetch",
+    "eza",
+    "mpvpaper",
+    "ffmpeg",
+    "jq",
+    "tmux",
+    "inotify-tools",
+    "fzf",
+    "ttf-jetbrains-mono",
+    "ttf-jetbrains-mono-nerd",
+    "noto-fonts-cjk",
+    "qt6-imageformats",
+    "cliphist",
+]
+
+# Desktop integrations are selectable components; the management engine does
+# not require a particular compositor or shell to start and diagnose itself.
+DESKTOP_DEPS = [MAIN_WM, THEME_ENGINE]
+
+AUR_DEPS = [
+    "mpvpaper",
+]
+
+# --- ANSI Styling Palette (Nyxuri Native) ---
+class Colors:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
+
+    # Foreground colors
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    PURPLE = "\033[35m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
+    DARK_GRAY = "\033[90m"
+
+    # Bold Foreground colors
+    BOLD_RED = "\033[1;31m"
+    BOLD_GREEN = "\033[1;32m"
+    BOLD_YELLOW = "\033[1;33m"
+    BOLD_BLUE = "\033[1;34m"
+    BOLD_PURPLE = "\033[1;35m"
+    BOLD_CYAN = "\033[1;36m"
+    BOLD_WHITE = "\033[1;37m"
+
+    # Cursor controls
+    CURSOR_HIDE = "\033[?25l"
+    CURSOR_SHOW = "\033[?25h"
+    CLEAR_SCREEN = "\033[H\033[J"
+    CLEAR_LINE = "\033[2K\r"
+
+
+# --- Bilingual i18n Engine (merged from i18n.py, KM3.5) ---
+_LOCALE_SOURCE: str = os.environ.get("LC_ALL") or os.environ.get("LC_MESSAGES") or os.environ.get("LANG", "")
+_CURRENT_LANG: str = "zh" if "zh" in _LOCALE_SOURCE.lower() else "en"
+
+def get_lang() -> str:
+    """Get currently selected language mode ('zh' or 'en')."""
+    return _CURRENT_LANG
+
+def set_lang(lang: str) -> None:
+    """Set language mode ('zh' or 'en')."""
+    global _CURRENT_LANG
+    _CURRENT_LANG = "zh" if lang.startswith("zh") else "en"
+    _MSG_CACHE.clear()
+
+def text(zh: str, en: str) -> str:
+    """Pick a one-off bilingual string by active language.
+
+    Escape hatch for diagnostic/status lines not worth a TRANSLATIONS entry
+    (``msg()`` remains the default for keyed strings). Centralizes the per-module
+    ``_text()`` copies that had spread across doctor/fcitx/greeter/gtktheme.
+    """
+    return zh if get_lang() == "zh" else en
+
+def _load_translations() -> Dict[str, Dict[str, str]]:
+    with Path(__file__).with_name("translations.toml").open("rb") as source:
+        translations = tomllib.load(source)
+    constants = {
+        "PROJECT_NAME": PROJECT_NAME,
+        "CLI_CMD": CLI_CMD,
+        "STORAGE_NAME": STORAGE_NAME,
+    }
+    constants.update({f"Colors.{name}": value for name, value in vars(Colors).items()
+                      if name.isupper() and isinstance(value, str)})
+    for entry in translations.values():
+        for lang, template in entry.items():
+            for name, value in constants.items():
+                template = template.replace("{" + name + "}", value)
+            entry[lang] = template
+    return translations
+
+
+TRANSLATIONS = _load_translations()
+
+_MSG_CACHE: Dict[str, str] = {}
+
+def msg(key: str, *args: Any) -> str:
+    if not args:
+        cached = _MSG_CACHE.get(key)
+        if cached is not None:
+            return cached
+    lang = get_lang()
+    entry = TRANSLATIONS.get(key)
+    if not entry:
+        result = key if not args else f"{key} ({', '.join(str(a) for a in args)})"
+        if not args:
+            _MSG_CACHE[key] = result
+        return result
+    template = entry.get(lang) or entry.get("en") or key
+    if args:
+        try:
+            return template.format(*args)
+        except Exception:
+            return template
+    _MSG_CACHE[key] = template
+    return template
+
 
 # --- Temporary Paths Registry ---
 _CLEANUP_TEMP_PATHS: set[Path] = set()
@@ -78,7 +268,7 @@ def _detect_run_mode(root_dir: Path, cache_dir: Path):
         return ("system", "System Package", root_dir)
     if root_dir.resolve() == cache_dir.resolve():
         return ("standalone", "Remote Cache", cache_dir)
-    if (root_dir / CONFIG_DIR_NAME).is_dir() and (root_dir / ASSETS_DIR_NAME).is_dir():
+    if (root_dir / CONFIG_DIR_NAME).is_dir():
         return ("repo", "Local Path", root_dir)
     return ("standalone", "Remote Cache", cache_dir)
 
@@ -190,8 +380,7 @@ class Environment:
         root_dir = pkg_dir.parent
         self.run_mode, self.mode_label, self.repo_dir = _detect_run_mode(root_dir, self.cache_dir)
 
-        self.configs_src = self.repo_dir / CONFIG_DIR_NAME
-        self.assets_src = self.repo_dir / ASSETS_DIR_NAME
+        self.units_src = self.repo_dir / CONFIG_DIR_NAME
         # Nyxuri's own home under ~/.config: backups, presets, active state.
         # (state_dir holds runtime transient; nyx_dir holds user data — §10.4)
         self.nyx_dir = self.config_dir / STORAGE_NAME
@@ -317,7 +506,7 @@ def acquire_lock() -> None:
                 pid = content
         except Exception:
             pass
-        from nyxuri.i18n import msg
+        from nyxuri.core import msg
         print(msg("err_already_running", pid), file=sys.stderr)
         sys.exit(1)
     _LOCK_FD = lock_fd
@@ -442,7 +631,6 @@ def _record_nyxuri_cli_symlink(path: Path, env: Optional["Environment"] = None) 
         return False
 
 
-_record_nyxniri_cli_symlink = _record_nyxuri_cli_symlink
 
 
 def is_nyxuri_cli_symlink(path: Path, env: Optional["Environment"] = None) -> bool:
@@ -485,7 +673,6 @@ def is_nyxuri_cli_symlink(path: Path, env: Optional["Environment"] = None) -> bo
     return False
 
 
-is_nyxniri_cli_symlink = is_nyxuri_cli_symlink
 
 
 def clear_nyxuri_cli_symlink_marker() -> None:
@@ -498,7 +685,6 @@ def clear_nyxuri_cli_symlink_marker() -> None:
             pass
 
 
-clear_nyxniri_cli_symlink_marker = clear_nyxuri_cli_symlink_marker
 
 
 def ensure_nyxuri_symlink() -> None:
@@ -549,9 +735,6 @@ def ensure_nyxuri_symlink() -> None:
         pass
 
 
-ensure_nyxniri_symlink = ensure_nyxuri_symlink
-
-
 def ensure_nyxuri_shell_symlink() -> None:
     """Ensure ~/.local/bin/nyxuri-shell points to shell/nyxuri-shell in repo mode."""
     env = get_env()
@@ -596,7 +779,7 @@ def check_path_occlusion() -> bool:
         return False
     user_link = env.home / ".local/bin" / CLI_CMD
     if user_link.is_symlink() or user_link.exists():
-        from nyxuri.i18n import msg
+        from nyxuri.core import msg
         print(msg("path_occlusion_warn"))
         log_msg("WARN", f"User-territory {CLI_CMD} link shadows the system package")
         return True

@@ -8,14 +8,14 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional
 
-from nyxuri.constants import Colors
+from nyxuri.core import Colors
 from nyxuri.core import (
     copy_path,
     get_env,
     log_msg,
     register_temp_path,
 )
-from nyxuri.i18n import msg
+from nyxuri.core import msg
 from nyxuri.tui import CheckboxEntry, CheckboxList, Menu, MenuItem, prompt_confirm, truncate_display
 
 

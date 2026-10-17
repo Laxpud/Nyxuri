@@ -209,7 +209,7 @@ class TestAISpecs(unittest.TestCase):
         self.assertNotIn("modules.md", llms_txt)
 
         # 5. The unit-owned hook scripts took over.
-        hooks = self.root_dir / "configs"
+        hooks = self.root_dir / "units"
         for unit, name in (
             ("fcitx5-rime", "activate"), ("fcitx5-rime", "deactivate"),
             ("fish", "install-fisher"), ("fish", "remove-fisher"),
@@ -233,7 +233,7 @@ class TestAISpecs(unittest.TestCase):
             )
 
         # 2. Physical absence in the blueprint.
-        configs = self.root_dir / "configs"
+        configs = self.root_dir / "units"
         self.assertFalse((configs / ".optional-apps.toml").exists())
         self.assertFalse((configs / "starship.toml").exists())
         self.assertEqual(list(configs.glob("**/*.module.toml")), [])
@@ -250,6 +250,71 @@ class TestAISpecs(unittest.TestCase):
     # ------------------------------------------------------------------
     # CLI command mapping
     # ------------------------------------------------------------------
+
+    def test_km3_5_death_row_enforced(self):
+        """KM3.5 enforcement step: the old world is physically gone — blueprint
+        renamed, assets bypass executed, zero-file fake units replaced by the
+        catalog, template registry deleted, kernel physically layered."""
+        root = self.root_dir
+        # 1. §7 rows marked enforced.
+        content = (self.wiki_dir / "unit-model.md").read_text(encoding="utf-8")
+        rows = [line for line in content.splitlines() if line.startswith("|")]
+        for name in ("RETIREMENTS", "template_registry", "17 个零文件假单元",
+                     "`assets/` + `nyxuri/deploy/assets.py`", "蓝图正名 `configs/` → `units/`"):
+            self.assertTrue(
+                any(name in row and "KM3.5（已执法" in row for row in rows),
+                f"death-row object '{name}' must be marked KM3.5（已执法） in unit-model.md §7",
+            )
+
+        # 2. Physical absence / presence.
+        self.assertFalse((root / "configs").exists(), "blueprint must be renamed")
+        units = root / "units"
+        self.assertTrue(units.is_dir())
+        self.assertEqual(len([d for d in units.iterdir() if d.is_dir()]), 12,
+                         "blueprint = 11 real units + wallpapers")
+        self.assertFalse((root / "assets").exists())
+        self.assertTrue((units / "wallpapers" / "hooks" / "install-pack").is_file())
+        self.assertTrue((units / "wallpapers" / "manifest.toml").is_file())
+        self.assertFalse((root / "nyxuri" / "template_registry.py").exists())
+        self.assertFalse((root / "nyxuri" / "deps.py").exists(), "supply must live in pkg/")
+        self.assertFalse((root / "nyxuri" / "network.py").exists())
+        self.assertFalse((root / "nyxuri" / "doctor.py").exists())
+        self.assertTrue((root / "nyxuri" / "sysdoctor.py").is_file())
+        self.assertTrue((root / "nyxuri" / "core.py").is_file())
+        self.assertFalse((root / "nyxuri" / "constants.py").exists(), "merged into core")
+        self.assertFalse((root / "nyxuri" / "i18n.py").exists(), "merged into core")
+        for sub in ("kernel", "desktop", "installer"):
+            self.assertTrue((root / "nyxuri" / sub).is_dir(), sub)
+        self.assertTrue((root / "packaging" / "gen-deps.py").is_file())
+        self.assertFalse((root / "nyxuri" / "packaging").exists())
+        self.assertTrue((root / "catalog.toml").is_file())
+
+        # 3. The 17 fake units are catalog entries, never blueprint dirs.
+        fake_names = {"brave-origin", "flclash", "kdenlive", "libreoffice", "lutris",
+                      "missioncenter", "motrix", "nautilus", "obs", "protonplus",
+                      "qq", "shelly", "spotify", "steam", "telegram", "vscode", "wechat"}
+        self.assertEqual(fake_names & {d.name for d in units.iterdir()}, set())
+        catalog = (root / "catalog.toml").read_text(encoding="utf-8")
+        import tomllib
+        data = tomllib.loads(catalog)
+        self.assertEqual(fake_names, set(data), "catalog must carry exactly the 17 declarations")
+
+        # 4. The engine holds zero references to the dead names.
+        for py in sorted((root / "nyxuri").rglob("*.py")):
+            text = py.read_text(encoding="utf-8")
+            for dead in ("template_registry", "nyxuri.constants", "nyxuri.i18n",
+                         "nyxuri.deps", "nyxuri.network", "deploy_wallpapers"):
+                self.assertNotIn(dead, text, f"{py.relative_to(root)} still references {dead}")
+
+        # 5. Contract line: the package catalog is not a unit.
+        self.assertIn("catalog.toml", content)
+        self.assertIn("不是单元", content)
+
+        # 6. Test tree mirrors the source tree.
+        tests = root / "tests"
+        for sub in ("kernel", "deploy", "pkg", "state", "desktop", "installer",
+                    "shell", "tools"):
+            self.assertTrue((tests / sub).is_dir(), f"tests/{sub}")
 
     def test_cli_commands_documented_in_operation_map(self):
         """Ensure all CLI commands in cli.py COMMANDS are documented in operation-map.md."""

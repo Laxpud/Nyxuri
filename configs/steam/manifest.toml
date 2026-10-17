@@ -1,4 +1,0 @@
-optional = true
-packages = ["steam"]
-label = "Steam"
-category = "game"

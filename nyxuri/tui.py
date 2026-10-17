@@ -15,9 +15,9 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
-from nyxuri.constants import Colors, get_compat_env
+from nyxuri.core import Colors, get_compat_env
 from nyxuri.core import Environment, get_env
-from nyxuri.i18n import msg, text
+from nyxuri.core import msg, text
 
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
@@ -1614,13 +1614,13 @@ class UnitWorkshop:
     # -- data ---------------------------------------------------------
 
     def _rows(self):
-        from nyxuri import ledger, registry
+        from nyxuri.kernel import ledger, registry
 
         recs = ledger.all_units()
         return sorted(set(registry.unit_ids()) | set(recs)), recs
 
     def _audit_for(self, uid: str) -> str:
-        from nyxuri import transaction
+        from nyxuri.kernel import transaction
 
         if uid not in self._audit:
             try:
@@ -1630,7 +1630,7 @@ class UnitWorkshop:
         return self._audit.get(uid, "")
 
     def _detail_lines(self, uid: str, recs: dict, width: int):
-        from nyxuri import registry
+        from nyxuri.kernel import registry
 
         lines = []
         rec = recs.get(uid) or {}
@@ -1668,8 +1668,8 @@ class UnitWorkshop:
     # -- actions ------------------------------------------------------
 
     def _switch(self, uid: str, on: bool) -> None:
-        from nyxuri import transaction
-        from nyxuri.deps import unit_package_installer
+        from nyxuri.kernel import transaction
+        from nyxuri.pkg.deps import unit_package_installer
 
         self._audit.clear()
         if on:
@@ -1772,10 +1772,10 @@ class UnitWorkshop:
 def select_language() -> str:
     """Prompt user to select language mode with smooth arrow keys."""
     if not sys.stdin.isatty():
-        from nyxuri.i18n import get_lang
+        from nyxuri.core import get_lang
         return get_lang()
 
-    from nyxuri.i18n import set_lang
+    from nyxuri.core import set_lang
     env = get_env()
     focus = 1  # Default to Simplified Chinese
 

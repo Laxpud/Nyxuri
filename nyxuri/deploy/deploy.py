@@ -13,16 +13,20 @@ import time
 from contextlib import ExitStack
 from typing import List, Optional
 
-from nyxuri.constants import Colors, REPO_URL, THEME_ENGINE
+from nyxuri.core import Colors, REPO_URL, THEME_ENGINE
 from nyxuri.core import get_env, log_msg, timed_run
-from nyxuri.i18n import msg
+from nyxuri.core import msg
 from nyxuri.tui import read_key, responsive_hint, show_logo, raw_input_mode, _drain_pending
 
 from nyxuri.deploy.atomic import (
     atomic_replace_item,
 )
-from nyxuri.deploy.assets import WallpaperDeployResult, deploy_wallpapers, wallpapers_pack_present
-from nyxuri.deploy.manifest import ModuleManifest, discover_deployable_apps, load_manifest
+from nyxuri.deploy.manifest import (
+    ModuleManifest,
+    discover_deployable_apps,
+    load_manifest,
+    living_path,
+)
 from nyxuri.deploy.preset import (
     InvalidActivePresetError,
     PresetSrcResult,
@@ -51,16 +55,16 @@ def config_item_dest(item: str) -> Path:
     """Living-space path for a unit: ``~/.config/<target>`` for single-file
     units, else ``~/.config/<item>`` (unit-model.md §4 target exception)."""
     from nyxuri.core import get_env
-    m = load_manifest(get_env().configs_src / item)
-    return get_env().config_dir / (m.target or item)
+    m = load_manifest(get_env().units_src / item)
+    return living_path(m, get_env().config_dir)
 
 
 def config_item_src(item: str) -> Path:
     """Blueprint payload path for a unit: the target file itself for
     single-file units, else the unit directory."""
     from nyxuri.core import get_env
-    m = load_manifest(get_env().configs_src / item)
-    src = get_env().configs_src / item
+    m = load_manifest(get_env().units_src / item)
+    src = get_env().units_src / item
     return src / m.target if m.target else src
 
 def _phase_atomic_deployment(
@@ -83,13 +87,13 @@ def _phase_atomic_deployment(
     for item in items_to_deploy:
         # Manifest always loaded from the app root (not the preset dir):
         # preserve/chmod describe the app, independent of which variant ships.
-        manifest = load_manifest(env.configs_src / item)
+        manifest = load_manifest(env.units_src / item)
 
         if manifest.target:
             # Single-file unit (§4 target exception): one file inside the
             # unit dir lands at ~/.config/<target>. Presets and parts are
             # directory affordances and do not apply.
-            src = env.configs_src / item / manifest.target
+            src = env.units_src / item / manifest.target
             dest = config_dir / manifest.target
             if not src.is_file():
                 failed_items.append(item)
@@ -173,11 +177,74 @@ def _phase_atomic_deployment(
     return failed_items
 
 
+def merge_deploy_unit(item: str, manifest: ModuleManifest) -> Optional[List[str]]:
+    """No-clobber merge for shared living areas (manifest ``merge = true``).
+
+    Blueprint files land in the living area only when missing — existing
+    files (the user's own content, an external pack) are never touched and
+    nothing is ever deleted. Returns the laid relative paths, or None on
+    failure. Presets, parts and Vault semantics do not apply to merge
+    units; the transaction snapshots exactly these laid files.
+    """
+    import shutil
+
+    env = get_env()
+    src_root = env.units_src / item
+    dest = living_path(manifest, env.config_dir)
+    laid: List[str] = []
+    try:
+        for path in sorted(src_root.rglob("*")):
+            rel = path.relative_to(src_root)
+            if path.is_dir() or path.name == "manifest.toml" or "hooks" in rel.parts:
+                continue
+            target = dest / rel
+            if target.exists() or target.is_symlink():
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, target, follow_symlinks=False)
+            laid.append(rel.as_posix())
+        for pattern in manifest.chmod:
+            if not pattern or os.path.isabs(pattern):
+                continue
+            for p in dest.glob(pattern):
+                if p.is_file():
+                    try:
+                        p.chmod(0o755)
+                    except OSError:
+                        pass
+    except OSError as exc:
+        log_msg("ERROR", f"Merge deploy failed for '{item}': {exc}")
+        return None
+    return laid
+
+
+WALLPAPER_VIDEO_SUFFIXES = frozenset({".mp4", ".webm"})
+
+
+def wallpapers_pack_present() -> bool:
+    """Whether the external wallpaper pack lives in the shared living area.
+
+    Validated by requiring at least one deployed video file. The pack is
+    user-domain content (installed via the unit's ``install-pack`` script),
+    never ledger-tracked.
+    """
+    from nyxuri.core import get_pics_dir
+
+    video_dir = get_pics_dir() / "Wallpapers" / "video"
+    try:
+        return video_dir.is_dir() and any(
+            path.is_file() and path.suffix.lower() in WALLPAPER_VIDEO_SUFFIXES
+            for path in video_dir.rglob("*")
+        )
+    except OSError:
+        return False
+
+
 def _reconcile_active_parts(app: str, manifest: ModuleManifest) -> List[str]:
     """Ensure ledger-recorded active parts are realized in dest."""
     if not manifest.parts:
         return []
-    from nyxuri.ledger import read_ledger
+    from nyxuri.kernel.ledger import read_ledger
     from nyxuri.deploy.preset import apply_part
     parts_state = read_ledger().get("parts", {})
     if not isinstance(parts_state, dict):
@@ -224,7 +291,7 @@ def _phase_post_install_services() -> None:
     in the workflow; the retired module direct-calls are gone (KM3).
     """
     try:
-        from nyxuri.theme import sync
+        from nyxuri.desktop.theme import sync
         sync()
         print(msg("log_gtk_theme_init"))
     except Exception as e:
@@ -234,7 +301,7 @@ def render_completion_screen(
     mode: str = "install",
     chosen_items: Optional[List[str]] = None,
     preserved_lines: Optional[List[str]] = None,
-    wallpaper_result: Optional[WallpaperDeployResult] = None,
+    wallpaper_ok: Optional[bool] = None,
     failed_items: Optional[List[str]] = None,
     hook_diagnostics: Optional[List[str]] = None,
 ) -> None:
@@ -248,7 +315,7 @@ def render_completion_screen(
     if hook_diagnostics is None:
         hook_diagnostics = []
 
-    from nyxuri.deps import get_missing_deps
+    from nyxuri.pkg.deps import get_missing_deps
 
     title_key = "summary_title_failed" if failed_items else ("summary_title_update" if mode == "update" else ("summary_title_test" if mode == "test" else "summary_title_install"))
     missing_deps = get_missing_deps() if mode == "full" else []
@@ -266,8 +333,10 @@ def render_completion_screen(
             sys.stdout.write(f"    {Colors.BOLD_YELLOW}[!]{Colors.RESET} {msg('summary_item_configs_skip')}\n")
 
         if mode in ("full", "update", "test"):
-            if wallpaper_result is not None:
-                wallpaper_key, wallpaper_color, wallpaper_icon = wallpaper_result.status_line(wallpapers_pack_present())
+            if wallpaper_ok:
+                wallpaper_key, wallpaper_color, wallpaper_icon = "summary_item_wallpapers_existing", Colors.BOLD_GREEN, "[✓]"
+            elif wallpaper_ok is False:
+                wallpaper_key, wallpaper_color, wallpaper_icon = "summary_item_wallpapers_failed", Colors.BOLD_RED, "[✗]"
             elif wallpapers_pack_present():
                 wallpaper_key, wallpaper_color, wallpaper_icon = "summary_item_wallpapers_existing", Colors.BOLD_GREEN, "[✓]"
             else:
@@ -301,7 +370,7 @@ def render_completion_screen(
         return
 
     # Interactive Next Steps Menu
-    from nyxuri.deps import run_optional_apps_menu_loop
+    from nyxuri.pkg.deps import run_optional_apps_menu_loop
     focus = 0
     sys.stdout.write(Colors.CURSOR_HIDE)
     fd = sys.stdin.fileno()
@@ -375,6 +444,19 @@ def deploy_selected_configs(
     print(msg("copy_done"))
     return []
 
+def enable_wallpapers_unit() -> Optional[bool]:
+    """Best-effort ``on wallpapers`` for deploy flows: True / False / None
+    (skipped). The pack itself is user-domain (install-pack script); only
+    the blueprint fallback goes through the transaction."""
+    try:
+        from nyxuri.kernel import transaction
+        steps = transaction.unit_on("wallpapers")
+        return bool(steps) and all(s.ok for s in steps)
+    except Exception as exc:
+        log_msg("WARN", f"wallpapers unit enable failed: {exc}")
+        return False
+
+
 def test_deploy() -> bool:
     """Developer test command: fast idempotent re-deploy in current environment."""
     print(msg("test_start"))
@@ -387,11 +469,11 @@ def test_deploy() -> bool:
         render_completion_screen(mode="test", chosen_items=items, preserved_lines=preserved_log, failed_items=failed_items)
         return False
     _phase_render_templates()
-    wallpaper_result = deploy_wallpapers(do_download=False)
+    wallpaper_ok = enable_wallpapers_unit()
     render_completion_screen(
         mode="test",
         chosen_items=items,
         preserved_lines=preserved_log,
-        wallpaper_result=wallpaper_result,
+        wallpaper_ok=wallpaper_ok,
     )
     return True

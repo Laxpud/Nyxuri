@@ -1,6 +1,0 @@
-optional = true
-packages = []
-packages_aur = ["flclash-bin"]
-label = "FlClash"
-category = "proxy"
-detect = "flclash"

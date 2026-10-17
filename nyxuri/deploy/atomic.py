@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from nyxuri.core import get_env, log_msg, register_temp_path, remove_path
-from nyxuri.i18n import msg
+from nyxuri.core import msg
 
 
 _SECTION_RE = re.compile(r"^\s*\[([^\]]+)\]\s*$")

@@ -1,6 +1,0 @@
-optional = true
-packages = []
-packages_aur = ["shelly-bin"]
-label = "Shelly"
-category = "terminal"
-detect = "shelly"

@@ -98,26 +98,6 @@ en = "{Colors.BOLD_GREEN}[Downloaded]{Colors.RESET}"
 zh = "{Colors.BOLD_YELLOW}[未下载]{Colors.RESET}"
 en = "{Colors.BOLD_YELLOW}[Not downloaded]{Colors.RESET}"
 
-[msg_downloading_wallpapers]
-zh = """\n{Colors.BOLD_BLUE}:: 拉取壁纸包…{Colors.RESET}"""
-en = """\n{Colors.BOLD_BLUE}:: Downloading wallpapers…{Colors.RESET}"""
-
-[msg_downloading_wallpapers_node]
-zh = "  [{0}] 从 [{1}] 节点拉取壁纸仓库…"
-en = "  [{0}] Pulling from [{1}]…"
-
-[msg_wallpapers_download_success]
-zh = "{Colors.BOLD_GREEN}[✓] 壁纸包已部署{Colors.RESET}"
-en = "{Colors.BOLD_GREEN}[✓] Wallpapers deployed{Colors.RESET}"
-
-[msg_wallpapers_download_failed]
-zh = "{Colors.BOLD_RED}[!] 壁纸包下载失败，改用内置壁纸{Colors.RESET}"
-en = "{Colors.BOLD_RED}[✗] Wallpaper download failed; using the built-in fallback{Colors.RESET}"
-
-[msg_wallpapers_refresh_failed]
-zh = "{Colors.BOLD_YELLOW}[!] 壁纸包刷新失败，现有内容未改动{Colors.RESET}"
-en = "{Colors.BOLD_YELLOW}[!] Wallpaper refresh failed; the existing pack was kept{Colors.RESET}"
-
 [install_cancelled]
 zh = "{Colors.BOLD_BLUE}已取消，未写入配置{Colors.RESET}"
 en = "{Colors.BOLD_BLUE}Cancelled; no configs were written{Colors.RESET}"
@@ -166,32 +146,16 @@ en = "Configs:        Skipped"
 zh = "配置:       安装失败 ({0})"
 en = "Configs:        Failed ({0})"
 
-[summary_item_wallpapers_downloaded]
-zh = "壁纸包:     已下载"
-en = "Wallpapers:     Downloaded"
-
 [summary_item_wallpapers_existing]
-zh = "壁纸包:     已存在"
-en = "Wallpapers:     Already present"
-
-[summary_item_wallpapers_fallback]
-zh = "壁纸包:     仅内置"
-en = "Wallpapers:     Built-in only"
-
-[summary_item_wallpapers_refresh_failed]
-zh = "壁纸包:     刷新失败，已保留原包"
-en = "Wallpapers:     Refresh failed; kept existing"
-
-[summary_item_wallpapers_failed_fallback]
-zh = "壁纸包:     下载失败，已用内置"
-en = "Wallpapers:     Download failed; using built-in"
+zh = "壁纸:       已就绪"
+en = "Wallpapers:     Ready"
 
 [summary_item_wallpapers_failed]
-zh = "壁纸包:     下载失败"
-en = "Wallpapers:     Download failed"
+zh = "壁纸:       启用失败"
+en = "Wallpapers:     Enable failed"
 
 [summary_item_wallpapers_skip]
-zh = "壁纸包:     已跳过"
+zh = "壁纸:       已跳过"
 en = "Wallpapers:     Skipped"
 
 [summary_item_deps_ok]
@@ -327,6 +291,14 @@ en = "Update code only"
 [selective_hint]
 zh = "  {Colors.DARK_GRAY}[↑/↓/j/k] 移动  [Space] 切换  [a] 全选  [n] 清空  [Enter] 确认  [Esc] 取消{Colors.RESET}"
 en = "  {Colors.DARK_GRAY}[↑/↓/j/k] Move  [Space] Toggle  [a] All  [n] None  [Enter] Confirm  [Esc] Cancel{Colors.RESET}"
+
+[clean_menu_title]
+zh = "缓存清理 — 勾选要清理的项目，回车执行"
+en = "Cache Cleaner — toggle tasks, Enter to run"
+
+[clean_menu_hint]
+zh = "  {Colors.DARK_GRAY}[↑/↓/j/k] 移动  [Space] 勾选  [a] 全选  [n] 清空  [Enter] 执行  [Esc/q] 取消{Colors.RESET}"
+en = "  {Colors.DARK_GRAY}[↑/↓/j/k] Move  [Space] Toggle  [a] All  [n] None  [Enter] Run  [Esc/q] Cancel{Colors.RESET}"
 
 [upgrading_selected]
 zh = """\n{Colors.BOLD_BLUE}:: 正在更新选中组件…{Colors.RESET}"""
@@ -1025,10 +997,6 @@ en = "Unit off (wipe to white, customs to Vault)"
 zh = "nyxuri off {0}"
 en = "nyxuri off {0}"
 
-[cli_retired]
-zh = "{Colors.BOLD_YELLOW}[退役倒计时]{Colors.RESET} {0} 将于 {2} 执法退役，替代命令: {CLI_CMD} {1}"
-en = "{Colors.BOLD_YELLOW}[RETIREMENT]{Colors.RESET} {0} retires at {2}; replacement: {CLI_CMD} {1}"
-
 [cli_unknown_unit]
 zh = "{Colors.BOLD_RED}[✗]{Colors.RESET} 未知单元: {0}（{CLI_CMD} list 查看全景）"
 en = "{Colors.BOLD_RED}[✗]{Colors.RESET} Unknown unit: {0} (see {CLI_CMD} list)"
@@ -1277,10 +1245,6 @@ en = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} Installed config: ~/.config/{0}"
 zh = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} 初始化主题与 GTK 同步"
 en = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} Initialized theme & GTK sync"
 
-
-[log_sync_wallpapers]
-zh = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} 同步壁纸库: {0}"
-en = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} Syncing wallpapers: {0}"
 
 [log_no_components_selected]
 zh = "未选择任何组件"

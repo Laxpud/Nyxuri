@@ -60,8 +60,7 @@ class TempEnv:
         env.run_mode = "repo"
         env.mode_label = "Local Path"
         env.repo_dir = Path(__file__).resolve().parent.parent
-        env.configs_src = env.repo_dir / "configs"
-        env.assets_src = env.repo_dir / "assets"
+        env.units_src = env.repo_dir / "units"
         self.env = env
 
         return self

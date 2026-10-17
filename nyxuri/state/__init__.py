@@ -14,9 +14,9 @@ from nyxuri.state.backup import (
     get_all_backups,
     get_backup_base_dir,
 )
-from nyxuri.state.uninstall import uninstall_nyxuri, uninstall_nyxniri
+from nyxuri.state.uninstall import uninstall_nyxuri
 
 __all__ = [
     "backup_configs", "rollback_configs", "list_backups", "delete_backup",
-    "get_all_backups", "get_backup_base_dir", "uninstall_nyxuri", "uninstall_nyxniri",
+    "get_all_backups", "get_backup_base_dir", "uninstall_nyxuri",
 ]

@@ -5,7 +5,7 @@ import subprocess
 import sys
 from typing import List
 
-from nyxuri.constants import (
+from nyxuri.core import (
     CLI_CMD,
     Colors,
     PENDING_UPGRADE_ENV,
@@ -21,19 +21,17 @@ from nyxuri.core import (
     log_msg,
 )
 
-ensure_nyxniri_symlink = ensure_nyxuri_symlink
-from nyxuri.deploy import (
+from nyxuri.deploy import test_deploy
+from nyxuri.desktop.presets import (
     apply_preset,
     delete_preset,
-    deploy_wallpapers,
     edit_preset,
     list_presets,
     save_preset,
-    test_deploy,
 )
-from nyxuri.deps import ensure_aur_helper, run_dep_menu_loop, run_optional_apps_menu_loop
-from nyxuri.doctor import generate_bug_report, run_doctor
-from nyxuri import ledger, registry, transaction
+from nyxuri.pkg.deps import ensure_aur_helper, run_dep_menu_loop, run_optional_apps_menu_loop
+from nyxuri.sysdoctor import generate_bug_report, run_doctor
+from nyxuri.kernel import ledger, registry, transaction
 from nyxuri.state import (
     backup_configs,
     delete_backup,
@@ -41,11 +39,11 @@ from nyxuri.state import (
     rollback_configs,
     uninstall_nyxuri,
 )
-from nyxuri.i18n import msg
-from nyxuri.network import safe_git_checkout_ref, safe_git_pull
+from nyxuri.core import msg
+from nyxuri.pkg.net import safe_git_checkout_ref, safe_git_pull
 from nyxuri.tui import press_any_key, prompt_confirm, select_language
-from nyxuri.menus import deps_menu_loop, main_menu_loop
-from nyxuri.workflows import (
+from nyxuri.installer.menus import deps_menu_loop, main_menu_loop
+from nyxuri.installer.workflows import (
     check_new_deps_post_update,
     install_configs_workflow,
     offer_overwrite_upgrade,
@@ -68,41 +66,14 @@ def exit_usage(usage: str) -> None:
 #
 # Four canonical verbs — list / on / off / doctor — are the market-facing
 # surface; every switch flip routes through nyxuri.transaction, and this
-# layer only adds disclosure, prose and exit codes.
-
-# Retirement countdown (death list: llms-wiki/unit-model.md §7). Legacy names
-# keep working until their execution stage; every invocation prints a one-line
-# countdown notice pointing at the surviving capability. Names whose commands
-# already died (KM3 module verbs) stay as ghost pointers: invoking them exits
-# with the replacement hint instead of a bare "unknown command".
-RETIREMENTS = {
-    # name: (replacement, stage)
-    "greeter":     ("on/off greeter", "KM3"),
-    "fcitx":       ("on/off fcitx5-rime", "KM3"),
-    "gtk":         ("on/off noctalia", "KM3"),
-    "fisher":      ("on/off fish", "KM3"),
-    "deploy":      ("on <unit>", "KM5"),
-    "backup":      ("snapshot", "KM5"),
-    "restore":     ("rollback", "KM5"),
-    "remove":      ("uninstall", "KM5"),
-    "purge":       ("uninstall purge", "KM5"),
-    "recommended": ("on <unit>", "KM5"),
-    "wp":          ("wallpapers", "KM5"),
-    "report":      ("bug", "KM5"),
-}
-
-
-def _retirement_notice(cmd: str) -> None:
-    """One-line countdown notice for a legacy command on death row."""
-    row = RETIREMENTS.get(cmd)
-    if row:
-        print(msg("cli_retired", cmd, row[0], row[1]), file=sys.stderr)
+# layer only adds disclosure, prose and exit codes. The legacy alias table
+# was executed at KM3.5: old names are plain unknown commands.
 
 
 def _package_installer(unit_id: str, missing: List[str]) -> bool:
     """Thin alias: the shared transaction installer lives in deps (CLI and
     TUI must inject the exact same package-manager behavior)."""
-    from nyxuri.deps import unit_package_installer
+    from nyxuri.pkg.deps import unit_package_installer
 
     return unit_package_installer(unit_id, missing)
 
@@ -324,12 +295,6 @@ def _cmd_uninstall(sub_args: List[str]) -> int:
     return 0 if uninstall_nyxuri(target) else 1
 
 
-def _cmd_purge(sub_args: List[str]) -> int:
-    if sub_args:
-        exit_usage(f"{CLI_CMD} purge")
-    return 0 if uninstall_nyxuri("purge") else 1
-
-
 def _cmd_deps(sub_args: List[str]) -> int:
     sub = sub_args[0].lower() if sub_args else ""
     if len(sub_args) > 1 or sub not in ("", "core", "apps", "opt", "optional"):
@@ -341,19 +306,6 @@ def _cmd_deps(sub_args: List[str]) -> int:
     else:
         ok = deps_menu_loop()
     return 0 if ok else 1
-
-
-def _cmd_apps(sub_args: List[str]) -> int:
-    if sub_args:
-        exit_usage(f"{CLI_CMD} apps")
-    return 0 if run_optional_apps_menu_loop() else 1
-
-
-def _cmd_wallpapers(sub_args: List[str]) -> int:
-    if sub_args:
-        exit_usage(f"{CLI_CMD} wallpapers")
-    wallpaper_result = deploy_wallpapers(do_download=True)
-    return 0 if wallpaper_result.downloaded else 1
 
 
 def _cmd_bug(sub_args: List[str]) -> int:
@@ -386,7 +338,7 @@ def _cmd_preset(sub_args: List[str]) -> int:
         if len(sub_args) > 2:
             exit_usage(f"{CLI_CMD} preset {app} parts")
         from nyxuri.deploy.preset import list_parts
-        from nyxuri.ledger import read_ledger
+        from nyxuri.kernel.ledger import read_ledger
         slots = list_parts(app)
         if not slots:
             print(f"[!] {app} 暂无可用零件插槽")
@@ -425,7 +377,7 @@ def _cmd_theme(sub_args: List[str]) -> int:
     sub = sub_args[0] if sub_args else "toggle"
     if len(sub_args) > 1 or sub not in ("toggle", "dark", "light", "sync", "status"):
         exit_usage(f"{CLI_CMD} theme [toggle|dark|light|sync|status]")
-    from nyxuri.theme import status, sync
+    from nyxuri.desktop.theme import status, sync
     if sub == "status":
         return status()
     return sync(sub)
@@ -440,8 +392,8 @@ _SHELL_EXPERIMENTAL_NOTE = (
 def _cmd_shell(sub_args: List[str]) -> int:
     sub = sub_args[0] if sub_args else "status"
     usage = f"{CLI_CMD} shell [get|set <noctalia|nyxuri-shell> [bin_path]|switch [<noctalia|nyxuri-shell> [bin_path]]|status] [EXPERIMENTAL]"
-    from nyxuri.ledger import active_shell, nyxuri_shell_bin
-    from nyxuri.shell_switcher import normalize_shell_name, probe_running_shell, resolve_custom_bin, hot_switch_shell
+    from nyxuri.kernel.ledger import active_shell, nyxuri_shell_bin
+    from nyxuri.desktop.shell_switcher import normalize_shell_name, probe_running_shell, resolve_custom_bin, hot_switch_shell
     if sub == "get":
         if len(sub_args) > 1:
             exit_usage(usage)
@@ -523,7 +475,7 @@ def _cmd_update(sub_args: List[str]) -> int:
             capture_output=True, text=True, check=False,
         )
         if head.returncode == 0 and head.stdout.strip():
-            from nyxuri.ledger import update_ledger
+            from nyxuri.kernel.ledger import update_ledger
             update_ledger(last_update_head=head.stdout.strip())
         from nyxuri.migrations import run as run_migrations
         if not run_migrations():
@@ -545,12 +497,12 @@ def _cmd_update(sub_args: List[str]) -> int:
 
 
 def _cmd_clean(sub_args: List[str]) -> int:
-    from nyxuri.clean import main as clean
+    from nyxuri.desktop.clean import main as clean
     return clean(sub_args)
 
 
 def _cmd_pkg(sub_args: List[str]) -> int:
-    from nyxuri.pkg.cli import main as packages
+    from nyxuri.pkg.fzf import main as packages
     return packages(sub_args)
 
 
@@ -570,30 +522,18 @@ COMMANDS = {
     "pkg":       (_cmd_pkg,       f"{CLI_CMD} pkg <install|upgrade|remove|search|info|installed>"),
     "clean":     (_cmd_clean,     f"{CLI_CMD} clean [-n] [--only <tasks>]"),
     "install":   (_cmd_install,   f"{CLI_CMD} install [full|config]"),
-    "deploy":    (_cmd_install,   f"{CLI_CMD} install [full|config]"),
     "snapshot":  (_cmd_snapshot,  f"{CLI_CMD} snapshot [note|list|delete [index]]"),
-    "backup":    (_cmd_snapshot,  f"{CLI_CMD} snapshot [note|list|delete [index]]"),
     "rollback":  (_cmd_rollback,  f"{CLI_CMD} rollback [index]"),
-    "restore":   (_cmd_rollback,  f"{CLI_CMD} rollback [index]"),
     "uninstall": (_cmd_uninstall, f"{CLI_CMD} uninstall [--all|standard|restore|purge]"),
-    "remove":    (_cmd_uninstall, f"{CLI_CMD} uninstall [--all|standard|restore|purge]"),
-    "purge":     (_cmd_purge,     f"{CLI_CMD} purge"),
     "doctor":    (_cmd_doctor,    f"{CLI_CMD} doctor [unit]"),
     "deps":      (_cmd_deps,      f"{CLI_CMD} deps [core|apps]"),
-    "apps":      (_cmd_apps,      f"{CLI_CMD} apps"),
-    "recommended": (_cmd_apps,    f"{CLI_CMD} apps"),
-    "wallpapers": (_cmd_wallpapers, f"{CLI_CMD} wallpapers"),
-    "wp":        (_cmd_wallpapers, f"{CLI_CMD} wallpapers"),
     "bug":       (_cmd_bug,       f"{CLI_CMD} bug"),
-    "report":    (_cmd_bug,       f"{CLI_CMD} bug"),
     "test":      (_cmd_test,      f"{CLI_CMD} test"),
     "preset":    (_cmd_preset,    f"{CLI_CMD} preset <app> [list|apply <name>|save <name>|edit <name>|delete <name>|parts|part <slot> <name>]"),
     "theme":     (_cmd_theme,     f"{CLI_CMD} theme [toggle|dark|light|sync|status]"),
     "shell":     (_cmd_shell,     f"{CLI_CMD} shell [get|set <noctalia|nyxuri-shell> [bin_path]|switch [<noctalia|nyxuri-shell> [bin_path]]|status] [EXPERIMENTAL]"),
     "update":    (_cmd_update,    f"{CLI_CMD} update [--force|--no-deploy] [--to <tag|commit>]"),
     "help":      (_cmd_help,      f"{CLI_CMD} help"),
-    "-h":        (_cmd_help,      f"{CLI_CMD} help"),
-    "--help":    (_cmd_help,      f"{CLI_CMD} help"),
 }
 
 
@@ -626,14 +566,7 @@ def main() -> None:
 
         entry = COMMANDS.get(cmd)
         if entry:
-            _retirement_notice(cmd)
             sys.exit(entry[0](sub_args))
-
-        if cmd in RETIREMENTS:
-            # KM3-executed verbs (greeter/fcitx/gtk/fisher) keep pointing at
-            # their unit-verb replacements instead of dying silently.
-            _retirement_notice(cmd)
-            sys.exit(2)
 
         print(msg("err_unknown_command", args[0]), file=sys.stderr)
         print_help(file=sys.stderr)

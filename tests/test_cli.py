@@ -1,7 +1,7 @@
 """Behavior contracts for CLI: exit code propagation, --force path, update hooks.
 
 Safety: all tests run inside TempEnv. CLI main() calls acquire_lock, init_logger,
-ensure_nyxniri_symlink — these are patched to avoid touching real system state.
+ensure_nyxuri_symlink — these are patched to avoid touching real system state.
 """
 
 import os
@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
-from nyxuri.constants import PENDING_UPGRADE_ENV, PENDING_UPGRADE_MENU_ENV
+from nyxuri.core import PENDING_UPGRADE_ENV, PENDING_UPGRADE_MENU_ENV
 from tests.utils import TempEnv
 
 
@@ -39,21 +39,23 @@ class TestRetiredModuleCommands(unittest.TestCase):
                     main()
         return caught.exception.code, out.getvalue(), err.getvalue()
 
-    def test_retired_module_command_points_at_unit_verbs(self):
-        code, _, err = self._run("greeter", "install")
-        self.assertEqual(code, 2)
-        self.assertIn("on/off greeter", err)
-        self.assertIn("KM3", err)
+    def test_km3_5_legacy_commands_are_physically_gone(self):
+        """KM3.5 enforcement: the alias table and every retired name are gone —
+        old commands are plain unknown commands, not ghost pointers."""
+        import io
+        from nyxuri.cli import COMMANDS
 
-    def test_every_retired_module_name_routes_to_its_replacement(self):
-        from nyxuri.cli import RETIREMENTS
-        for legacy, stage in (("greeter", "KM3"), ("fcitx", "KM3"),
-                              ("gtk", "KM3"), ("fisher", "KM3")):
-            replacement = RETIREMENTS[legacy][0]
-            code, _, err = self._run(legacy)
-            self.assertEqual(code, 2, legacy)
-            self.assertIn(replacement, err, legacy)
-            self.assertIn(stage, err, legacy)
+        with open("nyxuri/cli.py", encoding="utf-8") as fh:
+            source = fh.read()
+        self.assertNotIn("RETIREMENTS", source, "the alias table must stay dead")
+        retired = ("deploy", "backup", "restore", "remove", "purge", "recommended",
+                   "wp", "report", "apps", "wallpapers", "greeter", "fcitx",
+                   "gtk", "fisher", "-h", "--help")
+        for name in retired:
+            self.assertNotIn(name, COMMANDS, name)
+            code, _, err = self._run(name, "extra")
+            self.assertEqual(code, 2, name)
+            self.assertNotIn("KM5", err, name)
 
 
 class TestUpdateForcePath(unittest.TestCase):
@@ -67,15 +69,15 @@ class TestUpdateForcePath(unittest.TestCase):
         self._ctx.__exit__()
 
     def test_force_deploys_wallpapers_and_replays_hooks(self):
-        from nyxuri.workflows import offer_overwrite_upgrade
+        from nyxuri.installer.workflows import offer_overwrite_upgrade
 
-        with patch("nyxuri.workflows.deploy_selected_configs", return_value=[]), \
-             patch("nyxuri.workflows.deploy_wallpapers") as mock_wp, \
-             patch("nyxuri.workflows.transaction.replay_enabled_hooks") as replay, \
-             patch("nyxuri.workflows.render_completion_screen"):
+        with patch("nyxuri.installer.workflows.deploy_selected_configs", return_value=[]), \
+             patch("nyxuri.installer.workflows._enable_wallpapers", return_value=True) as mock_wp, \
+             patch("nyxuri.installer.workflows.transaction.replay_enabled_hooks") as replay, \
+             patch("nyxuri.installer.workflows.render_completion_screen"):
             self.assertTrue(offer_overwrite_upgrade("--force"))
 
-        mock_wp.assert_called_once_with(do_download=True)
+        mock_wp.assert_called_once_with()
         replay.assert_called_once()
 
 
@@ -90,29 +92,29 @@ class TestUserHookEntrypoints(unittest.TestCase):
         self._ctx.__exit__()
 
     def test_force_update_runs_hooks_before_completion(self):
-        from nyxuri.workflows import offer_overwrite_upgrade
+        from nyxuri.installer.workflows import offer_overwrite_upgrade
 
         events = []
-        with patch("nyxuri.workflows.deploy_selected_configs", side_effect=lambda **_: events.append("configs") or []), \
-             patch("nyxuri.workflows.deploy_wallpapers", side_effect=lambda **_: events.append("wallpapers")), \
-             patch("nyxuri.workflows.transaction.replay_enabled_hooks",
+        with patch("nyxuri.installer.workflows.deploy_selected_configs", side_effect=lambda **_: events.append("configs") or []), \
+             patch("nyxuri.installer.workflows._enable_wallpapers", side_effect=lambda: events.append("wallpapers") or True), \
+             patch("nyxuri.installer.workflows.transaction.replay_enabled_hooks",
                    side_effect=lambda: events.append("unit-hooks")), \
-             patch("nyxuri.workflows.run_user_hooks", side_effect=lambda: events.append("hooks") or []), \
-             patch("nyxuri.workflows.render_completion_screen", side_effect=lambda *_, **__: events.append("completion")):
+             patch("nyxuri.installer.workflows.run_user_hooks", side_effect=lambda: events.append("hooks") or []), \
+             patch("nyxuri.installer.workflows.render_completion_screen", side_effect=lambda *_, **__: events.append("completion")):
             self.assertTrue(offer_overwrite_upgrade("--force"))
 
         self.assertEqual(events, ["configs", "wallpapers", "unit-hooks", "hooks", "completion"])
 
     def test_failed_and_code_only_updates_skip_hooks(self):
-        from nyxuri.workflows import offer_overwrite_upgrade
+        from nyxuri.installer.workflows import offer_overwrite_upgrade
 
-        with patch("nyxuri.workflows.deploy_selected_configs", return_value=["niri"]), \
-             patch("nyxuri.workflows.render_completion_screen"), \
-             patch("nyxuri.workflows.run_user_hooks") as hooks:
+        with patch("nyxuri.installer.workflows.deploy_selected_configs", return_value=["niri"]), \
+             patch("nyxuri.installer.workflows.render_completion_screen"), \
+             patch("nyxuri.installer.workflows.run_user_hooks") as hooks:
             self.assertFalse(offer_overwrite_upgrade("--force"))
         hooks.assert_not_called()
 
-        with patch("nyxuri.workflows.run_user_hooks") as hooks:
+        with patch("nyxuri.installer.workflows.run_user_hooks") as hooks:
             self.assertTrue(offer_overwrite_upgrade("--no-deploy"))
         hooks.assert_not_called()
 
@@ -234,20 +236,20 @@ class TestCheckNewDepsPostUpdate(unittest.TestCase):
         self._ctx.__exit__()
 
     def test_no_missing_deps_no_action(self):
-        from nyxuri.workflows import check_new_deps_post_update
+        from nyxuri.installer.workflows import check_new_deps_post_update
 
-        with patch("nyxuri.workflows.get_missing_deps", return_value=[]):
-            with patch("nyxuri.workflows.install_selected_deps") as mock_install:
+        with patch("nyxuri.installer.workflows.get_missing_deps", return_value=[]):
+            with patch("nyxuri.installer.workflows.install_selected_deps") as mock_install:
                 check_new_deps_post_update()
 
         mock_install.assert_not_called()
 
     def test_missing_deps_non_interactive_auto_installs(self):
-        from nyxuri.workflows import check_new_deps_post_update
+        from nyxuri.installer.workflows import check_new_deps_post_update
 
-        with patch("nyxuri.workflows.get_missing_deps", return_value=["some-pkg"]):
+        with patch("nyxuri.installer.workflows.get_missing_deps", return_value=["some-pkg"]):
             with patch("sys.stdin.isatty", return_value=False):
-                with patch("nyxuri.workflows.install_selected_deps") as mock_install:
+                with patch("nyxuri.installer.workflows.install_selected_deps") as mock_install:
                     with patch("builtins.print"):
                         check_new_deps_post_update()
 
@@ -333,10 +335,10 @@ class TestDistroGuard(unittest.TestCase):
         self._ctx.__exit__()
 
     def test_install_full_blocked_without_pacman(self):
-        from nyxuri.workflows import install_configs_workflow
+        from nyxuri.installer.workflows import install_configs_workflow
 
-        with patch("nyxuri.workflows.shutil.which", return_value=None), \
-             patch("nyxuri.workflows.run_master_component_menu") as menu, \
+        with patch("nyxuri.installer.workflows.shutil.which", return_value=None), \
+             patch("nyxuri.installer.workflows.run_master_component_menu") as menu, \
              patch("builtins.print") as prn:
             result = install_configs_workflow("full")
 
@@ -346,22 +348,22 @@ class TestDistroGuard(unittest.TestCase):
         self.assertIn("pacman", printed)
 
     def test_install_config_mode_not_blocked(self):
-        from nyxuri.workflows import install_configs_workflow
+        from nyxuri.installer.workflows import install_configs_workflow
 
-        with patch("nyxuri.workflows.shutil.which", return_value=None), \
+        with patch("nyxuri.installer.workflows.shutil.which", return_value=None), \
              patch("sys.stdin.isatty", return_value=True), \
-             patch("nyxuri.workflows.run_master_component_menu", return_value=None), \
+             patch("nyxuri.installer.workflows.run_master_component_menu", return_value=None), \
              patch("builtins.print"):
             result = install_configs_workflow("config")
 
         self.assertTrue(result)  # cancelled-by-user path, not the distro guard
 
     def test_deps_menu_blocked_without_pacman(self):
-        from nyxuri.menus import deps_menu_loop
+        from nyxuri.installer.menus import deps_menu_loop
 
         with patch("sys.stdin.isatty", return_value=True), \
-             patch("nyxuri.menus.shutil.which", return_value=None), \
-             patch("nyxuri.menus.Menu") as menu, \
+             patch("nyxuri.installer.menus.shutil.which", return_value=None), \
+             patch("nyxuri.installer.menus.Menu") as menu, \
              patch("builtins.print") as prn:
             deps_menu_loop()
 
@@ -386,7 +388,7 @@ class TestPreflightSudo(unittest.TestCase):
         return subprocess.CompletedProcess(command, returncode)
 
     def _preflight(self):
-        from nyxuri.workflows import _phase_preflight_check
+        from nyxuri.installer.workflows import _phase_preflight_check
         _phase_preflight_check("full", [], False, False)
 
     def test_passwordless_sudo_skips_interactive_authentication(self):
@@ -451,12 +453,12 @@ class TestCoreVerbs(unittest.TestCase):
     def setUp(self):
         self._ctx = TempEnv()
         self._ctx.__enter__()
-        from nyxuri import i18n
+        from nyxuri import core as i18n
         self._old_lang = i18n.get_lang()
         i18n.set_lang("en")
 
     def tearDown(self):
-        from nyxuri import i18n
+        from nyxuri import core as i18n
         i18n.set_lang(self._old_lang)
         self._ctx.__exit__()
 
@@ -506,7 +508,7 @@ class TestCoreVerbs(unittest.TestCase):
 
     def test_on_forwards_preset_and_injected_installer(self):
         from nyxuri.cli import _package_installer
-        from nyxuri.transaction import Step
+        from nyxuri.kernel.transaction import Step
         captured = {}
 
         def fake_unit_on(unit, *, preset=None, install_packages=None):
@@ -523,7 +525,7 @@ class TestCoreVerbs(unittest.TestCase):
         self.assertIn("enabled", out)
 
     def test_on_reports_missing_packages_failure(self):
-        from nyxuri.transaction import Step
+        from nyxuri.kernel.transaction import Step
         steps = [Step("kitty", False, "missing-packages: kitty, fish")]
         with patch("nyxuri.cli.transaction.unit_on", return_value=steps), \
              patch("nyxuri.cli.transaction.missing_packages", return_value=[]):
@@ -532,7 +534,7 @@ class TestCoreVerbs(unittest.TestCase):
         self.assertIn("missing declared packages: kitty, fish", out)
 
     def test_off_forwards_cascade_flag(self):
-        from nyxuri.transaction import Step
+        from nyxuri.kernel.transaction import Step
         with patch("nyxuri.cli.transaction.plan_off", return_value=["kitty"]) as plan, \
              patch("nyxuri.cli.transaction.unit_off",
                    return_value=[Step("kitty", True, "disabled")]) as off:
@@ -578,19 +580,13 @@ class TestCoreVerbs(unittest.TestCase):
         checkup.assert_not_called()
         self.assertEqual(code, 0)
 
-    # -- retirement countdown ---------------------------------------------
+    # -- retirement enforcement (KM3.5) ------------------------------------
 
     def test_legacy_alias_prints_countdown_notice(self):
-        with patch("nyxuri.cli.backup_configs", return_value=True):
-            code, _, err = self._run("backup")
-        self.assertEqual(code, 0)
-        self.assertIn("KM5", err)
-        self.assertIn("snapshot", err)
-
-    def test_module_command_registered_with_km3_countdown(self):
-        from nyxuri.cli import RETIREMENTS
-        for name in ("greeter", "fcitx", "gtk", "fisher"):
-            self.assertEqual(RETIREMENTS[name][1], "KM3", name)
+        """The old `backup` alias is gone; `snapshot` is the only door."""
+        code, _, err = self._run("backup")
+        self.assertEqual(code, 2)
+        self.assertTrue("未知命令" in err or "nknown command" in err, err)
 
     def test_snapshot_list_delegates_to_backup_listing(self):
         with patch("nyxuri.cli.list_backups") as listing:

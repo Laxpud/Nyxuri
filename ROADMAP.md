@@ -23,7 +23,7 @@
 | KM1 | 内核落地：注册表与单源目录统一 | 已完成 |
 | KM2 | 开关事务与 Vault 归档 | 已完成 |
 | KM3 | 命令行收敛（4 动词接管）与 TUI 工坊 | 已完成 |
-| KM3.5 | 拆迁与正名（KM5 前置）：旧世界处决 + 文件树表达架构 | 进行中 |
+| KM3.5 | 拆迁与正名（KM5 前置）：旧世界处决 + 文件树表达架构 | 已完成 |
 | KM4 | Shell 彻底模块化 + 运行态直通（吸收原 Shell P5） | 待开始 |
 | KM5 | 引导转化（installer/ 处决 + install.sh 引导化）、migrations 清算与五原则总验收 | 待开始 |
 
@@ -84,6 +84,27 @@ Nyxuri/
 └─ catalog.toml install.sh
 ```
 
+**验收（2026-10-17 执法记录）**：处决清单全数落地——旧命令别名 ×12 与
+`RETIREMENTS` 整表、`template_registry.py` 及其测试、17 个零文件假单元（→ 根
+`catalog.toml`，`deps apps` 菜单与 gen-deps optdepends 同源）、`assets/` 与
+`deploy/assets.py`（→ `units/wallpapers/` 真单元：`target ~/` + `merge` 共享生活区，
+pack 下载转 `hooks/install-pack`，`wallpapers` 动词处决指向 `on wallpapers`，
+`.nyxuri-managed.json` 退役）、`apps` 伪装别名与 `-h/--help`；蓝图正名 `configs/` →
+`units/`（12 目录），内核物理承载 `nyxuri/kernel/`，供给收编 `pkg/{deps,net,fzf,catalog}`，
+地基三合一 `core.py`，`doctor.py` → `sysdoctor.py`，桌面域 `desktop/`（clean 接
+i18n/tui 原语），`installer/` 等死区隔离，preset 引擎/流程拆分（`deploy/preset.py` +
+`desktop/presets.py`），`packaging/` 迁仓库根，测试镜像树（62 平铺 → 55 镜像 +
+契约测试置顶），llms-wiki 根 30 → 15 页；单元钩子注入 `PYTHONDONTWRITEBYTECODE=1`。
+全量契约测试绿 + 沙箱部署绿 + shellcheck 绿。install.sh 引导化与 migrations 清算
+不在本阶段，仍留 KM5。
+
+**数字对账（如实）**：CLI 32 → 20 ✓；蓝图 28 → 12 ✓；`nyxuri/` 顶层 26 → 12 ✓；
+llms-wiki 根 30 → 15 ✓；测试 62 → 55 ✓（~40 为估算，translate 16 文件保持内聚
+未强行合并）；**引擎净删 -259 行（毛删 1,590），低于 ≥900 目标**——处决照单全收，
+但 `merge` 共享生活区语义、`catalog.toml` 解析器、preset 引擎/流程拆分三项配套
+合法新增约 +1,300 行，原估算未计入；不为凑数删活代码，差距留 KM5 引导化收口时
+随 `installer/` 整目录处决一并回收。
+
 **验收（五原则证据 + 净减法）**：
 引擎净删 ≥900 行；CLI 表面 32 → 20 条目（17 活动词 + help）；蓝图 28 → 12 目录；
 `nyxuri/` 顶层 25 → 12 项；llms-wiki 根 29 → ≤15 页；测试 62 平铺 → 镜像树 ~40；
@@ -117,5 +138,5 @@ Nyxuri/
 ## Shell 后生态
 
 - [ ] **TUI 视觉风格化与纯净感 (Terminal Rice)**：Alternate Screen Buffer 保护终端历史，DEC 2025 协议消除高刷频闪，单行微动 Zen Spinner 就地收拢滚屏日志。
-- [ ] **多合成器 (Multi-WM) 架构解耦**：`CompositorDriver` 驱动抽象层，热重载、浮动便签与屏幕探测跨合成器适配（Hyprland/Sway 按需扩展），`doctor` 诊断与 `greeter` 会话自适应。现状：niri + mango 双合成器已以过渡形态落地（引擎特判与收编清单见 [mango-adaptation](llms-wiki/mango-adaptation.md) 债务登记），第三个合成器接入前必须收编为驱动抽象。
+- [ ] **多合成器 (Multi-WM) 架构解耦**：`CompositorDriver` 驱动抽象层，热重载、浮动便签与屏幕探测跨合成器适配（Hyprland/Sway 按需扩展），`doctor` 诊断与 `greeter` 会话自适应。现状：niri + mango 双合成器已以过渡形态落地（引擎特判与收编清单见 [delayed-decisions](llms-wiki/delayed-decisions.md) 债务登记），第三个合成器接入前必须收编为驱动抽象。
 - [ ] **安全 Downdate 体系（高级储备）**：现场快照优先还原 + Git 逆向检出的安全版本回退。

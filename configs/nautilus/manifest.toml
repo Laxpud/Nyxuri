@@ -1,4 +1,0 @@
-optional = true
-packages = ["nautilus"]
-label = "Nautilus"
-category = "system"

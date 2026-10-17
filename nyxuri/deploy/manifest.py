@@ -8,7 +8,10 @@ preserves ``monitor.kdl``; missioncenter's package is ``mission-center``).
 
 Schema (all fields optional, flat at top level)::
 
-    target          = "starship.toml"   # single-file unit: lands at ~/.config/<target>
+    target = "starship.toml"   # single-file unit: lands at ~/.config/<target>
+    target = "~/Pictures/Wallpapers"  # shared living area (implies merge use)
+    merge = true               # shared living area: no-clobber deploy, off
+                               # withdraws only laid files (never rm -rf)
     packages        = ["mangowm"]       # default = [<unit name>]
     packages_aur    = []                # default = []  (AUR helper installs)
     packages_flatpak = []               # default = []  (Flathub app IDs)
@@ -32,11 +35,13 @@ Schema (all fields optional, flat at top level)::
 
 A ``target`` unit ships exactly one file (``configs/<unit>/<target>``) that
 lands at ``~/.config/<target>``; presets and parts are directory affordances
-and do not apply to it.
+and do not apply to it. A ``~/``-prefixed ``target`` declares a shared
+living area outside ``~/.config`` (implies ``merge`` semantics).
 
 This module is pure stdlib (``tomllib``, 3.11+). No hardcoded project unit names.
 """
 
+import os
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -70,6 +75,7 @@ class ModuleManifest:
     requires_root: bool = False  # declared privilege escalation ([privilege])
     system_paths: List[str] = field(default_factory=list)  # declared /etc etc. touchpoints
     target: str = ""           # Single-file unit: deployed file name under ~/.config
+    merge: bool = False        # Shared living area: no-clobber deploy, snapshot = laid files
     preset_inherit: bool = False
     preset_allow: List[str] = field(default_factory=list)
     preset_standalone: List[str] = field(default_factory=list)
@@ -128,6 +134,19 @@ def _as_str_map(value) -> Dict[str, List[str]]:
     return result
 
 
+def living_path(m: ModuleManifest, config_dir: Path) -> Path:
+    """A unit's living-area path (unit-model.md §4 target exception).
+
+    A ``~/``-prefixed (or absolute) ``target`` declares a shared living area
+    outside ``~/.config`` — expanded against ``$HOME``. A bare ``target`` is
+    the single-file exception under ``~/.config``; no target means
+    ``~/.config/<unit>``.
+    """
+    if m.target.startswith(("~", "/")):
+        return Path(os.path.expanduser(m.target))
+    return config_dir / (m.target or m.name)
+
+
 def load_manifest(app_src: Path) -> ModuleManifest:
     """Load a manifest for a unit directory; defaults derived from the name."""
     name = app_src.name
@@ -171,6 +190,7 @@ def load_manifest(app_src: Path) -> ModuleManifest:
         requires_root=bool(privilege.get("requires_root", False)),
         system_paths=_as_str_list(privilege.get("system_paths")),
         target=str(data.get("target", "")),
+        merge=bool(data.get("merge", False)),
         preset_inherit=bool(presets.get("inherit")),
         preset_allow=_as_str_list(presets.get("allow")),
         preset_standalone=_as_str_list(presets.get("standalone")),
@@ -183,7 +203,7 @@ def load_manifest(app_src: Path) -> ModuleManifest:
 
 def _app_src(app_name: str) -> Path:
     """Resolve the on-disk source path for a unit name under configs/."""
-    return get_env().configs_src / app_name
+    return get_env().units_src / app_name
 
 
 def load_manifest_for(app_name: str) -> ModuleManifest:
@@ -205,11 +225,11 @@ def discover_manifest_apps() -> List[Tuple[str, ModuleManifest]]:
     if _MANIFEST_CACHE is not None:
         return _MANIFEST_CACHE
     env = get_env()
-    if not env.configs_src.is_dir():
+    if not env.units_src.is_dir():
         return []
 
     apps: List[Tuple[str, ModuleManifest]] = []
-    for p in sorted(env.configs_src.iterdir(), key=lambda x: x.name):
+    for p in sorted(env.units_src.iterdir(), key=lambda x: x.name):
         if not p.is_dir() or p.is_symlink() or p.name in _METADATA_NAMES:
             continue
         try:
@@ -225,8 +245,13 @@ def discover_manifest_apps() -> List[Tuple[str, ModuleManifest]]:
 
 
 def discover_deployable_apps() -> List[str]:
-    """Names of units that ship real config (have deployable content)."""
-    return [name for name, m in discover_manifest_apps() if m.is_deployable]
+    """Names of units that ship real config AND go through the atomic swap.
+
+    Merge units (declared shared living areas) deploy only through the
+    transaction's no-clobber path — they never join the atomic batch,
+    where a swap would clobber user content.
+    """
+    return [name for name, m in discover_manifest_apps() if m.is_deployable and not m.merge]
 
 
 def discover_optional_apps() -> List[str]:

@@ -1,6 +1,0 @@
-# 微信 — Flathub only (repo explicitly empty keeps the name out of pacman)
-optional = true
-packages = []
-packages_flatpak = ["com.tencent.WeChat"]
-label = "微信 (WeChat)"
-category = "social"
