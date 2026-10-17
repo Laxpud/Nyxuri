@@ -148,6 +148,12 @@ KM4 合并进行。
   验证：全量引擎 970 + Shell 分类 118 + audit-lifecycle clean（562 文件）+
   单例纯度零 offender + check.sh + 沙箱部署绿。终态顶层：app/units/shared/scripts/
   tests 五目录 + 8 根文件。
+  实机验收修正（同日）：settings 窗口 on/off 实测暴露 `shell.desktopcards`
+  永久 compiled empty 刷屏——`qs.app.cards` 新池无顶层 import、首次解析落在
+  Loader 内（0.3.2 约束①），SlotHost 预热名单补行；顺带坐实自愈上限（原 "/2"
+  为写死字符串，无限重试刷到 pass 11/2）——per-unit `failedHeals` 计数、超限
+  给决断性日志、unit-changed 清零重新武装。登记 KNOWN-ISSUES 已修复段；
+  AGENTS 约束①增补推广条款：新 qs.* 池必须进预热名单。
 
 ## 当前门禁
 

@@ -3,6 +3,12 @@ import qs.app
 import qs.app.services
 // Unit module warm-up (see note below): registers every synthesized
 // qs.units.* import graph at engine startup, before any Loader fires.
+// qs.app.cards joins the warm-up for the same reason — it is a synthesized
+// pool consumed by unit components (desktopcards); a pool that nothing at
+// the top level imports would otherwise get its FIRST resolution inside a
+// Loader-loaded component, which is exactly the 0.3.2 defect documented
+// below (KM4.6 实机验收案例：shell.desktopcards 永久 compiled empty).
+import qs.app.cards
 import qs.units.bar
 import qs.units.desktopcards
 import qs.units.dock
@@ -68,21 +74,42 @@ Item {
             required property var modelData
             // Self-heal gate (Quickshell 0.3.2): a unit can fail its cold
             // compile nondeterministically and come up as a silent null
-            // item. The host retries such units twice before giving up.
+            // item. The host retries such units at most twice, then gives
+            // up until the ledger flips the unit (unit-changed resets the
+            // counter and re-arms the heal timer).
             property bool suppressed: false
+            property int failedHeals: 0
 
             active: root.slotActive(modelData) && !suppressed
             source: modelData.source
-            onLoaded: root.unitLoaded(modelData.id, item)
+            onLoaded: {
+                failedHeals = 0;
+                root.unitLoaded(modelData.id, item);
+            }
         }
     }
 
     // Compile-failure self-heal: "the ledger says loaded but the item is
     // null" means the unit's QML died in compilation. Two bounded retry
-    // passes (fresh compile, cache already cleared at launch); every retry
-    // is logged loudly — silent missing UI is the failure mode that ate a
-    // debugging afternoon.
+    // passes (fresh compile, cache already cleared at launch); after the
+    // second failure the unit stays dark — an unbounded retry would spam
+    // the log every 4s forever (KM4.6 实机验收案例：desktopcards 因未预热
+    // 的 qs.app.cards 池永久 compiled empty，pass 计数刷到 11/2). Every
+    // retry and the final give-up are logged loudly — silent missing UI is
+    // the failure mode that ate a debugging afternoon. A later unit-changed
+    // (off → on) resets failedHeals and re-arms the heal timer.
+    readonly property int healPassLimit: 2
     property int _healPasses: 0
+
+    function noteUnitChanged() {
+        _healPasses = 0;
+        for (let i = 0; i < UnitCatalog.units.length; i++) {
+            const loader = slotRepeater.itemAt(i);
+            if (loader)
+                loader.failedHeals = 0;
+        }
+        healTimer.restart();
+    }
 
     Timer {
         id: healTimer
@@ -101,10 +128,18 @@ Item {
                     continue;
                 if (!root.slotActive(unit) || loader.item !== null)
                     continue;
+                if (loader.failedHeals >= root.healPassLimit)
+                    continue; // given up — stays dark until unit-changed
+                loader.failedHeals += 1;
                 retried += 1;
-                LogService.error("host", "unit shell." + unit.id
-                                 + " enabled but compiled empty — reloading (pass " + root._healPasses
-                                 + "/2)");
+                if (loader.failedHeals >= root.healPassLimit)
+                    LogService.error("host", "unit shell." + unit.id + " still compiled empty after "
+                                     + root.healPassLimit
+                                     + " heal passes — giving up; toggle the unit to retry");
+                else
+                    LogService.error("host", "unit shell." + unit.id
+                                     + " enabled but compiled empty — reloading (pass " + loader.failedHeals
+                                     + "/" + root.healPassLimit + ")");
                 loader.suppressed = true;
             }
             if (retried > 0) {

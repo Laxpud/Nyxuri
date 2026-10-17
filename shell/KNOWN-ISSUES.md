@@ -14,6 +14,14 @@
 
 ## 已修复
 
+- [x] **desktopcards 永久 compiled empty + 自愈无限重试**（2026-10-17，KM4.6 实机
+  验收发现）：`settings` 窗口逐个 on/off 时 `shell.desktopcards` 反复「enabled but
+  compiled empty — reloading (pass N/2)」刷屏——根因有二：① `qs.app.cards` 是
+  KM4.6 新建的合成池，全库无顶层 import，首次解析落在 Loader 内，正中 0.3.2
+  约束①（SlotHost 预热名单补 `import qs.app.cards`）；② SlotHost 自愈的 "/2"
+  是写死字符串，`_healPasses` 无上限增长、healTimer 永不放弃，与注释「重试两次
+  后放弃」不符（per-unit `failedHeals` 计数坐实上限，超限给决断性 ERROR 日志，
+  unit-changed 时 `noteUnitChanged()` 清零重新武装）。
 - [x] **quickshell 依赖未声明**（2026-10-17 KM4 清算）：根 `catalog.toml` 新增
   `quickshell` 条目（`detect` + `packages_aur`），`deps apps` 菜单与 gen-deps
   optdepends 同源可见；顺带修复 KM3.5 搬家后 PKGBUILD 生成标记 stale 导致

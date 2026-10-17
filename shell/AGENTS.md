@@ -101,7 +101,10 @@ Shell 是极致精简的**微内核宿主**：宿主只保留装配（`SlotHost`
   installed / X is not a type」不确定地整单元暴毙（与 QML 磁盘缓存无关）。
   对策：SlotHost 静态预热 import 全部 12 个单元模块（只注册不实例化），装载仍
   纯 Loader 驱动；禁用单元零实例化、零窗口、零驻留内存不变，代价是预热注册的
-  仅解析成本。
+  仅解析成本。**推广（KM4.6 实机验收教训）**：任何新建的 qs.* 合成池（如
+  `qs.app.cards`）只要被单元组件消费，就必须进 SlotHost 预热名单——全库没有
+  顶层文件 import 它时，首次解析必然发生在 Loader 内，单元确定性 compiled
+  empty；宿主自愈重试两次后放弃并在日志明示，unit-changed 重新武装。
   ② QML 磁盘缓存会供应陈旧编译产物——源码改动后新旧代码混跑（表现为「改了没
   生效」「部分单元是新逻辑部分是旧逻辑」）。对策：nyxuri-shell wrapper 每次
   启动清空 qmlcache（永远冷编译，预热 import 已证冷编译干净）。注意不可用

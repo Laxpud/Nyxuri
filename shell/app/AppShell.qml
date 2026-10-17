@@ -52,6 +52,8 @@ Item {
 
     // All twelve Shell units, slot-driven (surface:desktop → overlay).
     SlotHost {
+        id: slotHost
+
         // Cross-unit dependency bridge (four-layer rule): the settings
         // unit's dashboard consumes the todo domain service that lives in
         // the sidebars module; the host wires it explicitly instead of a
@@ -130,6 +132,7 @@ Item {
         function reload(): string {
             StateProjection.reload();
             TemplateService.refresh();
+            slotHost.noteUnitChanged();
             return StateProjection.degraded ? "DEGRADED" : "OK";
         }
     }
