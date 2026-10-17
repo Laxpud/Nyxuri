@@ -10,7 +10,7 @@ Nyxuri
     ├── fish/                   # Shell 别名与实用函数
     ├── greeter/                # Noctalia Greeter 登录界面集成
     ├── kitty/                  # 终端模拟器与透明度预设
-    ├── mango/                  # Mango HUD 性能监测悬浮层
+    ├── mango/                  # MangoWM 窗口管理器与动作调度脚本
     ├── niri/                   # 窗口管理器与动作调度脚本
     ├── noctalia/               # 桌面外壳、主题同步、Orbit 星环与壁纸选择器
     ├── starship/               # 终端提示符

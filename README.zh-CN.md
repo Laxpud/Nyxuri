@@ -8,8 +8,8 @@
 
 <h1>Nyxuri</h1>
 
-<p><strong>/nɪkˈsuːri/ · Arch / CachyOS 上的 Material You 桌面体验</strong><br />
-<sub>基于 Niri 和 Noctalia V5 —— 然后闭嘴！</sub></p>
+<p><strong>/nɪkˈsuːri/ · Arch / CachyOS 上的模块化桌面配置系统</strong><br />
+<sub>支持 Niri 与 Noctalia —— 慢慢来，搭好属于你的干净日常 (ゆっくりしていってね！)</sub></p>
 
 <p>
   <a href="https://github.com/ech678/Nyxuri/stargazers"><img height="22" src="https://m3-markdown-badges.vercel.app/stars/3/3/ech678/Nyxuri" alt="Stars" /></a>
@@ -30,29 +30,41 @@
 
 </div>
 
-> ⚠️ **开发警告**：当前 `main` 主分支正在经历**非常激进的架构重构与特性迭代**（代码与配置结构随时可能快速演进）。如果你追求绝对稳定，建议检出最新 Release 标签使用。
+> ⚠️ **开发警告**：当前 `main` 主分支正在重构与演进中（代码与配置结构随时可能变化）。如果你追求日常平稳，建议检出最新 Release 标签使用。
 >
-> 从原 **NyxNiri** 迁移？项目现已更名为 **Nyxuri**（/nɪkˈsuːri/），因为我们计划接入自研桌面 Shell 并支持更多窗口管理器。运行 `nyxuri` 会自动搬迁原有配置、历史快照与状态，并安全清理旧目录。
+> 从原 **NyxNiri** 迁移？项目现已更名为 **Nyxuri**（/nɪkˈsuːri/），它不再只是一份死板的单套配置，而是演进为一套完全解耦的模块化桌面配置系统。运行 `nyxuri` 会自动把旧配置和快照安全搬家，并清理旧路径。
 >
-> **注意：** 自研的 **Nyxuri Shell** 目前是实验性功能——完全处于开发阶段、已知问题较多、外观尚未开发，暂不推荐日常使用。日常请留在 Noctalia，`nyxuri shell` 仅供测试。已知问题见 [shell/KNOWN-ISSUES.md](shell/KNOWN-ISSUES.md)。
+> **注意：** 自研的 **Nyxuri Shell** 目前是实验性功能——完全处于开发阶段、已知问题较多、外观尚未完工，暂不推荐日常使用。日常请留在 Noctalia，`nyxuri shell` 仅供测试。已知问题见 [shell/KNOWN-ISSUES.md](shell/KNOWN-ISSUES.md)。
 
-### 名字的由来 (Why Nyxuri)
+### 名字的小秘密
 
-- **URI**：**U**nified **R**untime **I**nterface（统一运行时接口）
-- **Yukkuri**：源自「ゆっくり」（Yukkuri / にゅっくり）
-- **Yuri**：源自「百合」（Yuri / ゆり）
+名字读作 `/nɪkˈsuːri/`，是把几样喜欢的事情悄悄拼在一起的产物：
 
-## 特性
+- **Nyx**：夜之女神，也是宁静夜晚的陪伴（以及老名字 NyxNiri 的念想）。
+- **Yukkuri**（ゆっくり / にゅっくり）：**放轻松，慢慢来**。折腾 Linux 桌面本就该是件治愈开心的事，不要急躁，随心就好。
+- **Yuri**（百合 / ゆり）：纯粹美好的日常与女孩子之间的羁绊（作者的小小私心）。
+- **…至于 URI？**：早先在架构文档里硬编过一个叫“统一运行时接口 (Unified Runtime Interface)”的唬人缩写……忘掉它吧！其实真的只是因为读起来软软糯糯很顺口而已啦 (⁄ ⁄•⁄ω⁄•⁄ ⁄)
 
-- **壁纸选择器**（`Super+W`）— 静态和动态壁纸统一选择，支持搜索和分类。
-- **色彩联动** — Noctalia V5 直接从壁纸取色；动态壁纸由 `mpvpaper` 配合 `ffmpeg` 抽帧。
-- **明暗同步** — GTK 3/4、XDG Portal、Kitty、浏览器一起跟随主题切换。
-- **护眼模式**（`Super+N`）— 暖色温、关模糊、纯色不透明窗口。
-- **Scratchpad**（`Super+~`）— 随时呼出的 Kitty 持久浮动终端。
-- **Orbit 启动器**（`Super+A` / `Super+鼠标前侧键`）— 矢量星环；应用、工具、网页、AI/搜索轮盘，全 TOML 自定义。
-- **Shell 和终端** — Fish 代理/缓存别名，Kitty 光标轨迹，Windows 风格快捷键（智能 Ctrl+C/Ctrl+V、右键粘贴、划选防覆盖剪贴板）。
-- **NyxMellow** — 动态 fcitx5 皮肤：mellow 圆角 + Noctalia Material You 配色。
-- **配置预设** — 每个应用多套风味变体（如 kitty 透明）；一条命令切换，把当前配置存为私有预设，或直接在 `$EDITOR` 里改。
+## 它是什么
+
+简单来说，**Nyxuri 是一套面向 Arch / CachyOS 的模块化桌面配置系统与管理引擎**。
+
+我们致力于长期提供双桌面外壳（成熟稳健的 **Noctalia** 与正在孵化打磨的自研 **Nyxuri Shell**），以 Niri 为首发基座，并逐步接入更多平铺与浮动窗口管理器。系统坚守**零臃肿、无暗箱、无残留**的减法原则，开箱即用的功能包括：
+
+- **多 WM 协同与双外壳架构**：核心动作经由 `shell-action.sh` 网关彻底解耦；原生支持 **Niri**（滚动平铺）与 **MangoWM**（平铺与浮动），并持续扩展更多 Wayland 合成器；外壳层支持 Noctalia 与 Nyxuri Shell 自由选择与无缝过渡。
+- **全域色彩与明暗联动**：壁纸取色（动态视频实时抽帧）驱动全局 Material You 配色，GTK 3/4、XDG Portal、Kitty、主流浏览器与外壳深浅色同步流转。
+- **Noctalia 伴生工具集 (Noctalia Tools)**：
+  - **Orbit 启动器**（`Super+A` / 鼠标侧键）：矢量星环轮盘，集成常用应用、网址与 AI/搜索转盘（TOML 全自定义）。
+  - **壁纸选择器**（`Super+W`）：静态图片与动态视频壁纸统一检索与实时预览。
+  - **划词翻译**：选中文本即刻弹出轻量释义。
+  - **护眼模式**（`Super+N`）与 **Scratchpad**（`Super+~` Kitty 浮动终端）。
+- **NyxMellow 输入法**：跟随系统配色的动态 fcitx5 皮肤（mellow 圆角几何），附带开箱即用的 Rime 输入配置。
+- **现代终端体验**：Kitty 平滑光标轨迹与防冲快捷键，搭配 Fish 实用别名与 Starship 提示符。
+- **即插即用的原子单元**：Fastfetch 看板、Noctalia Greeter 登录界面、Zed 编辑器与壁纸包，单键启闭（`nyxuri on` / `nyxuri off`），未启用单元零常驻、零开销。
+- **原子部署、预设与零臃肿安全网**：
+  - **Dunder 保护协议**：任何文件名含 `__custom__`（如 `__custom__.kdl`、`__custom__.conf`）或 `monitor.kdl` 的文件跨更新与预设切换永久保留，绝不覆盖用户私有改动。
+  - **分层预设**：支持 Kitty 透明度等风味预设一键切换，并支持用户私有预设制作。
+  - **零臃肿与白纸抹除**：引擎坚持纯 Python 标准库驱动，零 pip 依赖；停用单元即刻安全抹白无残留；30 轮滚动快照随时一键回退，`nyxuri doctor` 实时对账实机与声明状态。
 
 ## 安装
 
@@ -100,7 +112,7 @@ Nyxuri
     ├── fish/                   # Shell 别名与实用函数
     ├── greeter/                # Noctalia Greeter 登录界面集成
     ├── kitty/                  # 终端模拟器与透明度预设
-    ├── mango/                  # Mango HUD 性能监测悬浮层
+    ├── mango/                  # MangoWM 窗口管理器与动作调度脚本
     ├── niri/                   # 窗口管理器与动作调度脚本
     ├── noctalia/               # 桌面外壳、主题同步、Orbit 星环与壁纸选择器
     ├── starship/               # 终端提示符

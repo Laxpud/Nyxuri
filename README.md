@@ -8,8 +8,8 @@
 
 <h1>Nyxuri</h1>
 
-<p><strong>/nɪkˈsuːri/ · A Material You desktop experience for Arch / CachyOS</strong><br />
-<sub>Built on Niri and Noctalia V5 — and stays out of your way.</sub></p>
+<p><strong>/nɪkˈsuːri/ · A modular desktop configuration system for Arch / CachyOS</strong><br />
+<sub>Supports Niri and Noctalia — take it easy, snap your setup together, and enjoy.</sub></p>
 
 <p>
   <a href="https://github.com/ech678/Nyxuri/stargazers"><img height="22" src="https://m3-markdown-badges.vercel.app/stars/3/3/ech678/Nyxuri" alt="Stars" /></a>
@@ -30,29 +30,41 @@
 
 </div>
 
-> ⚠️ **Under Heavy Development**: The `main` branch is currently undergoing **very aggressive development and architectural refactoring** (interfaces and configs evolve rapidly). For a stable experience, checking out the latest release tag is recommended.
+> ⚠️ **Under Heavy Development**: The `main` branch is actively undergoing refactoring and rapid evolution. For a stable daily experience, checking out the latest release tag is recommended.
 >
-> Upgrading from **NyxNiri**? The project is rebranded to **Nyxuri** (/nɪkˈsuːri/) as we expand toward a custom desktop shell and multi-window manager support. Running `nyxuri` automatically migrates your existing configs, snapshots, and state, then safely cleans up legacy paths.
+> Upgrading from **NyxNiri**? The project is rebranded to **Nyxuri** (/nɪkˈsuːri/) — no longer just a rigid set of configs, but an evolving modular desktop configuration system. Running `nyxuri` automatically migrates your existing configs, snapshots, and state, then safely cleans up legacy paths.
 >
-> **Note:** the built-in **Nyxuri Shell** is experimental — fully in development, known to be buggy, its look is unfinished, and it is not recommended for daily use yet. Stay on Noctalia; `nyxuri shell` is for testing only. Known issues: [shell/KNOWN-ISSUES.md](shell/KNOWN-ISSUES.md).
+> **Note:** The built-in **Nyxuri Shell** is experimental — fully in development, known to be buggy, its look is unfinished, and it is not recommended for daily use yet. Stay on Noctalia; `nyxuri shell` is for testing only. Known issues: [shell/KNOWN-ISSUES.md](shell/KNOWN-ISSUES.md).
 
-### Why "Nyxuri"?
+### The Story Behind the Name
 
-- **URI**: **U**nified **R**untime **I**nterface
-- **Yukkuri**: From 「ゆっくり」(Yukkuri / にゅっくり — *take it easy*)
-- **Yuri**: From 「百合」(Yuri / ゆり)
+Pronounced `/nɪkˈsuːri/`, it's a quiet blend of things we love:
 
-## Features
+- **Nyx**: Night, calmness, and a fond nod to the project's roots as *NyxNiri*.
+- **Yukkuri** (「ゆっくり」): **Take it easy**. Ricing your Linux desktop should be a fun, relaxing journey — never a source of stress.
+- **Yuri** (「百合」): Pure, gentle everyday connections (a little personal affection from the author).
+- **...And "URI"?**: We once jokingly called it "Unified Runtime Interface" in architectural notes to sound fancy... forget that! It's honestly just here because the syllables sound so soft and sweet together (⁄ ⁄•⁄ω⁄•⁄ ⁄).
 
-- **Wallpaper Picker** (`Super+W`) — static + live, search and categories.
-- **Color Sync** — Noctalia V5 extracts palettes from wallpaper; `mpvpaper` + `ffmpeg` for video frames.
-- **Light/Dark Sync** — GTK 3/4, XDG portal, Kitty, and browsers switch together.
-- **Eye Care** (`Super+N`) — warmer color temperature, no blur, opaque windows.
-- **Scratchpad** (`Super+~`) — persistent Kitty floating terminal.
-- **Orbit Launcher** (`Super+A` / `Super+MouseForward`) — vector radial; apps, tools, links, AI/search dial (TOML-configurable).
-- **Shell & Terminal** — Fish aliases for proxy/cache, Kitty cursor trails, Windows-familiar shortcuts (smart Ctrl+C/Ctrl+V, right-click paste, selection without overriding clipboard).
-- **NyxMellow** — dynamic fcitx5 skin: mellow geometry + Noctalia Material You palette.
-- **Presets** — per-app flavor variants (e.g. kitty transparent); switch with one command, save your setup as a private preset, or edit it in `$EDITOR`.
+## What is Nyxuri?
+
+In short, **Nyxuri is a modular desktop configuration system and management engine for Arch / CachyOS**.
+
+We are committed to long-term support for dual desktop shells (the polished **Noctalia** and our in-house **Nyxuri Shell** in active incubation), debuting on Niri and progressively expanding to more window managers. Adhering to a strict **zero-bloat, transparent, and zero-residue** philosophy, it provides:
+
+- **Multi-WM & Dual Shell Architecture**: Actions dispatch through a decoupled `shell-action.sh` gateway; natively supports **Niri** (scrolling layout) and **MangoWM** (with more Wayland compositors coming), allowing seamless transitions between Noctalia and Nyxuri Shell.
+- **Global Theme & Palette Sync**: Wallpaper sampling (with video frame extraction) drives Material You palettes across GTK 3/4, XDG Portal, Kitty, web browsers, and desktop shells in lockstep.
+- **Noctalia Companion Tools (Noctalia Tools)**:
+  - **Orbit Launcher** (`Super+A` / Mouse Forward): Vector radial menu for apps, bookmarks, and search/AI dials (TOML-configurable).
+  - **Wallpaper Picker** (`Super+W`): Unified static and live video wallpaper selector with live preview.
+  - **Selection Translate**: Fast popup translation for highlighted text.
+  - **Eye Care** (`Super+N`) & **Scratchpad** (`Super+~` drop-down Kitty floating terminal).
+- **NyxMellow Input Skin**: Dynamic theme-synced Fcitx5 skin with mellow geometry, bundled with a tuned Rime setup.
+- **Modern Terminal Experience**: Kitty terminal optimizations (smooth cursor trails, clipboard-preserving shortcuts), paired with Fish aliases and Starship prompt.
+- **Modular Capability Units**: Fastfetch, Noctalia Greeter login screen, Zed config, and wallpapers toggle independently anytime (`nyxuri on` / `nyxuri off`), incurring zero background overhead when inactive.
+- **Atomic Deployment, Presets & Zero Bloat**:
+  - **Dunder Protocol**: Any file or directory containing `__custom__` (e.g. `__custom__.kdl`, `__custom__.conf`) and `monitor.kdl` is permanently preserved across updates and preset swaps.
+  - **Presets**: Easily switch application flavor presets (e.g. Kitty opacity variants) or create custom private presets.
+  - **Zero Bloat & Clean State**: Pure Python standard library with zero pip dependencies; disabling a unit wipes deployed files with zero residue; 30-roll automatic snapshots with instant rollback, and `nyxuri doctor` for status audits.
 
 ## Install
 
@@ -100,7 +112,7 @@ Nyxuri
     ├── fish/                   # shell aliases & functions
     ├── greeter/                # Noctalia Greeter login integration
     ├── kitty/                  # terminal emulator & opacity presets
-    ├── mango/                  # Mango HUD overlay
+    ├── mango/                  # MangoWM window manager & session scripts
     ├── niri/                   # window manager & session scripts
     ├── noctalia/               # desktop shell, theme sync, Orbit & wallpaper picker
     ├── starship/               # prompt styling

@@ -10,7 +10,7 @@ Nyxuri
     ├── fish/                   # shell aliases & functions
     ├── greeter/                # Noctalia Greeter login integration
     ├── kitty/                  # terminal emulator & opacity presets
-    ├── mango/                  # Mango HUD overlay
+    ├── mango/                  # MangoWM window manager & session scripts
     ├── niri/                   # window manager & session scripts
     ├── noctalia/               # desktop shell, theme sync, Orbit & wallpaper picker
     ├── starship/               # prompt styling
