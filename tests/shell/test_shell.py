@@ -2663,6 +2663,33 @@ class TestP4ThemeEngineContract(unittest.TestCase):
             self.assertEqual(res2.returncode, 0)
             self.assertEqual(conf_path.read_text(encoding="utf-8"), result)
 
+    def test_kitty_shortcuts_orthodox(self):
+        """T0 copy/paste verdict: no Windows-style hijacks; presets ship identical shortcuts."""
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        confs = [
+            os.path.join(repo_root, "units", "kitty", "kitty.conf"),
+            os.path.join(repo_root, "units", "kitty", "__presets__", "transparent", "kitty.conf"),
+        ]
+        retired = (
+            "copy_and_clear_or_interrupt",
+            "map ctrl+v paste_from_clipboard",
+            "mouse_map right press",
+            "map ctrl+a pipe",
+        )
+        shortcut_blocks = []
+        for conf in confs:
+            with open(conf, "r", encoding="utf-8") as f:
+                content = f.read()
+            # Explicit-copy semantics: selecting text must not silently take the clipboard.
+            self.assertIn("copy_on_select no", content, conf)
+            for hijack in retired:
+                self.assertNotIn(hijack, content, f"{conf}: retired hijack must not return: {hijack}")
+            shortcut_blocks.append(sorted(
+                line.strip() for line in content.splitlines()
+                if line.strip().startswith(("map ", "mouse_map "))))
+        self.assertEqual(shortcut_blocks[0], shortcut_blocks[1],
+                         "kitty.conf and transparent preset must ship identical shortcut blocks")
+
     def test_template_service_avoids_double_reload_and_fixes_watchdog(self):
         svc_path = os.path.join(self.shell_dir, "app", "services", "TemplateService.qml")
         with open(svc_path, "r", encoding="utf-8") as f:
