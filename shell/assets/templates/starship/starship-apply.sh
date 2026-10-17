@@ -7,6 +7,9 @@
 set -euo pipefail
 
 palette_file="${XDG_CACHE_HOME:-$HOME/.cache}/nyxuri/starship-palette.toml"
+if [ ! -f "$palette_file" ] && [ -f "$HOME/.cache/nyxuri/starship-palette.toml" ]; then
+    palette_file="$HOME/.cache/nyxuri/starship-palette.toml"
+fi
 marker_begin="# >>> NYXURI STARSHIP PALETTE >>>"
 marker_end="# <<< NYXURI STARSHIP PALETTE <<<"
 # Co-managed file invariant: a previous Noctalia render leaves its own block

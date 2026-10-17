@@ -66,6 +66,11 @@ Item {
             "id": "palette_toml",
             "label": I18n.tr("Shared palette"),
             "icon": "palette"
+        },
+        {
+            "id": "fcitx5",
+            "label": I18n.tr("Fcitx5"),
+            "icon": "keyboard"
         }
     ]
 

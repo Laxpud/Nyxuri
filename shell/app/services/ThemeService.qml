@@ -175,6 +175,12 @@ Singleton {
     }
 
     function setMatugenTemplateEnabled(id, enabled) {
+        if (id === "fcitx5") {
+            for (const subId of ["fcitx5_theme", "fcitx5_panel", "fcitx5_highlight"]) {
+                root.setMatugenTemplateEnabled(subId, enabled);
+            }
+            return;
+        }
         let changed = PersonalizationConfig.setMatugenTemplateEnabled(id, enabled);
         if (changed && enabled)
             TemplateService.renderTemplate(id);

@@ -130,6 +130,7 @@ Item {
 
         function reload(): string {
             StateProjection.reload();
+            TemplateService.refresh();
             return StateProjection.degraded ? "DEGRADED" : "OK";
         }
     }

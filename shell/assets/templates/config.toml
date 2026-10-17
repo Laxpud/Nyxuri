@@ -47,3 +47,18 @@ output_path = "~/.config/niri/colors.kdl"
 [templates.palette_toml]
 input_path = "~/.config/nyxuri/templates/palette.toml"
 output_path = "~/.cache/nyxuri/palette.toml"
+
+# Fcitx5 NyxMellow 动态皮肤（mellow 形状 + Material You 自动取色）
+[templates.fcitx5_theme]
+input_path = "~/.local/share/fcitx5/themes/nyxmellow/templates/theme.conf"
+output_path = "~/.local/share/fcitx5/themes/nyxmellow/theme.conf"
+
+[templates.fcitx5_panel]
+input_path = "~/.local/share/fcitx5/themes/nyxmellow/templates/panel.svg"
+output_path = "~/.local/share/fcitx5/themes/nyxmellow/panel.svg"
+
+[templates.fcitx5_highlight]
+input_path = "~/.local/share/fcitx5/themes/nyxmellow/templates/highlight.svg"
+output_path = "~/.local/share/fcitx5/themes/nyxmellow/highlight.svg"
+post_hook = "busctl --user --auto-start=no call org.fcitx.Fcitx5 /controller org.fcitx.Fcitx.Controller1 ReloadAddonConfig s classicui >/dev/null 2>&1 || true"
+

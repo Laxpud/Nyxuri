@@ -24,7 +24,8 @@ fi
 # Do NOT set QML_DISABLE_DISK_CACHE instead: without the cache write, every
 # Loader load re-hits the 0.3.2 qs-import defect and units die at cold
 # compile.
-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/nyxuri-shell"
+export NYXURI_ORIGINAL_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+export XDG_CACHE_HOME="${NYXURI_ORIGINAL_CACHE_HOME}/nyxuri-shell"
 rm -rf "${XDG_CACHE_HOME}/quickshell/qmlcache"
 
 # The generated palette has to be written where the shell reads it. The two sides

@@ -27,6 +27,11 @@ mkdir -p "$HOME" "$HOME/.config/nyxuri/templates"
 for f in gtk-3.0.css gtk-4.0.css niri-glow-material-you.kdl palette.toml; do
     printf '/* shared pool fixture */\n' > "$HOME/.config/nyxuri/templates/$f"
 done
+# Fcitx5 skin template fixtures deployed by fcitx5-rime unit
+mkdir -p "$HOME/.local/share/fcitx5/themes/nyxmellow/templates"
+for f in theme.conf panel.svg highlight.svg; do
+    printf '/* fcitx5 skin fixture */\n' > "$HOME/.local/share/fcitx5/themes/nyxmellow/templates/$f"
+done
 manager="$repo_root/scripts/theme/manage-matugen-templates.sh"
 generator="$repo_root/scripts/theme/generate-matugen-colors.sh"
 manage() { bash "$manager" "$@"; }
@@ -40,9 +45,10 @@ reject() {
 }
 
 manage list > "$test_root/list.json"
-jq -e '.errors == [] and ([.templates[] | select(.origin == "builtin")] | length == 7)
+jq -e '.errors == [] and ([.templates[] | select(.origin == "builtin")] | length == 10)
     and all(.templates[]; .valid)
     and any(.templates[]; .id == "kitty" and (.inputPath | test("kitty/kitty\\.conf$")))
+    and any(.templates[]; .id == "fcitx5_theme" and (.inputPath | test("fcitx5/themes/nyxmellow/templates/theme\\.conf$")))
     and any(.templates[]; .id == "gtk3" and (.inputPath | test("nyxuri/templates/gtk-3\\.0\\.css$")))' \
     "$test_root/list.json" >/dev/null
 assert test ! -e "$CLAVIS_CONFIG_HOME/matugen"

@@ -1316,6 +1316,14 @@ Singleton {
     }
 
     function isMatugenTemplateEnabled(id) {
+        if (id === "fcitx5") {
+            const t = TemplateService.templateById("fcitx5_theme");
+            if (!t || !t.valid)
+                return false;
+            return root.isMatugenTemplateEnabled("fcitx5_theme")
+                && root.isMatugenTemplateEnabled("fcitx5_panel")
+                && root.isMatugenTemplateEnabled("fcitx5_highlight");
+        }
         const template = TemplateService.templateById(id);
         if (!template || !template.valid)
             return false;
@@ -1325,6 +1333,13 @@ Singleton {
     }
 
     function setMatugenTemplateEnabled(id, enabled) {
+        if (id === "fcitx5") {
+            let changed = false;
+            for (const subId of ["fcitx5_theme", "fcitx5_panel", "fcitx5_highlight"]) {
+                changed = root.setMatugenTemplateEnabled(subId, enabled) || changed;
+            }
+            return changed;
+        }
         const template = TemplateService.templateById(id);
         if (!root.ready || !template || !template.valid)
             return false;

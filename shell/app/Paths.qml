@@ -28,6 +28,15 @@ Singleton {
                                             + "/.config"
     readonly property string xdgDataHome: root.absoluteEnvironment("XDG_DATA_HOME") || homeDir
                                           + "/.local/share"
+    readonly property string xdgCacheHome: {
+        const orig = root.absoluteEnvironment("NYXURI_ORIGINAL_CACHE_HOME");
+        if (orig)
+            return orig;
+        const raw = root.absoluteEnvironment("XDG_CACHE_HOME") || "";
+        if (raw.endsWith("/nyxuri-shell"))
+            return raw.substring(0, raw.length - "/nyxuri-shell".length);
+        return raw || (homeDir + "/.cache");
+    }
     readonly property string binHome: root.absoluteEnvironment("NYXURI_BIN_HOME") || root.absoluteEnvironment(
                                           "CLAVIS_BIN_HOME") || homeDir + "/.local/bin"
     readonly property string stableKey: root.absoluteEnvironment("NYXURI_KEY") || root.absoluteEnvironment(
