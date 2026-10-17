@@ -69,7 +69,7 @@ hooks 的实机行为证据与视觉验收待作者确认。镜像色板是否�
 ## 后续阶段
 
 - **原 P5 完整宿主、部署与双轨生态 → 已吸收为主线 KM4，已交付**（2026-10-17，
-  明细见根 [ROADMAP](../ROADMAP.md) KM4 条目与本台账追加节）：P5 验收标准原样
+  明细见 [roadmap-history](../llms-wiki/archive/roadmap-history.md) KM 存档与本台账追加节）：P5 验收标准原样
   平移——六动作经 `nyxuri-shell --action` 通路保持零改动（单元 off 时 IPC 目标
   消失 = 真实失败明示）；部署契约经 `units/theme`（merge 共享生活区）与部署流程
   自动 `on theme` 接入；共享池位置中立化（`~/.config/nyxuri/templates/`）与双
