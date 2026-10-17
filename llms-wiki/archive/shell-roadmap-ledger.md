@@ -473,16 +473,26 @@ R1–R7 是已交付基线。下一步从 R8 开始；P4 及之后保留在后�
 ### 运行时调试记录（2026-10-17，实机首切失败定位）
 
 首次实机 `nyxuri shell switch` 探针超时回滚。离屏（offscreen）实跑替代 qmllint
-（其对 Quickshell 合成 qmldir 全盲，322 条 advisory 淹没了真错）逐层定位，两个
-独立根因、已修并有干净启动证据：
+（其对 Quickshell 合成 qmldir 全盲，322 条 advisory 淹没了真错）逐层定位；随后
+接入 LogService（会话日志环 + `qs ipc call shell log` + 设置页会话日志节 +
+state/logs/shell.log）后，日志点失踪暴露出第三个根因（缓存陈旧化）。共四个
+独立缺陷、全部已修并有干净启动与全链路证据：
 
-1. **qs-import 并发竞态**：Loader 装载的组件在冷启动并发解析各自 import 图，
-   败者不确定地报「module not installed / X is not a type」整单元暴毙（清
-   qmlcache 无效，失败集合逐次漂移；旧世界静态 import 从不触发）。修复：
-   SlotHost 静态预热 import 12 个单元模块——只注册不实例化，零实例化契约不变。
-2. **IpcHandler 模块归属**：0.3.2 的 IpcHandler 挂在 Quickshell.Io；三个新增
+1. **qs-import 装载缺陷**：Loader 装载的组件首次解析 qs.* import 图不可靠，
+   败者不确定地报「module not installed / X is not a type」整单元暴毙（与
+   磁盘缓存无关，复现稳定）。修复：SlotHost 静态预热 import 12 个单元模块
+   ——只注册不实例化，零实例化契约不变。
+2. **QML 磁盘缓存陈旧化**：quickshell qmlcache 在源码改动后仍供应旧编译
+   产物——新旧代码混跑（「改了没生效」的另一半真相；曾使诊断日志点整体
+   失踪）。修复：nyxuri-shell wrapper 每次启动清空 qmlcache。实测注意：
+   `QML_DISABLE_DISK_CACHE=1` 不可替代——无缓存写入时每次 Loader 装载都会
+   重新触发缺陷 1（冷编译 + 缓存写入的组合反而干净）。
+3. **IpcHandler 模块归属**：0.3.2 的 IpcHandler 挂在 Quickshell.Io；三个新增
    handler 的单元根（Session/Settings/Launcher）缺 `import Quickshell.Io`，
    目标静默消失（mod+i 无响应的直接原因）。已补。
+4. **DockModel decodeConfig 严格校验回归**：退役 `enabled` key 导致现存
+   dock.json 全员被拒读（「无法读取 Dock 设置」横幅）。修复：退役/未知
+   key 丢弃而非拒读，损坏值维持原拒绝语义。
 
 修复后同机实测：零类型错误、READY→IPC_READY 46ms；IPC 面全通——`unit reload`
 回 OK、`control-center toggle` OPENING/CLOSING、`spotlight toggle` OPENING、

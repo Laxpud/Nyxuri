@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.app
+import qs.app.services
 
 // UnitControl — the only route settings surfaces may take to flip a Shell
 // unit: dispatch `nyxuri on/off shell.<domain>` and let the kernel
@@ -34,14 +35,19 @@ Singleton {
         proc.command = [Paths.binHome + "/nyxuri", enable ? "on" : "off", "shell." + unitId];
         proc.running = true;
         watchdog.restart();
+        LogService.info("units", "dispatch: nyxuri " + (enable ? "on" : "off") + " shell." + unitId);
         return true;
     }
 
     function _finish(code) {
         watchdog.stop();
-        if (code !== 0)
+        if (code !== 0) {
             root.lastError = "nyxuri " + (root._pendingEnable ? "on" : "off") + " shell."
                     + root.pendingUnitId + " failed (exit " + code + ")";
+            LogService.error("units", root.lastError);
+        } else {
+            LogService.info("units", "unit switch done: shell." + root.pendingUnitId);
+        }
         root.pendingUnitId = "";
     }
 

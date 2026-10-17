@@ -1588,15 +1588,16 @@ class TestShellManagement(unittest.TestCase):
             old_file = os.path.join(services_dir, name)
             self.assertFalse(os.path.exists(old_file), f"Old service duplicate must not exist in app/services: {old_file}")
 
-        # 3. Assert app/ file count strictly converged: 47 files total
-        # (7 app root — AppShell/SlotHost/UnitCatalog/ActionGateway/Paths/WidgetState
-        # + services/StateProjection、UnitControlService 两个内核投影件)
+        # 3. Assert app/ file count strictly converged: 48 files total
+        # (7 app root + services/*; KM4 adds SlotHost/UnitCatalog/
+        # StateProjection/UnitControlService/LogService — the microkernel
+        # assembly, catalog, ledger projection, unit verb and log surfaces)
         app_files = []
         for root_dir, _, files in os.walk(os.path.join(shell_dir, "app")):
             for f in files:
                 if f.endswith((".qml", ".js")):
                     app_files.append(os.path.join(root_dir, f))
-        self.assertEqual(len(app_files), 47, f"app/ must strictly contain 47 files, found {len(app_files)}: {app_files}")
+        self.assertEqual(len(app_files), 48, f"app/ must strictly contain 48 files, found {len(app_files)}: {app_files}")
 
         # 5. Static lifecycle audit passes clean with zero violations
         import subprocess

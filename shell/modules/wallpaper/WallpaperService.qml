@@ -270,13 +270,19 @@ Singleton {
         root.rememberWallpaper(path);
         Appearance.currentWallpaperPreview = root.isImagePath(path) ? Paths.fileUrl(path) : path;
         root.switching = true;
+        LogService.info("wallpaper", "set: " + path + (screenName ? " (screen " + screenName + ")" : "")
+                        + " perMonitor=" + PersonalizationConfig.perMonitorWallpaper + " perMode="
+                        + PersonalizationConfig.perModeWallpaper);
 
-        if (root.isImagePath(path))
+        if (root.isImagePath(path)) {
             ThemeService.generateFromWallpaper(path);
-        else if (WallpaperSource.primary(path))
+        } else if (WallpaperSource.primary(path)) {
+            LogService.info("wallpaper", "non-image source, generating from primary color");
             ThemeService.generateFromColor(WallpaperSource.primary(path));
-        else
+        } else {
+            LogService.warn("wallpaper", "no image path and no primary color — theme NOT regenerated");
             root.switching = false;
+        }
 
         return true;
     }

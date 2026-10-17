@@ -99,11 +99,17 @@ Shell 是极致精简的**微内核宿主**：宿主只保留装配（`SlotHost`
   （unit/shell/theme/shortcut-map/wallpaper）。单元 off 时其 IPC 目标消失，
   六动作经 `nyxuri-shell --action` 得到真实失败而非假成功。
 - **Quickshell 0.3.2 运行时约束**（KM4 实测，quickshell 升级后重估）：
-  ① Loader 动态装载的组件在冷启动并发解析各自 import 图时会竞态——败者以
-  「module not installed / X is not a type」不确定地整单元暴毙。对策：SlotHost
-  静态预热 import 全部 12 个单元模块（只注册不实例化），装载仍纯 Loader 驱动；
-  禁用单元零实例化、零窗口、零驻留内存不变，代价是预热注册的仅解析成本。
-  ② `IpcHandler` 类型挂在 `Quickshell.Io` 模块下——单元根新增 handler 时必须
+  ① Loader 动态装载的组件首次解析 qs.* import 图不可靠——单元以「module not
+  installed / X is not a type」不确定地整单元暴毙（与 QML 磁盘缓存无关）。
+  对策：SlotHost 静态预热 import 全部 12 个单元模块（只注册不实例化），装载仍
+  纯 Loader 驱动；禁用单元零实例化、零窗口、零驻留内存不变，代价是预热注册的
+  仅解析成本。
+  ② QML 磁盘缓存会供应陈旧编译产物——源码改动后新旧代码混跑（表现为「改了没
+  生效」「部分单元是新逻辑部分是旧逻辑」）。对策：nyxuri-shell wrapper 每次
+  启动清空 qmlcache（永远冷编译，预热 import 已证冷编译干净）。注意不可用
+  `QML_DISABLE_DISK_CACHE=1` 替代——没有缓存写入时每次 Loader 装载都会重新
+  踩中 ① 的 import 缺陷。
+  ③ `IpcHandler` 类型挂在 `Quickshell.Io` 模块下——单元根新增 handler 时必须
   `import Quickshell.Io`（仅 import Quickshell 不够，报「IpcHandler is not a
   type」且目标静默消失）。
 - **降级语义**：能力全开、副作用明示——`off shell.lock` 后 idle 锁请求报失败

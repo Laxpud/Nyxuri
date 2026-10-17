@@ -1660,6 +1660,25 @@ var catalog = {
     },
     {
       "aliases": [
+        "log",
+        "logs",
+        "debug",
+        "theme",
+        "取色"
+      ],
+      "anchor": true,
+      "context": "ShellPage",
+      "icon": "receipt_long",
+      "id": "shell.section.log",
+      "path": [
+        "shell"
+      ],
+      "route": "shell",
+      "source": "ShellPage.qml",
+      "title": "Session log"
+    },
+    {
+      "aliases": [
         "sampling",
         "cpu",
         "memory",
@@ -1988,6 +2007,7 @@ function title(id) {
     case "network.section.other-settings": return I18n.tr("Other settings", "NetworkPage");
     case "network.section.connection-information": return I18n.tr("Connection information", "NetworkPage");
     case "shell.section.modules": return I18n.tr("Modules & dependencies", "ShellPage");
+    case "shell.section.log": return I18n.tr("Session log", "ShellPage");
     case "shell.section.sampling": return I18n.tr("Resource sampling", "ShellPage");
     case "shell.section.diagnostics": return I18n.tr("Diagnostics & paths", "ShellPage");
     case "spotlight.section.applications": return I18n.tr("Applications", "SpotlightPage");

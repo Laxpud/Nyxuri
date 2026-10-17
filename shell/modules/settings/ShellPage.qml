@@ -227,6 +227,51 @@ StyledFlickable {
         }
 
         SettingsSection {
+            id: logSection
+
+            Layout.fillWidth: true
+            flat: true
+            title: logAnchor.title
+            iconName: "receipt_long"
+
+            SettingsSearchAnchor {
+                id: logAnchor
+
+                target: logSection
+                declaration:
+                    '{"id":"shell.section.log","route":"shell","title":"Session log","context":"ShellPage","icon":"receipt_long","aliases":["log","logs","debug","theme","取色"]}'
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: I18n.tr(
+                          "Last 40 entries of this session — theme generation, template renders and unit switches report here. The full log plus one previous session live under the state directory.")
+                color: Appearance.colors.colOnSurfaceVariant
+                font.family: Typography.bodySmall.family
+                font.pixelSize: Typography.bodySmall.pixelSize
+                wrapMode: Text.Wrap
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: LogService.recentText(40)
+                color: Appearance.colors.colOnSurface
+                font.family: PersonalizationConfig.monoFontFamily
+                font.pixelSize: Typography.bodySmall.pixelSize
+                wrapMode: Text.Wrap
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: I18n.tr("Log files: ") + LogService.logPath + "  ·  " + LogService.prevLogPath
+                color: Appearance.colors.colOnSurfaceVariant
+                font.family: PersonalizationConfig.monoFontFamily
+                font.pixelSize: Typography.bodySmall.pixelSize
+                wrapMode: Text.Wrap
+            }
+        }
+
+        SettingsSection {
             id: samplingSection
 
             Layout.fillWidth: true

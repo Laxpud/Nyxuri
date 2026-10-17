@@ -219,6 +219,8 @@ Singleton {
         }
         root.activeMode = PersonalizationConfig.themeMode === "light" ? "light" : "dark";
         root.renderQueue = root.enabledTemplateIds();
+        LogService.info("template", "renderAll: " + root.renderQueue.length + " templates (mode="
+                        + root.activeMode + ")");
         root.renderNext();
     }
 
@@ -378,6 +380,7 @@ Singleton {
         delete nextErrors[id];
         root.renderErrors = nextErrors;
         root.outputContent = root.pendingRendered;
+        LogService.info("template", "rendered " + id + " → " + root.renderingOutput);
         const hook = root.renderingHook;
         if (hook === "") {
             root.renderDone();
@@ -402,6 +405,7 @@ Singleton {
             "XDG_CACHE_HOME": Quickshell.env("XDG_CACHE_HOME") || Paths.homeDir + "/.cache"
         };
         root.watchStep("Hook");
+        LogService.info("template", "hook: " + hook.substring(0, 80));
         process.running = true;
     }
 
@@ -414,10 +418,13 @@ Singleton {
             process.destroy();
             root.hookProcess = null;
         }
-        if (failed)
+        if (failed) {
+            LogService.error("template", message + " (while running: " + root.renderingHook.substring(0, 80)
+                             + ")");
             root.renderFailed(message);
-        else
+        } else {
             root.renderDone();
+        }
     }
 
     Component {
@@ -456,7 +463,7 @@ Singleton {
         const nextErrors = JSON.parse(JSON.stringify(root.renderErrors));
         nextErrors[id] = message;
         root.renderErrors = nextErrors;
-        console.warn("Template render failed:", id, message);
+        LogService.error("template", "render failed: " + id + " — " + message);
         root.renderDone();
     }
 

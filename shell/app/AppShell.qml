@@ -195,6 +195,12 @@ Item {
         function diagnostics(): string {
             return ShellControlService.diagnosticsJson();
         }
+
+        // Structured session log (LogService ring) — the feedback surface
+        // for "why did X not happen": read via qs ipc or the settings page.
+        function log(): string {
+            return LogService.text();
+        }
     }
 
     // Wallpaper capability IPC stays host-level on purpose: the unit switch
