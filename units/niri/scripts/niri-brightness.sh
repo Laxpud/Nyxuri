@@ -30,7 +30,7 @@ if command -v niri >/dev/null 2>&1; then
     connector="$(niri msg focused-output 2>/dev/null | sed -n '1s/.*(\([^)]*\))$/\1/p')"
 fi
 
-backlight_dir="${NYXURI_BACKLIGHT_DIR:-${NYXNIRI_BACKLIGHT_DIR:-/sys/class/backlight}}"
+backlight_dir="${NYXURI_BACKLIGHT_DIR:-/sys/class/backlight}"
 has_backlight=false
 if [ -d "$backlight_dir" ]; then
     for dev in "$backlight_dir"/*; do

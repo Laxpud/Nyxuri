@@ -3,6 +3,8 @@
 > 命令分发在 `nyxuri/cli.py` 的 `COMMANDS` dict。退出码自动传播。
 > KM3.5 起 `COMMANDS` 收敛为 20 键 = 17 活动词 + enable/disable 长动词 + help；
 > 旧命令别名 ×12 与倒计时表已处决——旧名就是普通 unknown command。
+> KM5：`install.sh` 退役为一次性引导（无参数透传，常驻入口 = `nyxuri/launcher.sh`）；
+> `migrations/` 与 nyxniri 兼容层（别名 / `NYXNIRI_*`）处决。
 
 ## 单元动词（4 动词接管）
 
@@ -21,7 +23,7 @@
 | 命令 | 干啥 |
 |---|---|
 | `install [full\|config]` | 旧世界整装流水线（配置 + 壁纸单元 + 钩子重放）；市场化后由 `on <unit>` 接管 |
-| `update [--force\|--no-deploy] [--to <tag\|commit>]` | 拉新版本 + 线性状态迁移 (`migrations`) + 重新部署；`--to` 锁到指定版本（system 模式 → 提示 pacman） |
+| `update [--force\|--no-deploy] [--to <tag\|commit>]` | 拉新版本 + 重新部署（KM5：线性迁移机制已清算，账本即真相）；`--to` 锁到指定版本（system 模式 → 提示 pacman） |
 | `preset <app> [list\|apply <name>\|save <name>\|edit <name>\|delete <name>\|parts\|part <slot> <name>]` | 切/管理预设与零件插槽（状态接入 `state.json` 账本） |
 | `theme [toggle\|dark\|light\|sync\|status]` | 原生切换/同步深浅主题（纯 Python 调度 gsettings、GTK settings.ini、Noctalia IPC 与 Kitty 信号） |
 | `shell [get\|set <noctalia\|nyxuri-shell> [bin_path]\|switch [\|bin_path]\|status]` | 查看或切换桌面外壳运行插槽。**[EXPERIMENTAL]** nyxuri-shell 开发中，输出带实验性警告 |
@@ -32,18 +34,15 @@
 | `rollback [index]` | 从存档恢复 |
 | `uninstall [--all\|standard\|restore\|purge]` | 卸载（勾选式）；`--all` 等价三选一路径直达 |
 | `bug` | 导出诊断报告 |
-| `test` | 开发者沙箱部署测试（`HOME=$(mktemp -d) ./install.sh test` 的落点） |
+| `test` | 开发者沙箱部署测试（`HOME=$(mktemp -d) python3 -m nyxuri test` 的落点；install.sh 已不透传参数） |
 | `help` | 用法 |
 
-## 已处决（KM3.5，调用即 unknown command）
+## 已处决（KM3.5 + KM5，调用即 unknown command）
 
-`deploy` `backup` `restore` `remove` `purge` `recommended` `apps` `wp` `wallpapers`
+KM3.5：`deploy` `backup` `restore` `remove` `purge` `recommended` `apps` `wp` `wallpapers`
 `report` `-h/--help`，以及幽灵指针 `greeter` `fcitx` `gtk` `fisher`。
+KM5：系统软链与用户端别名 `nyxniri`、`NYXNIRI_*` 环境变量回退（原「兼容别名」节随
+`migrations/` 清算一并处决——一个变量一个前缀 `NYXURI_*`）。
 替代能力：`on/off <unit>`（单元能力）、`snapshot`/`rollback`/`uninstall`（状态域）、
 `deps apps`（可选软件）、`bug`（诊断）；壁纸能力 = `on wallpapers`
 （外部大包走 `units/wallpapers/hooks/install-pack`）。
-
-## 兼容别名
-
-系统软链与用户端别名 `nyxniri` 保留，执行任何命令等价 `nyxuri`，兼容
-`NYXNIRI_*` 环境变量（清算登记在 `migrations/`，KM5 处决）。

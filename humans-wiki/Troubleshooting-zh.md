@@ -1,4 +1,4 @@
-遇到问题优先运行 `./install.sh doctor`。
+遇到问题优先运行 `nyxuri doctor`。
 
 ---
 

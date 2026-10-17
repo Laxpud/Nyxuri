@@ -7,6 +7,14 @@
 
 ## [Unreleased]
 
+### Changed
+- `install.sh` 退役为一次性引导：不再接受参数、不再作为常驻入口；新增长期启动器 `nyxuri/launcher.sh`，`~/.local/bin/nyxuri` 旧软链会在下次运行时自动治愈重指（AUR 包 `/usr/bin/nyxuri` 同步改指）
+- 沙箱部署测试入口改为 `HOME=$(mktemp -d) python3 -m nyxuri test`（原 `./install.sh test` 随透传退役）
+
+### Removed
+- 移除 `nyxniri` 兼容层：系统软链、fish 别名与补全、`NYXNIRI_*` 环境变量回退全部退役，统一单前缀 `NYXURI_*`
+- 移除 `nyxuri/migrations/` 线性迁移机制（nyxniri 时代 tombstone 清算完毕；卸载时历史目录清扫保留）
+
 ### Added
 - 新增 Mango WM 适配与多窗口管理器支持：保留 Niri 标准模板的同时，接入 Mango 窗口管理器配置、热重载与门户映射
 - 安装菜单与部署流程支持窗口管理器互斥单选（Radio 单选组），支持按环境自动首选运行中的 WM，避免同时部署多个 WM 导致冲突

@@ -18,9 +18,7 @@ def hex_to_rgb(hex_str: str, default=(0.5, 0.5, 0.5)):
 
 
 PALETTE_PATH = "~/.cache/nyxuri/palette.toml"
-LEGACY_PALETTE_PATH = "~/.cache/nyxniri/palette.toml"
-NYXURI_PALETTE_PATH = PALETTE_PATH
-NYXNIRI_PALETTE_PATH = PALETTE_PATH
+NYXURI_PALETTE_PATH = PALETTE_PATH  # patch seam for tests
 
 
 def _parse_toml_colors(path: str) -> dict:
@@ -57,16 +55,8 @@ def load_material_palette(path: str = None) -> dict:
     }
 
     # 1. Primary: Native Nyxuri M3 palette
-    target_path = path or (
-        NYXURI_PALETTE_PATH
-        if NYXURI_PALETTE_PATH != PALETTE_PATH
-        else (NYXNIRI_PALETTE_PATH if NYXNIRI_PALETTE_PATH != PALETTE_PATH else PALETTE_PATH)
-    )
+    target_path = path or NYXURI_PALETTE_PATH
     expanded = os.path.expanduser(target_path)
-    if not path and target_path == PALETTE_PATH and not os.path.isfile(expanded):
-        legacy = os.path.expanduser(LEGACY_PALETTE_PATH)
-        if os.path.isfile(legacy):
-            expanded = legacy
     m3_colors = _parse_toml_colors(expanded)
     if m3_colors and "primary" in m3_colors and "surface" in m3_colors:
         for k in ("primary", "secondary", "tertiary", "surface", "surface_dim", "on_surface", "outline"):

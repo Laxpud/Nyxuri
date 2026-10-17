@@ -27,7 +27,7 @@ if command -v mmsg >/dev/null 2>&1; then
     connector="$(mmsg get cursorpos 2>/dev/null | jq -r '.monitor' 2>/dev/null || true)"
 fi
 
-backlight_dir="${NYXURI_BACKLIGHT_DIR:-${NYXNIRI_BACKLIGHT_DIR:-/sys/class/backlight}}"
+backlight_dir="${NYXURI_BACKLIGHT_DIR:-/sys/class/backlight}"
 has_backlight=false
 if [ -d "$backlight_dir" ]; then
     for dev in "$backlight_dir"/*; do

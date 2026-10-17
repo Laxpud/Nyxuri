@@ -46,7 +46,7 @@ Noctalia IPC）由 `nyxuri/desktop/theme.py` 唯一承担（P4 契约）。旧�
 
 | 职责 | 说明 |
 |---|---|
-| 可覆盖变量 | `NYXURI_GTK_THEME_DARK`（兼顾 `NYXNIRI_*`）等环境变量 |
+| 可覆盖变量 | `NYXURI_GTK_THEME_DARK` 等环境变量 |
 | 并发锁 | `flock` 防止快速 toggle 竞争 |
 | `atomic_update_ini` | 原子写 INI，含 regex 特殊字符转义 |
 | `set_system_theme` | gsettings / dconf 双路径降级 |
@@ -352,7 +352,7 @@ M3 配色后，Qt 应用自动跟随，不需要 Kvantum（Kvantum 仅给走 Kva
 1. diff 上游变更，判断是否需要同步。
 2. 按 §6.1 转换规则表手动转换 SCSS → CSS + Jinja2。
 3. `python3 -m unittest discover -s tests -q`。
-4. `HOME=$(mktemp -d) ./install.sh test` 确认部署正常。
+4. `HOME=$(mktemp -d) python3 -m nyxuri test` 确认部署正常。
 5. 实机换壁纸验证 GTK 应用跟随。
 
 ---

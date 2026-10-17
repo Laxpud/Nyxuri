@@ -1,6 +1,14 @@
-"""Bootstrap import-boundary tests for install.sh."""
+"""Bootstrap + launcher security tests for install.sh (KM5).
+
+install.sh is a one-time bootstrap: fetch/verify the tree, then hand off to
+nyxuri/launcher.sh with NO argument passthrough. The launcher is the permanent
+CLI entry and must replicate the pre-KM5 hardening: python3 -I -S -c with the
+repo root injected, so PYTHON*/sitecustomize injection from the launch
+directory can never reach the engine.
+"""
 
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -13,18 +21,30 @@ from tests.utils import TempEnv
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PYTHON_LAUNCHER = (
-    'import sys; target = sys.argv.pop(1); sys.path.insert(0, target); '
-    'sys.argv[0] = "nyxuri"; from nyxuri.cli import main; main()'
-)
-PYTHON_VERSION_CODE = 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")'
+
+
+def _launcher_python_snippet() -> str:
+    """The exact -c snippet the launcher execs (single source: the file itself)."""
+    src = (REPO_ROOT / "nyxuri" / "launcher.sh").read_text(encoding="utf-8")
+    match = re.search(r"exec python3 -I -S -c '(.*?)' \"\$repo_dir\" \"\$@\"", src, re.DOTALL)
+    assert match, "launcher.sh must exec python3 -I -S -c '<snippet>' \"$repo_dir\" \"$@\""
+    return match.group(1)
 
 
 class TestInstallBootstrap(unittest.TestCase):
-    def _fake_tools(self, root: Path, log: Path) -> Path:
+    def _fake_tools(self, root: Path, log: Path, exec_real: bool = False) -> Path:
+        """Fake python3/git on PATH.
+
+        exec_real=False (bootstrap tests): the -I -S -c launch is logged and
+        stubbed — the bare handoff would otherwise trigger the interactive
+        install workflow (sudo prompts, full deploy) inside the sandbox.
+        exec_real=True (launcher tests): the launch is logged and forwarded to
+        the real interpreter, proving PYTHON*/sitecustomize isolation.
+        """
         bindir = root / "bin"
         bindir.mkdir()
         log_path = shlex.quote(str(log))
+        tail = 'exec /usr/bin/python3 "$@"' if exec_real else "exit 0"
         (bindir / "python3").write_text(
             textwrap.dedent(
                 f"""\
@@ -36,9 +56,10 @@ class TestInstallBootstrap(unittest.TestCase):
                 if [ "$1" = "-I" ] && [ "$2" = "-S" ] && [ "$3" = "-c" ]; then
                     {{
                         printf 'cwd=%s\\0' "$PWD"
-                        for arg do printf '%s\\0' "$arg"; done
+                        for arg do printf '%s\\0' "$arg"
+                        done
                     }} > {log_path}
-                    exec /usr/bin/python3 "$@"
+                    {tail}
                 fi
                 exit 99
                 """
@@ -80,18 +101,15 @@ class TestInstallBootstrap(unittest.TestCase):
     def _read_args(path: Path) -> list[str]:
         return [part.decode() for part in path.read_bytes().split(b"\0") if part]
 
-    def _assert_secure_launch(
-        self, result, log: Path, marker: Path, target: Path, user_args: list[str]
-    ) -> None:
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertFalse(marker.exists(), result.stdout)
-        self.assertEqual(
-            self._read_args(log.with_name(f"{log.name}.version")),
-            ["-I", "-c", PYTHON_VERSION_CODE],
-        )
+    def _assert_secure_launch(self, result, log: Path, marker: Path, target: Path, user_args: list[str]) -> None:
+        self.assertFalse(marker.exists(), result.stdout + result.stderr)
         launch = self._read_args(log)
-        self.assertEqual(launch[0], f"cwd={target.resolve()}")
-        self.assertEqual(launch[1:], ["-I", "-S", "-c", PYTHON_LAUNCHER, str(target.resolve()), *user_args])
+        # The bootstrap/launcher never cds into the target; the trusted tree is
+        # injected as the first engine argument instead (KM5 launcher contract).
+        self.assertEqual(launch[1:4], ["-I", "-S", "-c"])
+        self.assertEqual(launch[4], _launcher_python_snippet())
+        self.assertEqual(launch[5], str(target.resolve()))
+        self.assertEqual(launch[6:], user_args)
         self.assertNotIn("forged", result.stdout)
 
     def _launch_env(self, env, bindir: Path, root: Path, userbase: Path) -> dict[str, str]:
@@ -104,7 +122,7 @@ class TestInstallBootstrap(unittest.TestCase):
             "PYTHONUSERBASE": str(userbase),
         }
 
-    def test_local_repository_ignores_launch_directory_package(self):
+    def test_local_repository_bootstrap_ignores_launch_directory_package(self):
         with TempEnv() as env, tempfile.TemporaryDirectory(dir=env.home) as raw:
             root = Path(raw)
             marker = root / "forged-marker"
@@ -113,26 +131,47 @@ class TestInstallBootstrap(unittest.TestCase):
             self._fake_user_sitecustomize(root, marker)
             log = root / "python.log"
             bindir = self._fake_tools(root, log)
-            user_args = ["snapshot", "arg with spaces", "quote'and\"chars"]
             result = subprocess.run(
-                [str(REPO_ROOT / "install.sh"), *user_args],
+                [str(REPO_ROOT / "install.sh")],
                 cwd=root,
                 env=self._launch_env(env, bindir, root, root / "userbase"),
                 capture_output=True,
                 text=True,
                 check=False,
             )
-            self._assert_secure_launch(result, log, marker, REPO_ROOT, user_args)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            # KM5: the bootstrap takes no arguments — the engine is exec'd bare.
+            self._assert_secure_launch(result, log, marker, REPO_ROOT, [])
 
-    def test_local_repository_runs_real_python_help(self):
+    def test_bootstrap_rejects_arguments(self):
+        with TempEnv() as env, tempfile.TemporaryDirectory(dir=env.home) as raw:
+            root = Path(raw)
+            marker = root / "forged-marker"
+            log = root / "python.log"
+            bindir = self._fake_tools(root, log)
+            result = subprocess.run(
+                [str(REPO_ROOT / "install.sh"), "snapshot"],
+                cwd=root,
+                env=self._launch_env(env, bindir, root, root / "userbase"),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertFalse(log.exists(), "the engine must never be exec'd with args")
+            self.assertFalse(marker.exists())
+            self.assertTrue("nyxuri" in result.stderr, result.stderr)
+
+    def test_local_repository_launcher_runs_real_python_help(self):
         with TempEnv() as env, tempfile.TemporaryDirectory(dir=env.home) as raw:
             root = Path(raw)
             marker = root / "forged-marker"
             self._fake_package(root, marker)
             self._fake_sitecustomize(root, marker)
             self._fake_user_sitecustomize(root, marker)
+            bindir = self._fake_tools(root, root / "python-unused.log", exec_real=True)
             result = subprocess.run(
-                [str(REPO_ROOT / "install.sh"), "help"],
+                [str(REPO_ROOT / "nyxuri" / "launcher.sh"), "help"],
                 cwd=root,
                 env={
                     **os.environ,
@@ -150,6 +189,27 @@ class TestInstallBootstrap(unittest.TestCase):
             self.assertIn("(nyxuri)", result.stdout)
             self.assertFalse(marker.exists(), result.stdout)
 
+    def test_launcher_passes_arguments_securely(self):
+        with TempEnv() as env, tempfile.TemporaryDirectory(dir=env.home) as raw:
+            root = Path(raw)
+            marker = root / "forged-marker"
+            self._fake_package(root, marker)
+            self._fake_sitecustomize(root, marker)
+            self._fake_user_sitecustomize(root, marker)
+            log = root / "python.log"
+            bindir = self._fake_tools(root, log, exec_real=True)
+            user_args = ["definitely-not-a-verb", "arg with spaces", "quote'and\"chars"]
+            result = subprocess.run(
+                [str(REPO_ROOT / "nyxuri" / "launcher.sh"), *user_args],
+                cwd=root,
+                env=self._launch_env(env, bindir, root, root / "userbase"),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self._assert_secure_launch(result, log, marker, REPO_ROOT, user_args)
+
     def _prepare_cache(self, env, root: Path) -> Path:
         cache = env.home / ".cache" / "nyxuri"
         shutil.copytree(
@@ -161,7 +221,7 @@ class TestInstallBootstrap(unittest.TestCase):
         (cache / ".git").mkdir()
         return cache
 
-    def test_cache_repository_ignores_launch_directory_package(self):
+    def test_cache_repository_bootstrap_ignores_launch_directory_package(self):
         with TempEnv() as env, tempfile.TemporaryDirectory(dir=env.home) as raw:
             root = Path(raw)
             marker = root / "forged-marker"
@@ -176,16 +236,16 @@ class TestInstallBootstrap(unittest.TestCase):
             script = trusted / "install.sh"
             shutil.copy2(REPO_ROOT / "install.sh", script)
             script.chmod(0o755)
-            user_args = ["snapshot", "arg with spaces", "quote'and\"chars"]
             result = subprocess.run(
-                [str(script), *user_args],
+                [str(script)],
                 cwd=root,
                 env=self._launch_env(env, bindir, root, root / "userbase"),
                 capture_output=True,
                 text=True,
                 check=False,
             )
-            self._assert_secure_launch(result, log, marker, cache, user_args)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self._assert_secure_launch(result, log, marker, cache, [])
 
     def test_piped_bootstrap_ignores_launch_directory_package(self):
         with TempEnv() as env, tempfile.TemporaryDirectory(dir=env.home) as raw:
@@ -197,17 +257,24 @@ class TestInstallBootstrap(unittest.TestCase):
             self._fake_user_sitecustomize(root, marker)
             log = root / "python.log"
             bindir = self._fake_tools(root, log)
-            user_args = ["snapshot", "arg with spaces", "quote'and\"chars"]
+            # setsid detaches any controlling terminal so the bootstrap's
+            # /dev/tty reconnect probe deterministically falls through to the
+            # plain (non-interactive) exec path.
+            bash_cmd = "bash"
+            if shutil.which("setsid"):
+                bash_cmd = "setsid bash"
             result = subprocess.run(
-                ["bash", "-s", "--", *user_args],
+                f"{bash_cmd} -s",
                 cwd=root,
                 input=(REPO_ROOT / "install.sh").read_text(encoding="utf-8"),
                 env=self._launch_env(env, bindir, root, root / "userbase"),
                 capture_output=True,
                 text=True,
                 check=False,
+                shell=True,
             )
-            self._assert_secure_launch(result, log, marker, cache, user_args)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self._assert_secure_launch(result, log, marker, cache, [])
 
 
 if __name__ == "__main__":

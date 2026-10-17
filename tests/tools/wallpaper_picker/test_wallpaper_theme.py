@@ -226,7 +226,7 @@ class TestNativeM3PaletteLoading(unittest.TestCase):
             f1.write(m3_content)
             m3_path = f1.name
         try:
-            with unittest.mock.patch.object(self.theme, "NYXNIRI_PALETTE_PATH", m3_path):
+            with unittest.mock.patch.object(self.theme, "NYXURI_PALETTE_PATH", m3_path):
                 tokens = self.theme.build_tokens()
                 self.assertEqual(tokens["primary"], self.theme.hex_to_rgb("#112233"))
                 self.assertEqual(tokens["surface"], self.theme.hex_to_rgb("#445566"))

@@ -481,10 +481,8 @@ def _cmd_update(sub_args: List[str]) -> int:
         if head.returncode == 0 and head.stdout.strip():
             from nyxuri.kernel.ledger import update_ledger
             update_ledger(last_update_head=head.stdout.strip())
-        from nyxuri.migrations import run as run_migrations
-        if not run_migrations():
-            print(msg("migration_failed"), file=sys.stderr)
-            return 1
+        # KM5: the linear migrations module was liquidated — the ledger is the
+        # only truth and the nyxniri-era tombstones are years past their sweep.
         # Hand the deploy over to a fresh process so it runs on the updated
         # engine code instead of the modules loaded before the pull.
         try:

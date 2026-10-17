@@ -63,7 +63,7 @@ def resolve_custom_bin(specified_bin: Optional[str] = None) -> str:
                 return healed
         return candidate
 
-    from_env = os.environ.get("NYXURI_CUSTOM_SHELL_BIN") or os.environ.get("NYXNIRI_CUSTOM_SHELL_BIN")
+    from_env = os.environ.get("NYXURI_CUSTOM_SHELL_BIN")
     if from_env and from_env.strip():
         candidate = from_env.strip()
         if candidate.endswith("/shell/bin/nyxuri-shell") and not os.path.isfile(candidate):

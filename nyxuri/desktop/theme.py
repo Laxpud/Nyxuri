@@ -15,7 +15,7 @@ import sys
 import time
 from pathlib import Path
 
-from nyxuri.core import get_compat_env
+from nyxuri.core import get_env_var
 from nyxuri.core import get_env, timed_run
 
 
@@ -30,7 +30,7 @@ def _mode_from_system() -> str:
         res = timed_run(["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"], 5, capture_output=True, text=True, check=False)
         if res is not None and res.returncode == 0:
             return "light" if "prefer-light" in res.stdout or "default" in res.stdout else "dark"
-    return get_compat_env("DEFAULT_MODE", "dark")
+    return get_env_var("DEFAULT_MODE", "dark")
 
 
 def _write_ini(path: Path, key: str, value: str) -> None:
@@ -196,7 +196,7 @@ def sync(mode: str = "sync") -> int:
         current = "light" if current == "light" else "dark"
         dark = current == "dark"
         scheme_val = "prefer-dark" if dark else "prefer-light"
-        gtk = get_compat_env("GTK_THEME_DARK" if dark else "GTK_THEME_LIGHT", "adw-gtk3-dark" if dark else "adw-gtk3")
+        gtk = get_env_var("GTK_THEME_DARK" if dark else "GTK_THEME_LIGHT", "adw-gtk3-dark" if dark else "adw-gtk3")
         if shutil.which("gsettings"):
             timed_run(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", scheme_val], 5, check=False)
             timed_run(["gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", gtk], 5, check=False)
@@ -206,7 +206,7 @@ def sync(mode: str = "sync") -> int:
             _write_ini(path, "gtk-theme-name", gtk)
 
         # Qt/Kvantum applications follow only when the theme is installed.
-        kvantum = get_compat_env("KVANTUM_DARK" if dark else "KVANTUM_LIGHT",
+        kvantum = get_env_var("KVANTUM_DARK" if dark else "KVANTUM_LIGHT",
                                  "KvLibadwaitaDark" if dark else "KvLibadwaita")
         kvantum_config = env.config_dir / "Kvantum" / "kvantum.kvconfig"
         if kvantum and ((Path("/usr/share/Kvantum") / kvantum).is_dir() or (env.config_dir / "Kvantum" / kvantum).is_dir()):

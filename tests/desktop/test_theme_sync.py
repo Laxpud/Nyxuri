@@ -63,7 +63,6 @@ class TestThemeSync(unittest.TestCase):
 
         env_vars = {
             "NYXURI_GTK_THEME_LIGHT": "custom-nyxuri-light",
-            "NYXNIRI_GTK_THEME_LIGHT": "custom-nyxniri-light",
         }
         with patch.dict(os.environ, env_vars, clear=False), \
              patch("nyxuri.desktop.theme.shutil.which", return_value=None):

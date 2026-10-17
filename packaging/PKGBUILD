@@ -9,9 +9,9 @@ pkgdesc="Noctalia & Niri desktop dotfiles — atomic deploy, presets, snapshots"
 arch=('any')
 url="https://github.com/ech678/Nyxuri"
 license=('GPL3')
-provides=('nyxuri' 'nyxniri')
-conflicts=('nyxuri' 'nyxniri' 'nyxniri-git')
-replaces=('nyxniri-git' 'nyxniri')
+provides=('nyxuri')
+conflicts=('nyxuri')
+replaces=()
 source=("git+https://github.com/ech678/Nyxuri.git#branch=main")
 sha256sums=('SKIP')
 
@@ -86,18 +86,18 @@ pkgver() {
 package() {
     cd "$srcdir/$pkgname"
 
-    # Ship the engine + unit blueprint + package catalog + bootstrap.
+    # Ship the engine (incl. nyxuri/launcher.sh) + unit blueprint + package catalog.
+    # KM5: install.sh is the one-time bootstrap and is not part of the package.
     install -d "$pkgdir/usr/share/nyxuri"
-    cp -a nyxuri units catalog.toml install.sh "$pkgdir/usr/share/nyxuri/"
+    cp -a nyxuri units catalog.toml "$pkgdir/usr/share/nyxuri/"
 
     # .system-install marker → run_mode="system" (§5.2). Must exist before the
     # units/ dir probe so the package isn't mis-detected as 'repo'.
     touch "$pkgdir/usr/share/nyxuri/.system-install"
 
-    # CLI entry → install.sh (the marker + this link make `nyxuri` work system-wide)
+    # CLI entry → the dedicated launcher (the marker + this link make `nyxuri` work system-wide)
     install -d "$pkgdir/usr/bin"
-    ln -s ../share/nyxuri/install.sh "$pkgdir/usr/bin/nyxuri"
-    ln -s ../share/nyxuri/install.sh "$pkgdir/usr/bin/nyxniri"
+    ln -s ../share/nyxuri/nyxuri/launcher.sh "$pkgdir/usr/bin/nyxuri"
 
     # Strip Python bytecode caches and the git history from the payload.
     find "$pkgdir/usr/share/nyxuri" -type d -name '__pycache__' -prune -exec rm -rf {} +

@@ -239,7 +239,6 @@ if status is-interactive
     end
 
     alias clean='nyxuri clean'
-    alias nyxniri='nyxuri'
 
     # se：模糊搜索软件包 (支持 aur <kw> / pac <kw> 前缀) 并用 fzf 交互安装 (无 fzf 时自动降级)
     function se --description "Fuzzy search & install packages (aur/pac prefix)"

@@ -151,7 +151,7 @@ Nyxuri
 
 ## 故障排除
 
-遇到启动卡死、双显卡渲染异常或样式白屏时，优先运行 `./install.sh doctor`。
+遇到启动卡死、双显卡渲染异常或样式白屏时，优先运行 `nyxuri doctor`。
 
 详细排障步骤与完整清单见 [故障排除指南 (Wiki)](https://github.com/ech678/Nyxuri/wiki/Troubleshooting-zh)。
 

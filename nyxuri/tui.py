@@ -15,7 +15,7 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
-from nyxuri.core import Colors, get_compat_env
+from nyxuri.core import Colors, get_env_var
 from nyxuri.core import Environment, get_env
 from nyxuri.core import msg, text
 
@@ -529,7 +529,7 @@ def prompt_confirm(prompt_key: str, default: str = "y", destructive: bool = Fals
     even under NYXURI_AUTO_YES: express mode speeds things up, it must not
     consent to data loss on the user's behalf.
     """
-    if get_compat_env("AUTO_YES", "0") == "1" and not destructive:
+    if get_env_var("AUTO_YES", "0") == "1" and not destructive:
         return True
 
     sys.stdout.write(msg(prompt_key))

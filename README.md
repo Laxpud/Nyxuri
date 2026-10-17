@@ -151,7 +151,7 @@ See full command matrix and options in [CLI Reference (Wiki)](https://github.com
 
 ## Troubleshooting
 
-When encountering issues, run `./install.sh doctor` first.
+When encountering issues, run `nyxuri doctor` first.
 
 See full diagnostic guides and step-by-step solutions in [Troubleshooting (Wiki)](https://github.com/ech678/Nyxuri/wiki/Troubleshooting).
 

@@ -21,7 +21,7 @@ if [ -r "$state_file" ]; then
 fi
 
 if [ "$active_shell" = "nyxuri-shell" ] || [ "$active_shell" = "custom" ]; then
-    custom_shell_bin="${NYXURI_CUSTOM_SHELL_BIN:-${NYXNIRI_CUSTOM_SHELL_BIN:-}}"
+    custom_shell_bin="${NYXURI_CUSTOM_SHELL_BIN:-}"
     if [ -z "$custom_shell_bin" ] && [ -r "$state_file" ]; then
         custom_bin_json=$(grep -o '"custom_shell_bin"[[:space:]]*:[[:space:]]*"[^"]*"' "$state_file" 2>/dev/null | head -n 1 | sed 's/.*"[[:space:]]*:[[:space:]]*"//;s/"//' || true)
         if [ -n "$custom_bin_json" ]; then

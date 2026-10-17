@@ -319,7 +319,6 @@ def _default_palette_paths() -> tuple[Path, ...]:
     cache_home = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
     return (
         Path(cache_home) / "nyxuri" / "palette.toml",
-        Path(cache_home) / "nyxniri" / "palette.toml",
         Path(cache_home) / "noctalia" / "starship-palette.toml",
     )
 

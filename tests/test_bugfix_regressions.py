@@ -25,42 +25,6 @@ def _quiet(fn, *args, **kwargs):
         return fn(*args, **kwargs)
 
 
-class TestMigrationsResilience(unittest.TestCase):
-
-    def test_symlink_tombstone_pointing_outside_home_is_removed(self):
-        from nyxuri import migrations
-        with TempEnv() as ctx:
-            outside = Path(tempfile.mkdtemp()) / "nyxniri.fish"
-            outside.write_text("x", encoding="utf-8")
-            link = ctx.home / ".config/fish/completions/nyxniri.fish"
-            link.parent.mkdir(parents=True)
-            link.symlink_to(outside)
-            with patch.object(migrations, "TOMBSTONES", (".config/fish/completions/nyxniri.fish",)):
-                self.assertTrue(_quiet(migrations.run))
-                self.assertTrue(_quiet(migrations.run))
-            self.assertFalse(link.is_symlink())
-
-    def test_corrupt_migration_level_does_not_raise(self):
-        from nyxuri.kernel import ledger
-        from nyxuri import migrations
-        with TempEnv() as ctx:
-            path = ledger.ledger_path()
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text('{"migration_level": "abc"}', encoding="utf-8")
-            self.assertTrue(_quiet(migrations.run))
-            self.assertEqual(ledger.read_ledger()["migration_level"], migrations.MIGRATION_LEVEL)
-
-    def test_traversal_tombstone_is_rejected(self):
-        from nyxuri import migrations
-        with TempEnv() as ctx:
-            victim = ctx.home.parent / "nyxuri-outside-victim.txt"
-            victim.write_text("keep", encoding="utf-8")
-            with patch.object(migrations, "TOMBSTONES", ("../nyxuri-outside-victim.txt",)):
-                self.assertFalse(_quiet(migrations.run))
-            self.assertTrue(victim.exists())
-            victim.unlink()
-
-
 class TestGitTimeoutDegrades(unittest.TestCase):
 
     def _repo(self, ctx):

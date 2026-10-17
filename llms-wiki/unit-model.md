@@ -273,9 +273,7 @@ deploy/deps 的包世界（`discover_manifest_apps`）只扫 `units/`，Shell �
 | Shell 私有开关状态（settings.json `bar.enabled`/`keystone.enabled`、dock.json `enabled`）→ 账本投影（`StateProjection`）+ `UnitControl` 派发内核动词 | KM4（已执法，单一开关真相） |
 | AppShell 硬编码单元组件 ×9 与宿主代管的单元 IPC（power-menu/lock/spotlight/control-center/settings）→ `SlotHost` 槽驱动 + 单元自有 IPC | KM4（已执法，微内核插槽架构） |
 | `~/.config/noctalia/templates/` 共享池（寄宿 noctalia 命名空间）→ `units/theme/` 单元 + `~/.config/nyxuri/templates/` | KM4（已执法，池位置中立化，merge 共享生活区） |
-| `nyxuri/cli.py` 硬编码专用命令 | KM5 |
-| `install.sh` 安装器职责（退役为一次性引导） | KM5 |
-
+| `install.sh` 安装器职责（退役为一次性引导）→ `nyxuri/launcher.sh` 常驻启动器 + 无透传引导；同批清算：`nyxuri/migrations/` 整模块、nyxniri 别名与 `NYXNIRI_*` 兼容层 | KM5（已执法；`nyxuri/cli.py` 交互菜单经作者裁决保留为常驻产品面，登记撤销） |
 ---
 
 ## 8. 路径与环境术语表（原 concept-glossary，KM3.5 并入）

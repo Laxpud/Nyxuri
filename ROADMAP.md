@@ -7,7 +7,7 @@
 
 ## 主线：插件市场化改造
 
-> 推进中：KM0–KM3.5 已全数落地验收，当前演进目标为 KM4。
+> 推进中：KM0–KM5 已全数落地，主线条目收口；后续演进见 Shell 后生态与储备。
 > 产品重定义：Nyxuri 从「安装器」收敛为「桌面插件市场」，安装器退役为一次性引导。
 > 终态：内核（registry · resolver · transaction · ledger）+ 目录（万物皆单元）+
 > 市场界面（TUI 目录浏览器为主，CLI 等价动词）。任何东西——config、模块、壁纸包、
@@ -24,10 +24,10 @@
 | KM2 | 开关事务与 Vault 归档 | 已完成 |
 | KM3 | 命令行收敛（4 动词接管）与 TUI 工坊 | 已完成 |
 | KM3.5 | 拆迁与正名（KM5 前置）：旧世界处决 + 文件树表达架构 | 已完成 |
-| KM4 | Shell 彻底模块化 + 运行态直通（吸收原 Shell P5） | 待验收 |
-| KM4.5 | Shell 拆迁与正名：`modules/` 并入 `units/`（目录即单元）+ 支撑模块裁决 | 待验收 |
-| KM4.6 | Shell 结构微整：assets/fallback/packaging 解散、services 分池、scripts 收拢、撞名正名 | 待验收 |
-| KM5 | 引导转化（installer/ 处决 + install.sh 引导化）、migrations 清算与五原则总验收 | 待开始 |
+| KM4 | Shell 彻底模块化 + 运行态直通（吸收原 Shell P5） | 已完成 |
+| KM4.5 | Shell 拆迁与正名：`modules/` 并入 `units/`（目录即单元）+ 支撑模块裁决 | 已完成 |
+| KM4.6 | Shell 结构微整：assets/fallback/packaging 解散、services 分池、scripts 收拢、撞名正名 | 已完成 |
+| KM5 | 引导转化（install.sh 引导化 + launcher）、migrations/nyxniri 清算与五原则总验收 | 已完成 |
 
 P6（整体验收与未来移植）保持在 KM5 之后，台账见 [shell/ROADMAP.md](shell/ROADMAP.md)。
 KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此为唯一权威；下方为各阶段实施要点：
@@ -57,7 +57,7 @@ KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此�
   shell/KNOWN-ISSUES 两项（quickshell 入 `catalog.toml` + PKGBUILD 生成标记 stale
   修复；卸载残留复核实证已清）。全量引擎 966 测试 + Shell 分类 118 测试 +
   check.sh + 沙箱部署绿。六动作与 Noctalia/Wallpaper Picker 双轨稳固的行为、
-  视觉实机验收待作者确认。
+  视觉实机验收：已随 KM4.5/4.6 合并实机验收通过（作者确认，2026-10-17）。
 - **KM4.5 Shell 拆迁与正名**（模仿 KM3.5，先拆迁后与 KM4 合并一次实机验收）：
   起因——`modules/`（16 域 392 文件，含 4 个非单元支撑目录）与 `units/`（12 个纯
   manifest 存根）两棵树表达同一概念，文件树不表达架构。处决——支撑模块裁决归位：
@@ -74,7 +74,7 @@ KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此�
   边界重写、architecture-matrix 重写（12 单元矩阵 + 支撑代码归宿规则）、
   unit-model §6、shell/development、契约测试改测新真相（test_shell 61 +
   test_bugfix_regressions 109 全绿）、audit-lifecycle 分层词表。全量引擎 970 测试
-  + Shell 分类 118 测试绿。实机验收与 KM4 合并进行。
+  + Shell 分类 118 测试绿。实机验收与 KM4 合并进行，已通过（2026-10-17）。
 - **KM4.6 Shell 结构微整**：处决 `packaging/`（死独立发行管线）与 `fallback/`
   （lottieqt 死桩删除，M3Shapes 具名桩迁 `shared/controls/shapes/` 邻真数学）；
   `assets/` Junk Drawer 解散（shaders 按域归 units、i18n/icons/templates 归 app、
@@ -82,7 +82,33 @@ KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此�
   services）；scripts 收拢 9 → 5；撞名正名 `settings/dashwindow`、
   `bar/quickpanel`（sidebars 侧保 view id 对齐）。顶层目录 8 → 5。
   详见 [shell/ROADMAP](shell/ROADMAP.md) KM4.6 节。
-- **KM5 引导转化与终极清算**：`install.sh` 退役为一次性引导脚本，并处决 `nyxuri/installer/` 等死区（workflows / menus 隔离件）；`migrations/` 旧版迁移清算；契约测试强制触发死刑断言，物理删除旧命令兼容层；五原则逐条给出可复现证据。验收：退役清单清空为零，仓库代码实现净减法。（拆迁主体已前置至 KM3.5，本阶段只剩引导收口与总验收。）
+- **KM5 引导转化与终极清算**（2026-10-17 执法记录；范围经作者裁决收窄）：
+  **裁决反转**——原登记处决对象「`nyxuri/cli.py` 硬编码专用命令」（交互式主菜单、
+  `install` 动词、非交互整装）开工后经作者裁决**保留为常驻产品面**，§7 登记撤销、
+  菜单世界零改动回退；死刑清单制按设计消化了这次反转（登记 → 撤案，未执法）。
+  **实际执法**——① `install.sh` 引导化：新增 `nyxuri/launcher.sh` 常驻启动器
+  （`python3 -I -S` 隔离语义原样平移，PYTHON*/sitecustomize 注入免疫），`~/.local/bin/nyxuri`
+  与 PKGBUILD `/usr/bin/nyxuri` 改指 launcher，旧 install.sh 软链保留一代识别治愈重指；
+  install.sh 收口为纯引导（root/python 检查 + 克隆更新缓存 + 完整性哨兵清单 + 裸交接），
+  **无参数透传**（沙箱验证改 `HOME=$(mktemp -d) python3 -m nyxuri test`），
+  `engine_is_complete` 逐模块清单（40 行）退役为每包一哨兵（13 行）。②
+  `nyxuri/migrations/` 整模块物理删除——tombstone 为多年旧账，nyxniri 软链治愈
+  本在 core，uninstall 历史小写目录清扫保留兜底；`migration_level` 账本键残留无害。
+  ③ nyxniri 兼容层清算：`get_compat_env` → `get_env_var` 单前缀、units 七脚本
+  `NYXNIRI_*` 回退、fish 别名与补全、noctalia tools 旧 palette 路径 ×3、PKGBUILD
+  provides/conflicts/replaces、翻译文案、操作地图「兼容别名」节。④ 门禁 4 收口：
+  退役清单清空为零——`test_death_registry_cleared` 契约强制 §7 无未执法行。
+  **验收（全绿）**：compileall + bash -n（install.sh/launcher/units 脚本）+ shellcheck
+  + 全量 955 测试；安全形状断言（launch shape + 注入免疫）由 test_install_bootstrap
+  以真进程钉死。**数字对账（如实）**：`nyxuri/` 顶层 12 → 11（migrations 出）；
+  install.sh 267 → 252 行且职责缩为引导；COMMANDS 20 键不变（菜单保留）；净删
+  约 -338 行（毛删 609 / 毛增 312+launcher 41）——原「≥900 净删」目标随菜单保留
+  裁决一并撤销，不为凑数删活代码。**五原则证据（可复现）**：真诚透明——引导拒参
+  即双语报错、launcher 41 行可通读、doctor 对账不变；绝对主权——菜单保留出自作者
+  显式裁决，`NYXURI_REPO` 等单前缀变量行为与文档一一对应；骨架包容——存量
+  install.sh 软链一代治愈不断链，uninstall 保留历史目录清扫；轻盈生长——空壳迁移
+  机制删除，「新单元 = 加目录」零改动；通用自然——环境变量单前缀、launcher 为
+  通用命名，无新增私有概念。
 
 ### KM3.5 拆迁与正名（KM5 前置）
 

@@ -23,7 +23,7 @@ NORMAL_EFFECTS="$NIRI_DIR/effects_normal.kdl"
 EYECARE_EFFECTS="$NIRI_DIR/effects_eyecare.kdl"
 
 # Desired EyeCare warm color temperature (in Kelvin: 5500K for subtle natural warmth)
-EYECARE_TEMP="${NYXURI_EYECARE_TEMP:-${NYXNIRI_EYECARE_TEMP:-5500}}"
+EYECARE_TEMP="${NYXURI_EYECARE_TEMP:-5500}"
 TEMP_FILE="$NIRI_DIR/eyecare_temp"
 if [ -f "$TEMP_FILE" ]; then
     read -r FILE_TEMP < "$TEMP_FILE" 2>/dev/null || true

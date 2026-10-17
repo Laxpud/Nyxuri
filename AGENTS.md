@@ -22,7 +22,7 @@
 | 部署引擎 / 单元模型 (`nyxuri/deploy/`, `units/`) | `overview.md`, `unit-model.md`, `file-preservation.md` | `python3 -m unittest tests/deploy/test_deploy.py tests/test_unit_model.py` + 沙箱部署 |
 | 内核 / 单元事务 (`nyxuri/kernel/`) | `unit-model.md` | `python3 -m unittest tests/kernel/test_transaction.py` |
 | 包管理 / 供给 (`nyxuri/pkg/`, `catalog.toml`) | `manifest-schema.md`（catalog 同源）, `delayed-decisions.md` | `python3 -m unittest tests/pkg/` |
-| 状态 / 快照 / 迁移 (`nyxuri/state/`, `nyxuri/migrations/`) | `state-ops.md` | `python3 -m unittest tests/state/ tests/deploy/test_migrations.py` |
+| 状态 / 快照 (`nyxuri/state/`) | `state-ops.md` | `python3 -m unittest tests/state/` |
 | CLI 命令 / 流程编排 (`cli.py`, `nyxuri/installer/`) | `operation-map.md`, `manifest-schema.md` | `python3 -m unittest tests/test_cli.py tests/test_ai_specs.py` |
 | 终端 UI / 桌面能力 (`tui.py`, `nyxuri/desktop/`) | `tui-charter.md` | 交互冒烟，检查退出 trap |
 | 预设机制 (`deploy/preset.py` + `desktop/presets.py`) | `preset-mechanism.md` | `python3 -m unittest tests/deploy/test_preset.py` |
@@ -50,14 +50,14 @@
 ```bash
 # 1. 语法与静态检查（零网络秒级）
 python3 -m compileall nyxuri tests
-bash -n install.sh units/noctalia/*.sh units/niri/scripts/*.sh
-shellcheck install.sh
+bash -n install.sh nyxuri/launcher.sh units/noctalia/*.sh units/niri/scripts/*.sh
+shellcheck install.sh nyxuri/launcher.sh
 
 # 2. 契约与行为测试（零依赖秒级，含文档契约一致性）
 python3 -m unittest discover -s tests -q
 
-# 3. 沙箱隔离部署测试（极速、不污染实机）
-HOME=$(mktemp -d) ./install.sh test
+# 3. 沙箱隔离部署测试（极速、不污染实机；KM5 起 install.sh 不透传参数）
+HOME=$(mktemp -d) python3 -m nyxuri test
 ```
 
 ---

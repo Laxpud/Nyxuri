@@ -113,7 +113,7 @@ complete -c nyxuri -f -n "__fish_seen_subcommand_from preset; and __fish_seen_su
 
 function __nyxuri_snapshot_indices
     set -l dirs
-    for base in "$HOME/.config/nyxuri/backups" "$HOME/.config/NyxNiri/backups" "$HOME/.config/nyxniri/backups"
+    for base in "$HOME/.config/nyxuri/backups"
         if test -d "$base"
             for d in "$base"/*
                 switch (basename "$d")
@@ -135,6 +135,3 @@ end
 
 complete -c nyxuri -f -n "__fish_seen_subcommand_from rollback restore" -a "(__nyxuri_snapshot_indices)" -d "Snapshot index"
 complete -c nyxuri -f -n "__fish_seen_subcommand_from snapshot; and __fish_seen_subcommand_from delete" -a "(__nyxuri_snapshot_indices)" -d "Snapshot index"
-
-# Dual-track compatibility: inherit completions for legacy command name
-complete -c nyxniri -w nyxuri

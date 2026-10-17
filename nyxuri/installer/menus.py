@@ -259,11 +259,6 @@ def main_menu_loop() -> None:
         elif choice == 4:
             update_result = safe_git_pull(env.repo_dir)
             if update_result is True:
-                from nyxuri.migrations import run as run_migrations
-                if not run_migrations():
-                    print(msg("migration_failed"), file=sys.stderr)
-                    press_any_key()
-                    continue
                 print(msg("updating_done"))
                 press_any_key()
                 # Re-exec first: the deploy offer must run on the freshly

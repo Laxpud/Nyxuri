@@ -16,7 +16,7 @@ from nyxuri.core import (
     MAIN_WM,
     PROJECT_NAME,
     THEME_ENGINE,
-    get_compat_env,
+    get_env_var,
 )
 from nyxuri.core import get_env, get_pics_dir, log_msg, timed_run
 from nyxuri.core import msg, text
@@ -51,7 +51,7 @@ def _check_shell_provider(env) -> None:
         else:
             print(msg("doctor_warn", text("桌面外壳: 当前选用 Noctalia 但未在 PATH 中找到", "Desktop Shell: Noctalia selected but missing from PATH")))
     else:
-        custom_bin = nyxuri_shell_bin() or get_compat_env("CUSTOM_SHELL_BIN", "")
+        custom_bin = nyxuri_shell_bin() or get_env_var("CUSTOM_SHELL_BIN", "")
         if custom_bin and os.path.isfile(custom_bin) and os.access(custom_bin, os.X_OK):
             print(msg("doctor_ok", text(f"桌面外壳: Nyxuri Shell ({custom_bin}) 可用", f"Desktop Shell: Nyxuri Shell ({custom_bin}) available")))
         else:

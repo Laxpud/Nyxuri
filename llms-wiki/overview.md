@@ -13,7 +13,7 @@
 
 ```
 Nyxuri/
-├─ nyxuri/            引擎 · 12 项
+├─ nyxuri/            引擎 · 11 项
 │   ├─ kernel/        registry（蓝图唯一读者）· resolver（纯依赖计算）·
 │   │                 ledger（state.json 唯一写者）· transaction（唯一副作用编排）
 │   ├─ deploy/        atomic（原子置换+Dunder）· manifest · templates ·
@@ -22,8 +22,7 @@ Nyxuri/
 │   │                 fzf · detection · catalog（根 catalog.toml 解析）
 │   ├─ state/         backup（30 滚动快照）· uninstall（勾选式清理）
 │   ├─ desktop/       theme（深浅轴）· shell_switcher · clean · presets（流程半，渲染归 UI）
-│   ├─ installer/     workflows + menus（旧世界编排，等死区，KM5 随引导化处决）
-│   ├─ migrations/    线性状态迁移（KM5 清算）
+│   ├─ installer/     workflows + menus（交互式主菜单与整装/更新编排，作者裁决保留为常驻产品面）
 │   └─ cli.py · core.py（环境+锁+日志+i18n 地基）· sysdoctor.py（系统体检）·
 │       tui.py · translations.toml（双语文案）
 ├─ units/             蓝图 · 13 目录 = 12 真单元 + wallpapers（KM4 + theme 共享模板池；wallpapers/theme 为 merge 共享生活区）
@@ -34,12 +33,12 @@ Nyxuri/
 ├─ packaging/         AUR PKGBUILD + gen-deps.py（depends/optdepends 自动汇聚）
 ├─ llms-wiki/ humans-wiki/
 ├─ catalog.toml       包目录清单——「装但不部署」，不是单元
-└─ install.sh         引导 + system 模式入口（KM5 退役为一次性引导）
+└─ install.sh         一次性引导（KM5：无参数透传；常驻入口 = nyxuri/launcher.sh）
 ```
 
 每个目录一行「为什么在这」：kernel 是不可开关的底座；deploy 只管文件机械；
 pkg 管包与供给；state 管账本外的状态副本；desktop 管活桌面副作用；installer 是
-待处决的旧世界；packaging 是开发者工具不进运行时；catalog.toml 喂菜单与 optdepends。
+交互菜单与整装编排（作者裁决常驻）；packaging 是开发者工具不进运行时；catalog.toml 喂菜单与 optdepends。
 
 ## 三个概念（用户面）
 

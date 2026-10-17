@@ -1186,10 +1186,10 @@ en = """{Colors.BOLD_RED}[✗] All mirror nodes failed. Please check network.{Co
 """
 
 [net_custom_repo_invalid]
-zh = """{Colors.BOLD_RED}[✗] NYXURI_REPO（或 NYXNIRI_REPO）指定的地址不受支持：{0}{Colors.RESET}
+zh = """{Colors.BOLD_RED}[✗] NYXURI_REPO 指定的地址不受支持：{0}{Colors.RESET}
   仅接受以 https://、git@ 或 ssh:// 开头的仓库地址，已停止安装。
 """
-en = """{Colors.BOLD_RED}[✗] Unsupported NYXURI_REPO (or NYXNIRI_REPO) address: {0}{Colors.RESET}
+en = """{Colors.BOLD_RED}[✗] Unsupported NYXURI_REPO address: {0}{Colors.RESET}
   Only addresses beginning with https://, git@, or ssh:// are accepted; installation stopped.
 """
 
@@ -1393,10 +1393,6 @@ en = "{Colors.BOLD_BLUE}:: Switching to pinned ref ({0})…{Colors.RESET}"
 [update_pin_done]
 zh = "{Colors.BOLD_GREEN}[✓] 已固定到指定版本: {0}{Colors.RESET}"
 en = "{Colors.BOLD_GREEN}[✓] Pinned to ref: {0}{Colors.RESET}"
-
-[migration_failed]
-zh = "{Colors.BOLD_RED}[✗] 迁移账本写入失败，已停止部署。{Colors.RESET}"
-en = "{Colors.BOLD_RED}[✗] Failed to write migration ledger; deployment stopped.{Colors.RESET}"
 
 [path_occlusion_warn]
 zh = "{Colors.BOLD_YELLOW}[!] 检测到 ~/.local/bin/{CLI_CMD} 遮蔽了系统包 (/usr/bin/{CLI_CMD})。建议删除旧软链以使用系统包: rm ~/.local/bin/{CLI_CMD}{Colors.RESET}"

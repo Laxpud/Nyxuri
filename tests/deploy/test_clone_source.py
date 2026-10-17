@@ -1,4 +1,5 @@
-"""Contract tests for the NYXURI_REPO override and its legacy fallback."""
+"""Contract tests for the NYXURI_REPO override (KM5: the NYXNIRI_* legacy
+fallback was liquidated — one variable, one prefix)."""
 
 import subprocess
 import sys
@@ -8,7 +9,7 @@ import unittest
 class TestCloneSourceOverride(unittest.TestCase):
     def _registry_with_env(self, env_value=None):
         env_assignment = (
-            f"os.environ['NYXNIRI_REPO']={env_value!r};" if env_value is not None else "os.environ.pop('NYXNIRI_REPO', None);"
+            f"os.environ['NYXURI_REPO']={env_value!r};" if env_value is not None else "os.environ.pop('NYXURI_REPO', None);"
         )
         code = (
             "import os;" + env_assignment +
@@ -24,12 +25,12 @@ class TestCloneSourceOverride(unittest.TestCase):
         return lines[0], lines[1]
 
     def test_override_collapses_to_single_custom_mirror(self):
-        custom = "https://git.internal/NyxNiri.git"
+        custom = "https://git.internal/Nyxuri.git"
         repo_url, registry = self._registry_with_env(custom)
         self.assertEqual(registry, f"[('Custom', '{custom}')]")
 
     def test_display_repo_url_stays_official_even_when_overridden(self):
-        repo_url, _ = self._registry_with_env("https://git.internal/NyxNiri.git")
+        repo_url, _ = self._registry_with_env("https://git.internal/Nyxuri.git")
         self.assertTrue(repo_url.endswith("ech678/Nyxuri.git"))
 
     def test_default_without_env_unchanged(self):
@@ -40,7 +41,7 @@ class TestCloneSourceOverride(unittest.TestCase):
     def _clone_behavior_with_env(self, env_value):
         """Run clone_repo_with_fallback in a fresh interpreter with the env set."""
         env_assignment = (
-            f"os.environ['NYXNIRI_REPO']={env_value!r};" if env_value is not None else "os.environ.pop('NYXNIRI_REPO', None);"
+            f"os.environ['NYXURI_REPO']={env_value!r};" if env_value is not None else "os.environ.pop('NYXURI_REPO', None);"
         )
         code = (
             "import os, tempfile\n"
@@ -73,24 +74,9 @@ class TestCloneSourceOverride(unittest.TestCase):
         self.assertEqual(git_calls, "[]")
 
     def test_valid_custom_repo_clones_single_source(self):
-        result, git_calls = self._clone_behavior_with_env("ssh://git.internal/NyxNiri.git")
+        result, git_calls = self._clone_behavior_with_env("ssh://git.internal/Nyxuri.git")
         self.assertEqual(result, "True")
-        self.assertIn("ssh://git.internal/NyxNiri.git", git_calls)
-
-    def test_nyxuri_repo_takes_precedence_over_nyxniri_repo(self):
-        code = (
-            "import os;"
-            "os.environ['NYXURI_REPO']='https://git.primary/Nyxuri.git';"
-            "os.environ['NYXNIRI_REPO']='https://git.secondary/NyxNiri.git';"
-            "from nyxuri import core as constants;"
-            "print(constants.GIT_MIRROR_REGISTRY)"
-        )
-        res = subprocess.run(
-            [sys.executable, "-c", code],
-            capture_output=True, text=True, check=True,
-        )
-        self.assertIn("https://git.primary/Nyxuri.git", res.stdout)
-        self.assertNotIn("https://git.secondary/NyxNiri.git", res.stdout)
+        self.assertIn("ssh://git.internal/Nyxuri.git", git_calls)
 
 
 if __name__ == "__main__":

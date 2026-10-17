@@ -1,4 +1,5 @@
-"""Contract tests for NYXURI_AUTO_YES and its legacy fallback.
+"""Contract tests for NYXURI_AUTO_YES (KM5: the NYXNIRI_* legacy fallback was
+liquidated — one variable, one prefix).
 
 AUTO_YES is an express-mode convenience: it may auto-consent to routine
 prompts, never to destructive ones (purge / snapshot delete / dirty-tree
@@ -18,10 +19,9 @@ class TestAutoYesBoundaries(unittest.TestCase):
     def setUp(self):
         self._ctx = TempEnv()
         self._ctx.__enter__()
-        os.environ["NYXNIRI_AUTO_YES"] = "1"
+        os.environ["NYXURI_AUTO_YES"] = "1"
 
     def tearDown(self):
-        os.environ.pop("NYXNIRI_AUTO_YES", None)
         os.environ.pop("NYXURI_AUTO_YES", None)
         self._ctx.__exit__()
 
@@ -30,12 +30,10 @@ class TestAutoYesBoundaries(unittest.TestCase):
 
         self.assertTrue(prompt_confirm("prompt_install_missing_deps", "y"))
 
-    def test_nyxuri_auto_yes_takes_precedence(self):
+    def test_auto_yes_zero_disables_express_mode(self):
         from nyxuri.tui import prompt_confirm
 
         os.environ["NYXURI_AUTO_YES"] = "0"
-        os.environ["NYXNIRI_AUTO_YES"] = "1"
-        # Since NYXURI_AUTO_YES is "0", auto_yes should be disabled even if NYXNIRI_AUTO_YES is "1"
         with patch("nyxuri.tui.sys.stdout"), \
              patch("nyxuri.tui.sys.stdin.isatty", return_value=False):
             self.assertFalse(prompt_confirm("prompt_install_missing_deps", "n"))

@@ -44,9 +44,9 @@ GREETER_STATE_DIR = Path("/var/lib") / GREETER_PKG
 FCITX_THEME = "nyxmellow"
 
 
-def get_compat_env(suffix: str, default: str | None = None) -> str | None:
-    """Retrieve environment variable, checking NYXURI_<suffix> first, then NYXNIRI_<suffix>."""
-    return os.environ.get(f"NYXURI_{suffix}", os.environ.get(f"NYXNIRI_{suffix}", default))
+def get_env_var(suffix: str, default: str | None = None) -> str | None:
+    """Retrieve the NYXURI_<suffix> environment variable."""
+    return os.environ.get(f"NYXURI_{suffix}", default)
 
 
 # Carries the update deploy flag across the post-update re-exec, so the
@@ -63,7 +63,7 @@ CONFIG_DIR_NAME = "units"
 # --- Repository & Network Mirrors ---
 REPO_URL = "https://github.com/ech678/Nyxuri.git"
 
-_repo_override = get_compat_env("REPO")
+_repo_override = get_env_var("REPO")
 if _repo_override:
     GIT_MIRROR_REGISTRY = [("Custom", _repo_override)]
 else:
@@ -74,7 +74,7 @@ else:
 
 # Single-source override is user-configured, never silently replaced: an
 # address that isn't a git remote is refused loudly at the point of cloning.
-CUSTOM_REPO_URL = get_compat_env("REPO", "")
+CUSTOM_REPO_URL = get_env_var("REPO", "")
 CUSTOM_REPO_URL_VALID = CUSTOM_REPO_URL.startswith(("https://", "git@", "ssh://"))
 
 RAW_MIRROR_TEMPLATES = [
@@ -651,7 +651,10 @@ def is_nyxuri_cli_symlink(path: Path, env: Optional["Environment"] = None) -> bo
     try:
         raw_target = os.readlink(path)
         target_path = Path(raw_target)
-        if target_path.name == "install.sh":
+        # "install.sh" targets are recognized for one generation so links
+        # owned by the pre-KM5 entry (which was the launcher itself) heal
+        # to the dedicated launcher on the next ensure_nyxuri_symlink run.
+        if target_path.name in ("launcher.sh", "install.sh"):
             resolved_str = str(path.resolve(strict=False))
             raw_str = str(target_path)
             if (
@@ -667,7 +670,9 @@ def is_nyxuri_cli_symlink(path: Path, env: Optional["Environment"] = None) -> bo
                 return True
             e = env or (_ENV if _ENV is not None else get_env())
             if (
-                target_path == e.repo_dir / "install.sh"
+                target_path == e.repo_dir / "nyxuri" / "launcher.sh"
+                or target_path == e.cache_dir / "nyxuri" / "launcher.sh"
+                or target_path == e.repo_dir / "install.sh"
                 or target_path == e.cache_dir / "install.sh"
             ):
                 return True
@@ -691,7 +696,11 @@ def clear_nyxuri_cli_symlink_marker() -> None:
 
 
 def ensure_nyxuri_symlink() -> None:
-    """Ensure ~/.local/bin/nyxuri points to install.sh.
+    """Ensure ~/.local/bin/nyxuri points to the dedicated launcher (nyxuri/launcher.sh).
+
+    KM5: install.sh retired to a one-time bootstrap; the CLI entry is the
+    launcher script inside the engine package. Links owned by the pre-KM5
+    entry (which pointed at install.sh) are recognized and healed here.
 
     In system mode the package owns /usr/bin/nyxuri and must not touch the
     user's ~/.local/bin/nyxuri (§5.3). A stale user link shadowing the system
@@ -711,10 +720,10 @@ def ensure_nyxuri_symlink() -> None:
     if legacy_bin != target_bin and legacy_bin.is_symlink() and is_nyxuri_cli_symlink(legacy_bin):
         legacy_bin.unlink(missing_ok=True)
 
-    root_installer = env.repo_dir / "install.sh"
-    if not root_installer.is_file():
-        if (env.cache_dir / "install.sh").is_file():
-            root_installer = env.cache_dir / "install.sh"
+    root_launcher = env.repo_dir / "nyxuri" / "launcher.sh"
+    if not root_launcher.is_file():
+        if (env.cache_dir / "nyxuri" / "launcher.sh").is_file():
+            root_launcher = env.cache_dir / "nyxuri" / "launcher.sh"
         else:
             return
 
@@ -722,16 +731,16 @@ def ensure_nyxuri_symlink() -> None:
         if target_bin.is_symlink():
             if not is_nyxuri_cli_symlink(target_bin):
                 return
-            if target_bin.resolve(strict=False) == root_installer.resolve(strict=False):
+            if target_bin.resolve(strict=False) == root_launcher.resolve(strict=False):
                 _record_nyxuri_cli_symlink(target_bin)
-                root_installer.chmod(0o755)
+                root_launcher.chmod(0o755)
                 return
             target_bin.unlink(missing_ok=True)
         elif target_bin.exists():
             return
-        target_bin.symlink_to(root_installer)
+        target_bin.symlink_to(root_launcher)
         if _record_nyxuri_cli_symlink(target_bin):
-            root_installer.chmod(0o755)
+            root_launcher.chmod(0o755)
         else:
             target_bin.unlink(missing_ok=True)
     except Exception:

@@ -20,19 +20,19 @@ _REPO = TOOLS.parents[2]
 
 
 class NativePaletteTests(unittest.TestCase):
-    def test_native_priority_and_legacy_fallbacks(self) -> None:
+    def test_native_priority_when_only_noctalia_palette_exists(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             cache = Path(temporary)
             with patch.dict(os.environ, {"XDG_CACHE_HOME": str(cache)}):
                 self.assertEqual(load_palette(), Palette())
                 paths = (
                     cache / "noctalia/starship-palette.toml",
-                    cache / "nyxniri/palette.toml",
                     cache / "nyxuri/palette.toml",
                 )
+                colors = ("#113355", "#557799")
                 for index, path in enumerate(paths):
                     path.parent.mkdir(parents=True, exist_ok=True)
-                    color = ("#113355", "#335577", "#557799")[index]
+                    color = colors[index]
                     path.write_text(f'primary = "{color}"\non_surface_variant = "#aabbcc"\n')
                     self.assertEqual(load_palette().primary, color)
                     self.assertEqual(load_palette().muted, "#aabbcc")
@@ -52,13 +52,10 @@ class NativePaletteTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             cache = Path(temporary)
             native = cache / "nyxuri/palette.toml"
-            legacy = cache / "nyxniri/palette.toml"
             native.parent.mkdir(parents=True)
-            legacy.parent.mkdir(parents=True)
             native.write_text("invalid = [")
-            legacy.write_text('primary = "#335577"\n')
             with patch.dict(os.environ, {"XDG_CACHE_HOME": str(cache)}):
-                self.assertEqual(load_palette().primary, "#335577")
+                self.assertEqual(load_palette(), Palette())
                 self.assertEqual(load_palette(native), Palette())
 
 

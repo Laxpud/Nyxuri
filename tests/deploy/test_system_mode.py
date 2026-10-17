@@ -167,12 +167,24 @@ class TestCliLinkOwnership(unittest.TestCase):
         self.assertFalse(marker.exists())
 
     def test_cli_start_adopts_unrecorded_expected_link_and_records_marker(self):
-        self.target.symlink_to(self.env.repo_dir / "install.sh")
+        self.target.symlink_to(self.env.repo_dir / "nyxuri" / "launcher.sh")
         core.ensure_nyxuri_symlink()
         marker = self.env.state_dir / "nyxuri.link"
         self.assertTrue(marker.is_file(), "adopted link must have marker recorded")
         self._uninstall_cli()
         self.assertFalse(self.target.is_symlink(), "adopted link is cleanly removed on uninstall")
+
+    def test_pre_km5_installer_link_is_healed_to_launcher(self):
+        """One-generation heal: links owned by the pre-KM5 entry (which pointed
+        at install.sh, then the launcher itself) are re-pointed to the launcher."""
+        self.target.symlink_to(self.env.repo_dir / "install.sh")
+        core.ensure_nyxuri_symlink()
+        self.assertEqual(
+            self.target.resolve(strict=False),
+            (self.env.repo_dir / "nyxuri" / "launcher.sh").resolve(strict=False),
+        )
+        marker = self.env.state_dir / "nyxuri.link"
+        self.assertTrue(marker.is_file())
 
     def test_dangling_nyxniri_cache_link_is_healed(self):
         # User previously ran remote cache script, but cache was cleared or missing
@@ -182,8 +194,8 @@ class TestCliLinkOwnership(unittest.TestCase):
         core.ensure_nyxuri_symlink()
         self.assertEqual(
             self.target.resolve(strict=False),
-            (self.env.repo_dir / "install.sh").resolve(strict=False),
-            "dangling NyxNiri link must be healed to current installer",
+            (self.env.repo_dir / "nyxuri" / "launcher.sh").resolve(strict=False),
+            "dangling NyxNiri link must be healed to the current launcher",
         )
         marker = self.env.state_dir / "nyxuri.link"
         self.assertTrue(marker.is_file())
@@ -191,11 +203,12 @@ class TestCliLinkOwnership(unittest.TestCase):
     def test_dangling_expected_link_is_removed(self):
         source = self.env.home / "old-nyxuri"
         source.mkdir()
-        installer = source / "install.sh"
-        installer.write_text("#!/bin/sh\n")
+        (source / "nyxuri").mkdir()
+        launcher = source / "nyxuri" / "launcher.sh"
+        launcher.write_text("#!/bin/sh\n")
         self.env.repo_dir = source
         core.ensure_nyxuri_symlink()
-        installer.unlink()
+        launcher.unlink()
         self.assertTrue(self.target.is_symlink())
         self._uninstall_cli()
         self.assertFalse(self.target.is_symlink())
@@ -219,20 +232,20 @@ class TestCliLinkOwnership(unittest.TestCase):
         self._uninstall_cli()
         self.assertTrue(self.target.is_symlink())
 
-    def test_owned_link_updates_to_new_installer(self):
+    def test_owned_link_updates_to_new_launcher(self):
         old_source = self.env.home / "old-nyxuri"
         new_source = self.env.home / "new-nyxuri"
-        old_source.mkdir()
-        new_source.mkdir()
-        old_installer = old_source / "install.sh"
-        new_installer = new_source / "install.sh"
-        old_installer.write_text("#!/bin/sh\n")
-        new_installer.write_text("#!/bin/sh\n")
+        for source in (old_source, new_source):
+            source.mkdir()
+            (source / "nyxuri").mkdir()
+            (source / "nyxuri" / "launcher.sh").write_text("#!/bin/sh\n")
+        old_launcher = old_source / "nyxuri" / "launcher.sh"
+        new_launcher = new_source / "nyxuri" / "launcher.sh"
         self.env.repo_dir = old_source
         core.ensure_nyxuri_symlink()
         self.env.repo_dir = new_source
         core.ensure_nyxuri_symlink()
-        self.assertEqual(self.target.resolve(strict=False), new_installer.resolve(strict=False))
+        self.assertEqual(self.target.resolve(strict=False), new_launcher.resolve(strict=False))
         self._uninstall_cli()
         self.assertFalse(self.target.is_symlink())
 

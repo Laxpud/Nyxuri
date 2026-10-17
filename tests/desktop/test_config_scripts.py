@@ -580,7 +580,7 @@ class TestBrightnessKeys(unittest.TestCase):
             "HOME": str(self.home),
             "CALLS": str(self.calls),
             "FOCUSED_OUTPUT": focused,
-            "NYXNIRI_BACKLIGHT_DIR": str(self.backlight),
+            "NYXURI_BACKLIGHT_DIR": str(self.backlight),
         }
         return subprocess.run(
             ["/bin/bash", str(_BRIGHTNESS), *args],

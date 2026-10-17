@@ -180,25 +180,66 @@ class TestAISpecs(unittest.TestCase):
     # Unit-model death registry (unit-model.md §7, two-step enforcement)
     # ------------------------------------------------------------------
 
-    def test_death_registry_open_rows_registered(self):
-        """KM0 registration step: every not-yet-enforced death-row object must
-        be registered in unit-model.md §7 with name and stage on the same row.
+    def test_death_registry_cleared(self):
+        """KM5 gate: the death registry (unit-model.md §7) must be EMPTY of
+        un-enforced rows — every registered object has reached its execution
+        stage and carries the (已执法) mark. 退役清单不空，KM5 不算完成."""
+        content = (self.wiki_dir / "unit-model.md").read_text(encoding="utf-8")
+        death_table_started = False
+        for line in content.splitlines():
+            if line.startswith("| 死刑对象"):
+                death_table_started = True
+                continue
+            if not death_table_started:
+                continue
+            if not line.startswith("|"):
+                break  # end of the §7 table
+            if "---" in line:
+                continue
+            self.assertIn(
+                "已执法", line,
+                f"un-enforced death-row object remains: {line}",
+            )
 
-        Upgrade path (per ROADMAP): when a stage closes, its rows upgrade to
-        physical-deletion assertions and retire from this registration list —
-        KM1's three rows were enforced (see test_km1_death_row_enforced);
-        KM5: cli hardcoded commands gone, installer demoted to bootstrap.
-        """
+    def test_km5_death_row_enforced(self):
+        """KM5 enforcement step: install.sh demoted to a one-time bootstrap
+        handing off to the dedicated launcher; nyxuri/migrations/ liquidated;
+        the §7 install.sh row marked enforced. The interactive menu world was
+        retained by author ruling — the cli.py death-row registration was
+        withdrawn (see ROADMAP KM5)."""
+        root = self.root_dir
+        # 1. §7 install.sh row marked enforced; the withdrawn cli.py row is gone.
         content = (self.wiki_dir / "unit-model.md").read_text(encoding="utf-8")
         rows = [line for line in content.splitlines() if line.startswith("|")]
-        for name, stage in (
-            ("nyxuri/cli.py", "KM5"),
-            ("install.sh", "KM5"),
-        ):
-            self.assertTrue(
-                any(name in row and stage in row for row in rows),
-                f"death-row object '{name}' must be registered with stage {stage} in unit-model.md §7",
+        self.assertTrue(
+            any("`install.sh` 安装器职责" in row and "KM5（已执法" in row for row in rows),
+            "death-row object 'install.sh' must be marked KM5（已执法） in unit-model.md §7",
+        )
+        self.assertFalse(
+            any("硬编码专用命令" in row for row in rows),
+            "the withdrawn cli.py death-row registration must be deleted from §7",
+        )
+
+        # 2. Physical absence of migrations; presence of the launcher.
+        self.assertFalse((root / "nyxuri" / "migrations").exists())
+        launcher = root / "nyxuri" / "launcher.sh"
+        self.assertTrue(launcher.is_file())
+        self.assertTrue(launcher.stat().st_mode & 0o111, "launcher must be executable")
+
+        # 3. Engine holds zero references to the retired package.
+        for py in sorted((root / "nyxuri").rglob("*.py")):
+            text = py.read_text(encoding="utf-8")
+            self.assertNotIn(
+                "nyxuri.migrations", text,
+                f"{py.relative_to(root)} still references nyxuri.migrations",
             )
+
+        # 4. install.sh = one-time bootstrap: hands off to the launcher with no
+        # argument passthrough, and its completeness checklist no longer
+        # enumerates the retired migrations package.
+        install_sh = (root / "install.sh").read_text(encoding="utf-8")
+        self.assertIn("nyxuri/launcher.sh", install_sh)
+        self.assertNotIn("migrations", install_sh)
 
     def test_km3_module_death_row_enforced(self):
         """KM3 enforcement step: nyxuri/modules/ is physically deleted — the
