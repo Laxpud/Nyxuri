@@ -81,7 +81,7 @@
    - 系统色彩方案变化经 `UiPreferences.systemThemeModeObserved` 信号闭环回写 `PersonalizationConfig.themeMode` 并再生色板（同值 no-op 防回环）；60s 轮询仅为无 IPC 环境的兜底通道。
    - 生成产物位于 `<generated>/nyxuri/`：`colors.json`（50 token 内部热载契约，读取侧保留旧 `clavis/` 一次性回退）、`palette-modes.json`（dark+light 双 mode，镜像与渲染的输入）、`scheme-previews.json`（scheme 画廊缓存）。
    - **取色与渲染分层（P4）**：matugen 仅作取色位（`--json` 纯 stdout，一次输出全 mode）；模板渲染由 `app/services/TemplateService.qml` 经 `shared/utils/TemplateExpr.js`（Noctalia 兼容表达式子集，块/过滤器/`palettes.*` 显式拒绝）完成，matugen 不再渲染任何应用模板。
-   - **模板归属**：内置注册表 `shell/assets/templates/config.toml`（kitty/btop/starship vendor 自 Noctalia 5.2.1 MIT + 共享池 `~/.config/noctalia/templates/` 的 gtk/glow/palette.toml）；用户注册表机制不变。每次生成双写 16 角色 palette JSON 到 `~/.config/noctalia/palettes/nyxuri.json`（受管生成物，原子写）供 Noctalia `source = custom` 对齐选用；双 Shell 默认各自独立取色，谁 active 谁写全部输出。
+   - **模板归属**：内置注册表 `shell/assets/templates/config.toml`（kitty/btop/starship vendor 自 Noctalia 5.2.1 MIT + 共享池 `~/.config/nyxuri/templates/` 的 gtk/glow/palette.toml——KM4/P5 由 `units/theme/` 单元部署的中立池，脱离 noctalia 命名空间）；用户注册表机制不变。每次生成双写 16 角色 palette JSON 到 `~/.config/noctalia/palettes/nyxuri.json`（受管生成物，原子写）供 Noctalia `source = custom` 对齐选用；双 Shell 默认各自独立取色，谁 active 谁写全部输出。
    - **派生契约**：terminal 22 token 与 16 角色映射单点实现在 `shared/utils/ThemePalette.js`（HCT 数学 vendor 自 material-color-utilities，Apache-2.0）；golden master 契约测试见 `shell/tests/qml/tst_ThemeContract.qml`，分歧矩阵（Noctalia 对 `on_*_container` 的 tone 重锚定）钉在 `tests/shell/test_shell.py::TestP4ThemeEngineContract`。
 7. **切换器清场契约（R10 现场修复）**：
    - 切换决策基于 `probe_running_shells()` 全量实例清单，而非首个匹配；"already active" 仅在 target 在场且对侧零实例时成立，否则先清残留并报告被清对象。

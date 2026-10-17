@@ -591,16 +591,18 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("property var settingsHost: null", gw_content)
         self.assertIn("root.settingsHost.toggle", gw_content)
 
-        # 2. AppShell injects settingsHost on completion
-        app_path = os.path.join(shell_dir, "app", "AppShell.qml")
-        with open(app_path, "r", encoding="utf-8") as f:
-            app_content = f.read()
-        self.assertIn("ActionGateway.settingsHost = settingsHost;", app_content)
-
-        # 3. SettingsHost toggle returns boolean indicating opening/closing
+        # 2. SettingsHost self-registers on the gateway (unit-model.md §6):
+        # the host reference exists exactly while the unit is loaded, and
+        # AppShell no longer wires it by id.
         sh_path = os.path.join(shell_dir, "modules", "settings", "SettingsHost.qml")
         with open(sh_path, "r", encoding="utf-8") as f:
             sh_content = f.read()
+        self.assertIn("ActionGateway.settingsHost = root", sh_content)
+        self.assertIn("ActionGateway.settingsHost = null", sh_content)
+        app_path = os.path.join(shell_dir, "app", "AppShell.qml")
+        with open(app_path, "r", encoding="utf-8") as f:
+            app_content = f.read()
+        self.assertNotIn("settingsHost =", app_content)
         self.assertIn("function toggle(pageId)", sh_content)
         self.assertIn("return false;", sh_content)
         self.assertIn("return true;", sh_content)
@@ -906,12 +908,14 @@ class TestShellManagement(unittest.TestCase):
         # 5. Non-intrusive: does not steal keyboard focus
         self.assertIn("WlrLayershell.keyboardFocus: WlrKeyboardFocus.None", host_content)
 
-        # 6. AppShell mounts the host conditionally when Keystone is disabled
-        app_shell_path = os.path.join(shell_dir, "app", "AppShell.qml")
-        with open(app_shell_path, "r", encoding="utf-8") as f:
-            app_shell_content = f.read()
-        self.assertIn("active: !PersonalizationConfig.keystoneEnabled", app_shell_content)
-        self.assertIn("NotificationPopupHost.qml", app_shell_content)
+        # 6. The popup:notification slot arbitrates keystone vs the standalone
+        # popup host in the slot host (unit-model.md §6, host-owned rule) —
+        # not a private config conditional in AppShell.
+        slot_path = os.path.join(shell_dir, "app", "SlotHost.qml")
+        with open(slot_path, "r", encoding="utf-8") as f:
+            slot_content = f.read()
+        self.assertIn('unit.id === "notifications"', slot_content)
+        self.assertIn('StateProjection.isEnabled("keystone")', slot_content)
 
     def test_p3_r10_lifecycle_and_sideeffect_contracts(self):
         """P3-R10 lifecycle & side-effect governance contract checks."""
@@ -1081,21 +1085,43 @@ class TestShellManagement(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(shell_dir, "CMakeLists.txt")))
 
     def test_r2_startup_closure_and_lazy_hosts(self):
-        """R2-01 Contract: Startup closure and lazy loading of heavy hosts."""
+        """R2-01 Contract: Startup closure and lazy loading of heavy hosts.
+
+        KM4: lazy loading is slot-driven — AppShell instantiates zero units
+        by name; SlotHost owns one Loader per UnitCatalog row keyed by
+        StateProjection (unit-model.md §6).
+        """
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         shell_dir = os.path.join(repo_root, "shell")
 
-        # 1. LauncherHost replaces direct LauncherWindow in AppShell
+        # 1. AppShell is the microkernel host: no unit instantiated by name.
         app_file = os.path.join(shell_dir, "app", "AppShell.qml")
         with open(app_file, "r", encoding="utf-8") as f:
             app_content = f.read()
-        self.assertIn("LauncherHost {", app_content)
-        self.assertIn("id: spotlightLauncher", app_content)
-        self.assertNotIn("LauncherWindow {\n        id: spotlightLauncher", app_content)
+        for unit_component in ("LauncherHost {", "Lock {", "SessionHost {", "SettingsHost {",
+                               "Keystone {", "RegionSelector {", "SidebarHostWindow {",
+                               "WallpaperBackground {", "NotificationPopupHost {",
+                               "DesktopCardHost {", "Bar {", "DockHost {"):
+            self.assertNotIn(unit_component, app_content,
+                             f"unit must not be instantiated by name in AppShell: {unit_component}")
+        self.assertIn("SlotHost {", app_content)
 
-        # 2. DesktopCardHost gated by desktopCardIds
-        self.assertIn("SystemCardService.desktopCardIds.length > 0", app_content)
-        self.assertIn("DesktopCardHost.qml", app_content)
+        # 2. SlotHost: data-driven Loaders over the catalog, gated by the
+        # ledger projection.
+        slot_file = os.path.join(shell_dir, "app", "SlotHost.qml")
+        with open(slot_file, "r", encoding="utf-8") as f:
+            slot_content = f.read()
+        self.assertIn("Repeater", slot_content)
+        self.assertIn("Loader", slot_content)
+        self.assertIn("StateProjection.isEnabled", slot_content)
+        self.assertIn("UnitCatalog.units", slot_content)
+
+        # 2b. DesktopCardHost gates its own windows on configured cards;
+        # slot loading stays pure existence.
+        dch_file = os.path.join(shell_dir, "modules", "desktopcards", "DesktopCardHost.qml")
+        with open(dch_file, "r", encoding="utf-8") as f:
+            dch_content = f.read()
+        self.assertIn("SystemCardService.desktopCardIds.length > 0", dch_content)
 
         # 3. ShellStartupService stages and lifecycle tracking
         self.assertIn("ShellStartupService.recordCoreReady()", app_content)
@@ -1562,13 +1588,15 @@ class TestShellManagement(unittest.TestCase):
             old_file = os.path.join(services_dir, name)
             self.assertFalse(os.path.exists(old_file), f"Old service duplicate must not exist in app/services: {old_file}")
 
-        # 3. Assert app/ file count strictly converged: 43 files total (4 app root, 39 in services)
+        # 3. Assert app/ file count strictly converged: 47 files total
+        # (7 app root — AppShell/SlotHost/UnitCatalog/ActionGateway/Paths/WidgetState
+        # + services/StateProjection、UnitControlService 两个内核投影件)
         app_files = []
         for root_dir, _, files in os.walk(os.path.join(shell_dir, "app")):
             for f in files:
                 if f.endswith((".qml", ".js")):
                     app_files.append(os.path.join(root_dir, f))
-        self.assertEqual(len(app_files), 43, f"app/ must strictly contain 43 files, found {len(app_files)}: {app_files}")
+        self.assertEqual(len(app_files), 47, f"app/ must strictly contain 47 files, found {len(app_files)}: {app_files}")
 
         # 5. Static lifecycle audit passes clean with zero violations
         import subprocess
@@ -1898,14 +1926,21 @@ class TestShellManagement(unittest.TestCase):
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         shell_dir = os.path.join(repo_root, "shell")
 
-        # 1. AppShell conditional Loader gating
+        # 1. Slot-driven existence: unit gates live in SlotHost keyed by the
+        # ledger projection; AppShell holds no per-unit conditionals and no
+        # private config switches (unit-model.md §6).
         app_path = os.path.join(shell_dir, "app", "AppShell.qml")
         with open(app_path, "r", encoding="utf-8") as f:
             app_code = f.read()
         self.assertIn("active: DisplayConfigService.identify || DisplayConfigService.confirming", app_code)
-        self.assertIn("active: PersonalizationConfig.barEnabled", app_code)
-        self.assertIn("active: DockService.enabled", app_code)
-        self.assertIn("active: !PersonalizationConfig.keystoneEnabled", app_code)
+        self.assertNotIn("PersonalizationConfig.barEnabled", app_code)
+        self.assertNotIn("DockService.enabled", app_code)
+        self.assertNotIn("keystoneEnabled", app_code)
+        slot_path = os.path.join(shell_dir, "app", "SlotHost.qml")
+        with open(slot_path, "r", encoding="utf-8") as f:
+            slot_code = f.read()
+        self.assertIn("StateProjection.isEnabled(unit.id)", slot_code)
+        self.assertIn("active: root.slotActive(modelData)", slot_code)
 
         # 2. Layer-shell surfaces physically unmount when disabled or inactive
         ov_path = os.path.join(shell_dir, "modules", "wallpaper", "OverviewWallpaper.qml")
@@ -1998,16 +2033,31 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("Array.isArray(args)", gw)
         self.assertIn("pendingSecurePowerAction", gw)
 
-        # 2. AppShell: assembly + public IPC only. The wallpaper catalog
-        # switch and pendingCycle fallback live in WallpaperService now.
+        # 2. AppShell: microkernel assembly + generic IPC only. Unit-owned
+        # targets (lock / spotlight / power-menu / control-center / settings)
+        # moved into their unit roots; the kernel's unit-changed event lands
+        # on the host's `unit` target. Gateway-owned search intents delegate
+        # to ActionGateway.executeIntent.
         app = read("app/AppShell.qml")
         self.assertNotIn("pendingCycleAction", app)
         self.assertIn("WallpaperService.runCatalogAction(action.method)", app)
-        self.assertIn("ActionGateway.requestSidebarToggle", app)
+        self.assertIn("ActionGateway.executeIntent(action)", app)
+        self.assertIn("ActionGateway.requestSidebarOpenOnScreen", app)
+        self.assertNotIn('target: "lock"', app)
+        self.assertNotIn('target: "spotlight"', app)
+        self.assertNotIn('target: "power-menu"', app)
+        self.assertNotIn('target: "control-center"', app)
+        self.assertIn('target: "unit"', app)
         self.assertIn('target: "theme"', app)
         self.assertIn("ThemeService.setThemeMode(mode)", app)
         self.assertIn("ThemeService.toggleThemeMode()", app)
         self.assertIn("PersonalizationConfig.themeMode;", app)
+
+        # 2b. Unit-owned IPC surfaces live in the unit roots.
+        self.assertIn('target: "lock"', read("modules/lock/Lock.qml"))
+        self.assertIn('target: "spotlight"', read("modules/launcher/LauncherHost.qml"))
+        self.assertIn('target: "power-menu"', read("modules/session/SessionHost.qml"))
+        self.assertIn('target: "control-center"', read("modules/settings/SettingsHost.qml"))
 
         # 3. WallpaperService owns its catalog action surface.
         self.assertIn("function runCatalogAction", read("modules/wallpaper/WallpaperService.qml"))

@@ -216,32 +216,27 @@ nyxuri doctor [unit]
 
 ---
 
-## 6. Shell 内部完全单元化与协同契约 (Shell Unitization & Coordination)
+## 6. Shell 内部单元化与协同契约 (Shell Unitization & Coordination)
 
-> **层次边界**：内核只关心本节三件事——同一账本、单一事件通道、点分 ID。插槽分类学与微内核实现细节属 Shell 侧契约，KM4 Shell 模块化时迁归 [shell 契约](../shell/AGENTS.md)，本页届时只留这三条。
+> **层次边界（KM4 已兑现）**：内核只关心本节三件事——同一账本、单一事件通道、
+> 点分 ID。插槽分类学与微内核宿主实现细节已迁归 [Shell 契约](../shell/AGENTS.md)。
 >
 > **设计初衷**：当前 Shell 超过 50% 组件为借用的临时过渡品，未来将由作者大幅重构与推倒重写。微内核 + 几何插槽保证了借用组件与外壳的**绝对绝缘**——拔除、重写或替换任意组件，微内核与其他模块零改动。
 
-Nyxuri Shell 绝非特权单体，其内部亦彻底单元化。Shell 本身蜕变为极致精简的**微内核宿主（Micro-Kernel Host）**，仅保留动作网关（`ActionGateway`）、会话协议（`NiriService`）、主题代币（`ThemeTokens`）与插槽宿主（`SlotHost`），其内部功能域全部升格为平等的 Shell 单元。
+Nyxuri Shell 绝非特权单体，其内部亦彻底单元化（宿主侧契约见 Shell AGENTS）。
+内核只冻结以下三条：
 
-### 1. 六大几何插槽模型 (The 6 Geometric Slots)
-所有 Shell 单元（`shell/units/<domain>/`）向唯一的 6 种几何插槽声明挂载点：
-* **`edge:<top|bottom|left|right>`**（屏幕边缘）：如 `bar`、`dock`（独占边距排除区）；
-* **`island`**（动态中枢）：如 `keystone` 顶部浮岛，微动展开收拢；
-* **`overlay`**（全屏模态）：如 `lock`、`session`、`regionselector`；
-* **`drawer:<left|right>`**（抽屉侧边）：如 `sidebars` 仪表盘；
-* **`surface:desktop`**（底层画布）：如 `desktopcards` 桌面卡片、`wallpaper`；
-* **`popup:notification`**（通知气泡）：如 `notifications` 弹窗宿主。
-
-### 2. 动态装载与零内存释放闭包
-* 微内核 `AppShell.qml` 内部消灭所有硬编码组件，仅保留数据驱动的 `Repeater` 与 `Loader`；
-* 单元处于 `disabled` 时，`Loader.active = false`；实例当场销毁，其 Process、Timer、Socket 与回调全部注销；**冷启动时未启用功能域零读文件、零加载、内存占用为 0**。
-
-### 3. 横向解耦与单一开关真相
-* **横向零依赖**：Shell 单元之间严禁跨域调用，跨域桌面意图唯一路由至 `ActionGateway.executeIntent()`；
-* **双向单一真相**：Shell 设置面板拨动开关仅通过 `ActionGateway` 派发 `nyxuri on/off` 调用内核事务，Shell 永远只是账本在屏幕上的**只读投影**；
-* **单向事件通知**：事务落账后只发一次 `unit-changed` 事件。这是抽象端口，不是内核命令——当前唯一投递实现是 `quickshell ipc unit reload`，由外层注入（`nyxuri/desktop/bridge.py`，CLI 入口 `bridge.wire()` 统一接线），内核不 import、不 subprocess quickshell；无订阅者时为 no-op（测试与无 Shell 环境零负担）；
-* **点分 ID 约定**：Shell 域单元以 `shell.<domain>` 命名（如 `nyxuri off shell.dock`），统一挂入 `state.json` 与 4 大动词管辖。内核只认点分 ID 本身，不特判任何前缀。
+1. **同一账本**：Shell 设置面板拨动开关仅派发 `nyxuri on/off shell.<domain>` 调用
+   内核事务；Shell 永远只是 `state.json` 在屏幕上的**只读投影**，不持有私有开关
+   状态（Shell 私有开关字段已随 KM4 处决，见 §7）。
+2. **单一事件通道**：事务落账后只发一次 `unit-changed` 事件。这是抽象端口，不是
+   内核命令——当前唯一投递实现是 `quickshell ipc unit reload`，由外层注入
+   （`nyxuri/desktop/bridge.py`，CLI 入口 `bridge.wire()` 统一接线），内核不
+   import、不 subprocess quickshell；无订阅者时为 no-op（测试与无 Shell 环境
+   零负担）。
+3. **点分 ID 约定**：Shell 域单元以 `shell.<domain>` 命名（如 `nyxuri off
+   shell.dock`），统一挂入 `state.json` 与 4 大动词管辖。内核只认点分 ID 本身，
+   不特判任何前缀。
 
 **内核侧承载（KM4 落地）**：Shell 单元物理住在 `shell/units/<domain>/`（文件树表达架构），
 registry 以**命名空间根**解析——`units/` 产裸 ID，`shell/units/` 产 `shell.` 前缀 ID，
@@ -273,6 +268,9 @@ deploy/deps 的包世界（`discover_manifest_apps`）只扫 `units/`，Shell �
 | 17 个零文件假单元（`configs/` 下仅 manifest 的包目录）→ 根 `catalog.toml` | KM3.5（已执法，包目录清单不是单元） |
 | `assets/` + `nyxuri/deploy/assets.py`（壁纸旁路）→ `units/wallpapers/` 单元 + `hooks/install-pack` | KM3.5（已执法，`wallpapers` 动词处决 → `on wallpapers`） |
 | 蓝图正名 `configs/` → `units/`、引擎物理分层（`kernel/` `desktop/` `installer/` `pkg/` 收编、`sysdoctor` 正名、`packaging/` 迁仓库根、测试镜像树） | KM3.5（已执法，文件树即架构） |
+| Shell 私有开关状态（settings.json `bar.enabled`/`keystone.enabled`、dock.json `enabled`）→ 账本投影（`StateProjection`）+ `UnitControl` 派发内核动词 | KM4（已执法，单一开关真相） |
+| AppShell 硬编码单元组件 ×9 与宿主代管的单元 IPC（power-menu/lock/spotlight/control-center/settings）→ `SlotHost` 槽驱动 + 单元自有 IPC | KM4（已执法，微内核插槽架构） |
+| `~/.config/noctalia/templates/` 共享池（寄宿 noctalia 命名空间）→ `units/theme/` 单元 + `~/.config/nyxuri/templates/` | KM4（已执法，池位置中立化，merge 共享生活区） |
 | `nyxuri/cli.py` 硬编码专用命令 | KM5 |
 | `install.sh` 安装器职责（退役为一次性引导） | KM5 |
 

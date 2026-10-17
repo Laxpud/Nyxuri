@@ -141,6 +141,20 @@ Singleton {
     property string _pendingExportPath: ""
     property string _pendingExportJson: ""
 
+    // Shell units project straight off the ledger — the control plane
+    // mirrors no switch state (unit-model.md §6 single switch truth).
+    function buildUnitRows() {
+        return UnitCatalog.units.map(unit => {
+            const on = StateProjection.isEnabled(unit.id);
+            return {
+                "id": unit.id,
+                "unit": "shell." + unit.id,
+                "enabled": on,
+                "state": on ? "loaded" : "unloaded"
+            };
+        });
+    }
+
     function buildDiagnostics() {
         const metrics = ShellStartupService.startupMetrics();
         const now = Date.now();
@@ -161,55 +175,46 @@ Singleton {
                                                      "samplingCpuPercent": root.cpuPercent,
                                                      "samplingRssKb": root.rssKb,
                                                      "samplingLastSampleMs": root.lastSampleMs,
-                                                     "modules": [
-                                                         {
-                                                             "id": "bar",
-                                                             "enabled": PersonalizationConfig.barEnabled,
-                                                             "state": PersonalizationConfig.barEnabled
-                                                                      ? "loaded" : "unloaded"
-                                                         },
-                                                         {
-                                                             "id": "dock",
-                                                             "enabled": DockService.enabled,
-                                                             "state": DockService.enabled ? "loaded" :
-                                                                                            "unloaded"
-                                                         },
-                                                         {
-                                                             "id": "keystone",
-                                                             "enabled": PersonalizationConfig.keystoneEnabled,
-                                                             "state": PersonalizationConfig.keystoneEnabled
-                                                                      ? "loaded" : "unloaded"
-                                                         },
-                                                         {
-                                                             "id": "overview",
-                                                             "enabled": PersonalizationConfig.overviewEnabled,
-                                                             "state": PersonalizationConfig.overviewEnabled
-                                                                      ? "loaded" : "unloaded"
-                                                         },
-                                                         {
-                                                             "id": "clipboard",
-                                                             "enabled": true,
-                                                             "state": ClipboardService.available ? "ready" :
-                                                                                                   "degraded"
-                                                         },
-                                                         {
-                                                             "id": "network",
-                                                             "enabled": true,
-                                                             "state": NetworkService.available ? "ready" :
-                                                                                                 "degraded"
-                                                         },
-                                                         {
-                                                             "id": "bluetooth",
-                                                             "enabled": true,
-                                                             "state": BluetoothService.available ? "ready" :
-                                                                                                   "degraded"
-                                                         },
-                                                         {
-                                                             "id": "system-monitor",
-                                                             "enabled": true,
-                                                             "state": SystemMonitorService.state
-                                                         }
-                                                     ],
+                                                     "modules": root.buildUnitRows().concat([
+                                                                                                {
+                                                                                                    "id": "overview",
+                                                                                                    "enabled":
+                                                                                                    PersonalizationConfig.overviewEnabled,
+                                                                                                    "state": PersonalizationConfig.overviewEnabled
+                                                                                                             ? "loaded" :
+                                                                                                               "unloaded"
+                                                                                                },
+                                                                                                {
+                                                                                                    "id": "clipboard",
+                                                                                                    "enabled":
+                                                                                                    true,
+                                                                                                    "state": ClipboardService.available
+                                                                                                             ? "ready" :
+                                                                                                               "degraded"
+                                                                                                },
+                                                                                                {
+                                                                                                    "id": "network",
+                                                                                                    "enabled":
+                                                                                                    true,
+                                                                                                    "state": NetworkService.available
+                                                                                                             ? "ready" :
+                                                                                                               "degraded"
+                                                                                                },
+                                                                                                {
+                                                                                                    "id": "bluetooth",
+                                                                                                    "enabled":
+                                                                                                    true,
+                                                                                                    "state": BluetoothService.available
+                                                                                                             ? "ready" :
+                                                                                                               "degraded"
+                                                                                                },
+                                                                                                {
+                                                                                                    "id": "system-monitor",
+                                                                                                    "enabled":
+                                                                                                    true,
+                                                                                                    "state": SystemMonitorService.state
+                                                                                                }
+                                                                                            ]),
                                                      "dependencies": [
                                                          {
                                                              "id": "wl-copy",

@@ -38,16 +38,6 @@ StyledFlickable {
 
             SettingsRow {
                 Layout.fillWidth: true
-                title: I18n.tr("Show bar")
-                trailing: StyledSwitch {
-                    checked: PersonalizationConfig.barEnabled
-                    Accessible.name: I18n.tr("Show bar")
-                    onToggled: PersonalizationConfig.setValue("barEnabled", checked)
-                }
-            }
-
-            SettingsRow {
-                Layout.fillWidth: true
                 title: I18n.tr("Floating")
                 trailing: StyledSwitch {
                     checked: PersonalizationConfig.barOverlay

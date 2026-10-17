@@ -36,18 +36,6 @@ StyledFlickable {
             onSetupRequested: NiriConfigService.setup("minimize-animation")
         }
 
-        SettingsRow {
-            Layout.fillWidth: true
-            title: I18n.tr("Show Dock")
-            iconName: "dock_to_bottom"
-
-            trailing: StyledSwitch {
-                checked: DockService.enabled
-                Accessible.name: I18n.tr("Show Dock")
-                onToggled: DockService.setOption("enabled", checked)
-            }
-        }
-
         InlineStatusBanner {
             Layout.fillWidth: true
             visible: DockService.configError.length > 0

@@ -9,9 +9,9 @@
 # expands to the rendered template's directory at runtime.
 #
 # The gtk/niri/palette entries consume the shared template pool deployed to
-# ~/.config/noctalia/templates/ (both shells render the same files, so the two
-# engines stay byte-comparable); on a checkout without that pool these entries
-# surface as invalid instead of silently vanishing.
+# ~/.config/nyxuri/templates/ by the `theme` unit (KM4/P5 neutral pool —
+# namespace-free, survives without the noctalia unit); on a checkout without
+# that pool these entries surface as invalid instead of silently vanishing.
 
 [config]
 version_check = false
@@ -33,17 +33,17 @@ post_hook = "bash \"$TEMPLATE_DIR/starship-apply.sh\""
 
 # Shared template pool (rendered for whichever shell is active).
 [templates.gtk3]
-input_path = "~/.config/noctalia/templates/gtk-3.0.css"
+input_path = "~/.config/nyxuri/templates/gtk-3.0.css"
 output_path = "~/.config/gtk-3.0/gtk.css"
 
 [templates.gtk4]
-input_path = "~/.config/noctalia/templates/gtk-4.0.css"
+input_path = "~/.config/nyxuri/templates/gtk-4.0.css"
 output_path = "~/.config/gtk-4.0/gtk.css"
 
 [templates.niri_glow]
-input_path = "~/.config/noctalia/templates/niri-glow-material-you.kdl"
+input_path = "~/.config/nyxuri/templates/niri-glow-material-you.kdl"
 output_path = "~/.config/niri/colors.kdl"
 
 [templates.palette_toml]
-input_path = "~/.config/noctalia/templates/palette.toml"
+input_path = "~/.config/nyxuri/templates/palette.toml"
 output_path = "~/.cache/nyxuri/palette.toml"

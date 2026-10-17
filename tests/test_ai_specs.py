@@ -291,8 +291,8 @@ class TestAISpecs(unittest.TestCase):
         self.assertFalse((root / "configs").exists(), "blueprint must be renamed")
         units = root / "units"
         self.assertTrue(units.is_dir())
-        self.assertEqual(len([d for d in units.iterdir() if d.is_dir()]), 12,
-                         "blueprint = 11 real units + wallpapers")
+        self.assertEqual(len([d for d in units.iterdir() if d.is_dir()]), 13,
+                         "blueprint = 12 real units + wallpapers (KM4 adds theme)")
         self.assertFalse((root / "assets").exists())
         self.assertTrue((units / "wallpapers" / "hooks" / "install-pack").is_file())
         self.assertTrue((units / "wallpapers" / "manifest.toml").is_file())
@@ -311,14 +311,18 @@ class TestAISpecs(unittest.TestCase):
         self.assertTrue((root / "catalog.toml").is_file())
 
         # 3. The 17 fake units are catalog entries, never blueprint dirs.
+        # KM4 adds quickshell: the shell runtime base, declared for setups
+        # that pick nyxuri-shell without the Noctalia AUR transitively
+        # pulling it in (shell/KNOWN-ISSUES closure).
         fake_names = {"brave-origin", "flclash", "kdenlive", "libreoffice", "lutris",
                       "missioncenter", "motrix", "nautilus", "obs", "protonplus",
-                      "qq", "shelly", "spotify", "steam", "telegram", "vscode", "wechat"}
+                      "qq", "shelly", "spotify", "steam", "telegram", "vscode", "wechat",
+                      "quickshell"}
         self.assertEqual(fake_names & {d.name for d in units.iterdir()}, set())
         catalog = (root / "catalog.toml").read_text(encoding="utf-8")
         import tomllib
         data = tomllib.loads(catalog)
-        self.assertEqual(fake_names, set(data), "catalog must carry exactly the 17 declarations")
+        self.assertEqual(fake_names, set(data), "catalog must carry exactly the 18 declarations")
 
         # 4. The engine holds zero references to the dead names.
         for py in sorted((root / "nyxuri").rglob("*.py")):

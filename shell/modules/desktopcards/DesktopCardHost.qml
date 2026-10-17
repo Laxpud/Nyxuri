@@ -39,7 +39,9 @@ Variants {
         }
     }
 
-    model: Quickshell.screens
+    // No cards configured → no windows: the old host-side loader gate moved
+    // inside the unit, so slot loading stays pure existence.
+    model: SystemCardService.desktopCardIds.length > 0 ? Quickshell.screens : []
 
     PanelWindow {
         id: window

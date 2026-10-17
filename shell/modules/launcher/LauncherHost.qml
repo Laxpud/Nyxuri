@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.app
 
 Scope {
@@ -60,6 +61,57 @@ Scope {
 
     function normalizedMode(mode: string): string {
         return launcherItem ? launcherItem.normalizedMode(mode) : (mode || "");
+    }
+
+    // Unit-owned IPC surface (unit-model.md §6): the launcher's spotlight
+    // target exists exactly while the unit is loaded.
+    IpcHandler {
+        target: "spotlight"
+
+        function toggle(): string {
+            root.toggleWindow();
+            return root.windowPhase.toUpperCase();
+        }
+
+        function open(): string {
+            root.openSpotlight();
+            return root.windowPhase.toUpperCase();
+        }
+
+        function search(): string {
+            root.openSpotlight("search");
+            return "SEARCH";
+        }
+
+        function close(): string {
+            root.requestClose();
+            return root.windowPhase.toUpperCase();
+        }
+
+        function web(): string {
+            root.openWebMode();
+            return "WEB";
+        }
+
+        function command(name: string): string {
+            return root.runCommand(name);
+        }
+
+        function commands(): string {
+            return root.openMode("commands");
+        }
+
+        function files(): string {
+            return root.openMode("files");
+        }
+
+        function openMode(mode: string): string {
+            if (root.normalizedMode(mode || "") === "")
+                return "INVALID_MODE";
+
+            root.openSpotlight(mode);
+            return String(mode).toUpperCase();
+        }
     }
 
     LazyLoader {

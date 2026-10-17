@@ -97,27 +97,28 @@ StyledFlickable {
                 message: NiriService.configError
             }
 
-            SettingsRow {
-                Layout.fillWidth: true
-                title: I18n.tr("Status bar")
-                iconName: "dock_to_bottom"
+            // The twelve Shell units, projected straight off the ledger
+            // (unit-model.md §6). Flipping dispatches `nyxuri on/off
+            // shell.<domain>` via UnitControl; this page mirrors nothing.
+            Repeater {
+                model: UnitCatalog.units
 
-                trailing: StyledSwitch {
-                    checked: PersonalizationConfig.barEnabled
-                    Accessible.name: I18n.tr("Status bar")
-                    onToggled: PersonalizationConfig.setValue("barEnabled", checked)
-                }
-            }
+                delegate: SettingsRow {
+                    required property var modelData
 
-            SettingsRow {
-                Layout.fillWidth: true
-                title: I18n.tr("Dock")
-                iconName: "dock_to_bottom"
+                    readonly property bool pending: UnitControl.pendingUnitId === modelData.id
 
-                trailing: StyledSwitch {
-                    checked: DockService.enabled
-                    Accessible.name: I18n.tr("Dock")
-                    onToggled: DockService.setOption("enabled", checked)
+                    Layout.fillWidth: true
+                    title: I18n.tr(modelData.label)
+                    iconName: "widgets"
+                    supportingText: pending ? I18n.tr("Applying…") : ""
+
+                    trailing: StyledSwitch {
+                        checked: StateProjection.isEnabled(modelData.id)
+                        enabled: !pending && UnitControl.canToggle(modelData.id)
+                        Accessible.name: I18n.tr(modelData.label)
+                        onToggled: UnitControl.setUnit(modelData.id, checked)
+                    }
                 }
             }
 
@@ -128,16 +129,18 @@ StyledFlickable {
                 message: DockService.configError
             }
 
-            SettingsRow {
+            InlineStatusBanner {
                 Layout.fillWidth: true
-                title: I18n.tr("Keystone")
-                iconName: "toggle_off"
+                visible: UnitControl.lastError.length > 0
+                tone: "error"
+                message: UnitControl.lastError
+            }
 
-                trailing: StyledSwitch {
-                    checked: PersonalizationConfig.keystoneEnabled
-                    Accessible.name: I18n.tr("Keystone")
-                    onToggled: PersonalizationConfig.setValue("keystoneEnabled", checked)
-                }
+            InlineStatusBanner {
+                Layout.fillWidth: true
+                visible: StateProjection.degraded
+                tone: "error"
+                message: I18n.tr("The unit ledger is unreadable; every unit is shown as enabled.")
             }
 
             SettingsRow {

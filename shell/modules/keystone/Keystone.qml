@@ -31,9 +31,18 @@ Item {
         });
     }
 
+    // Unit self-registration (unit-model.md §6): keystone owns its gateway
+    // presence; search intents and availability read it through
+    // ActionGateway, never around it. Style selection is the appearance
+    // axis — the unit's existence is the ledger's alone.
+    Component.onCompleted: ActionGateway.keystoneHost = root
+    Component.onDestruction: {
+        if (ActionGateway.keystoneHost === root)
+            ActionGateway.keystoneHost = null;
+    }
+
     Loader {
         id: styleLoader
-        active: PersonalizationConfig.keystoneEnabled
 
         sourceComponent: PersonalizationConfig.keystoneStyle === "long" ? longStyle :
                                                                           PersonalizationConfig.keystoneStyle

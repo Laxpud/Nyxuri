@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.app
 import qs.app.services
 import qs.modules.settings.dashboard
@@ -120,6 +121,47 @@ Scope {
 
         function onSettingsSearchRequested(searchId) {
             root.openSearch(searchId);
+        }
+    }
+
+    // Unit self-registration (unit-model.md §6): the settings unit owns its
+    // gateway presence and its IPC surface; both exist exactly while the
+    // unit is loaded.
+    Component.onCompleted: ActionGateway.settingsHost = root
+    Component.onDestruction: {
+        if (ActionGateway.settingsHost === root)
+            ActionGateway.settingsHost = null;
+    }
+
+    IpcHandler {
+        target: "control-center"
+
+        function open(pageId: string): string {
+            return ActionGateway.requestSettingsOpen(pageId || "") ? "OK" : "UNAVAILABLE";
+        }
+
+        function close(): string {
+            return ActionGateway.requestSettingsClose() ? "OK" : "CLOSED";
+        }
+
+        function toggle(pageId: string): string {
+            return ActionGateway.requestSettingsToggle(pageId || "") ? "OPENING" : "CLOSING";
+        }
+    }
+
+    IpcHandler {
+        target: "settings"
+
+        function open(pageId: string): string {
+            return ActionGateway.requestSettingsOpen(pageId || "") ? "OK" : "UNAVAILABLE";
+        }
+
+        function close(): string {
+            return ActionGateway.requestSettingsClose() ? "OK" : "CLOSED";
+        }
+
+        function toggle(pageId: string): string {
+            return ActionGateway.requestSettingsToggle(pageId || "") ? "OPENING" : "CLOSING";
         }
     }
 

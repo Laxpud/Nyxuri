@@ -71,6 +71,45 @@ UI 只呈现和响应输入；桌面意图经 Action Gateway 执行。命令、�
 不 eval、不拼 shell 字符串；后台订阅也必须有归属，不能绕过生命周期管理。
 每个域迁移时同步检查旧路径，验收后移除被替代实现，避免新旧两套长期共存。
 
+## 微内核宿主与几何插槽（KM4 契约，迁自 unit-model §6）
+
+Shell 是极致精简的**微内核宿主**：宿主只保留装配（`SlotHost`）、动作网关
+（`ActionGateway`，含 `executeIntent` 跨域意图路由）、会话协议（`NiriService`）、
+主题代币（`ThemeTokens`/ThemeService）与账本投影（`StateProjection`）。内核侧
+三条（同一账本、单一事件通道、点分 ID）冻结在 unit-model §6，此处承载实现契约。
+
+- **六大几何插槽**：所有 Shell 单元（`shell/units/<domain>/`，`runtime = true`）
+  向唯一的 6 种几何插槽声明挂载——`edge`（bar/dock）、`island`（keystone）、
+  `overlay`（launcher/lock/session/settings/regionselector）、`drawer`（sidebars）、
+  `surface:desktop`（desktopcards/wallpaper）、`popup:notification`（notifications）。
+  插槽归属数据在 `app/UnitCatalog.qml`，与 `shell/units/` 由
+  `shell/tests/test_unit_catalog.py` 强制同步。
+- **数据驱动装载**：`AppShell.qml` 不按名实例化任何单元组件；`SlotHost` 以
+  `Repeater + Loader` 依目录装配，`active` 只读 `StateProjection`。单元 `disabled`
+  即 `Loader.active = false`：实例销毁，Process/Timer/Socket/回调全部注销；冷启动
+  未启用域零读文件、零实例化。槽仲裁归宿主：lock 持有期间禁卸载（延迟至解锁）；
+  keystone 在场时独占 `popup:notification` 槽。
+- **单一开关真相**：Shell 永不直写账本。开关只经 `UnitControlService` 派发
+  `nyxuri on/off shell.<domain>`，UI 不乐观翻转——`unit-changed` 事件
+  （`qs ipc call unit reload`，宿主 `IpcHandler target: "unit"` 接收）到达后由
+  `StateProjection` 重投影。账本无记录 = 默认启用；账本损坏 = 全启用降级 + 诊断
+  横幅。外观轴（位置/样式/覆盖等）仍归 PersonalizationConfig，与开关轴正交。
+- **单元自有 IPC**：单元的 IPC surface 属单元（lock/spotlight/power-menu/
+  control-center/settings/keystone），随单元装载生死；宿主只保留通用面
+  （unit/shell/theme/shortcut-map/wallpaper）。单元 off 时其 IPC 目标消失，
+  六动作经 `nyxuri-shell --action` 得到真实失败而非假成功。
+- **Quickshell 0.3.2 运行时约束**（KM4 实测，quickshell 升级后重估）：
+  ① Loader 动态装载的组件在冷启动并发解析各自 import 图时会竞态——败者以
+  「module not installed / X is not a type」不确定地整单元暴毙。对策：SlotHost
+  静态预热 import 全部 12 个单元模块（只注册不实例化），装载仍纯 Loader 驱动；
+  禁用单元零实例化、零窗口、零驻留内存不变，代价是预热注册的仅解析成本。
+  ② `IpcHandler` 类型挂在 `Quickshell.Io` 模块下——单元根新增 handler 时必须
+  `import Quickshell.Io`（仅 import Quickshell 不够，报「IpcHandler is not a
+  type」且目标静默消失）。
+- **降级语义**：能力全开、副作用明示——`off shell.lock` 后 idle 锁请求报失败
+  横幅、无锁挂起直接执行；`off shell.wallpaper` 卸载壁纸视觉，合成器背景透出；
+  域服务（通知接收、壁纸状态、主题管线输入）是 app 层能力，不随视觉单元卸载。
+
 ## 生命周期与退出
 
 - 模块未使用时不启动专属后台。面板收起立即停止专属任务，关闭动画结束后卸载对象；

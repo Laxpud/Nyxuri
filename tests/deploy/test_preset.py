@@ -263,7 +263,7 @@ class TestPresetOperations(unittest.TestCase):
         self.assertNotIn("colors.kdl", def_content)
 
     def test_niri_glow_material_you_template_is_dynamic(self):
-        template = self.env.units_src / "noctalia" / "templates" / "niri-glow-material-you.kdl"
+        template = self.env.units_src / "theme" / "niri-glow-material-you.kdl"
         content = template.read_text(encoding="utf-8")
         self.assertIn("{{ colors.primary.default.hex }}", content)
         self.assertIn("{{ colors.error.default.hex }}", content)

@@ -2,7 +2,8 @@
 
 function defaults() {
     return {
-        enabled: true,
+        // "enabled" retired at KM4: unit existence lives in the ledger
+        // (StateProjection), not in dock.json.
         position: "bottom",
         iconSize: 48,
         magnification: true,
@@ -49,6 +50,11 @@ function decodeConfig(text) {
                 || Array.isArray(value.options)) return null;
         const options = defaults();
         for (const name of Object.keys(value.options)) {
+            // Retired/unknown keys (e.g. "enabled" since KM4) are dropped,
+            // not rejected: the next save writes a clean schema, while a
+            // key that still exists with a corrupt value keeps the strict
+            // rejection gate below.
+            if (!Object.prototype.hasOwnProperty.call(options, name)) continue;
             // Legacy manual separators now occupy full icon slots. Discard
             // their old width while preserving all other configuration checks.
             if (name === "separatorSize") {

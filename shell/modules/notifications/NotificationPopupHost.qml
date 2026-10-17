@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.shared.theme
 import qs.shared.controls
+import qs.app
 import qs.app.services
 
 Scope {
@@ -16,9 +17,11 @@ Scope {
 
             required property var modelData
 
-            readonly property bool barTop: PersonalizationConfig.barEnabled
+            // Slot placement, not a private switch: the bar's existence is
+            // the ledger's (StateProjection), its edge is appearance config.
+            readonly property bool barTop: StateProjection.isEnabled("bar")
                                            && PersonalizationConfig.barPosition === "top"
-            readonly property bool barRight: PersonalizationConfig.barEnabled
+            readonly property bool barRight: StateProjection.isEnabled("bar")
                                              && PersonalizationConfig.barPosition === "right"
             readonly property int notifWidth: 380
             readonly property int notifContentHeight: NotificationService.popupList.reduce((h, notif) => {

@@ -114,7 +114,12 @@ def build_category_suite(category: str) -> unittest.TestSuite:
         # Lifecycle and boundary tests
         from shell.tests.test_lifecycle_audit import TestLifecycleAudit
         suite.addTests(loader.loadTestsFromTestCase(TestLifecycleAudit))
-        from tests.test_shell import TestShellManagement
+        from shell.tests.test_unit_catalog import (TestUnitCatalogSync, TestHostClosure,
+                                                   TestEventLoop)
+        suite.addTests(loader.loadTestsFromTestCase(TestUnitCatalogSync))
+        suite.addTests(loader.loadTestsFromTestCase(TestHostClosure))
+        suite.addTests(loader.loadTestsFromTestCase(TestEventLoop))
+        from tests.shell.test_shell import TestShellManagement
         static_test_names = [
             "test_p2_layer_structure_and_session_decoupling",
             "test_p3_settings_decoupling_and_module_structure",
@@ -139,7 +144,7 @@ def build_category_suite(category: str) -> unittest.TestSuite:
         suite.addTests(loader.loadTestsFromTestCase(OutputContracts))
         from shell.tests.test_search_catalog import CatalogTests
         suite.addTests(loader.loadTestsFromTestCase(CatalogTests))
-        from tests.test_shell import TestShellManagement
+        from tests.shell.test_shell import TestShellManagement
         logic_test_names = [
             "test_p3_r10_20x_lifecycle_simulation",
             "test_r2_startup_closure_and_lazy_hosts",
@@ -151,7 +156,7 @@ def build_category_suite(category: str) -> unittest.TestSuite:
     elif category == "RESOURCE":
         # Resource integrity, shaders, icons, i18n
         suite.addTests(loader.loadTestsFromTestCase(ResourceIntegrityTests))
-        from tests.test_shell import TestShellManagement
+        from tests.shell.test_shell import TestShellManagement
         resource_test_names = [
             "test_r3_brand_paths_and_toml_i18n_contracts",
             "test_r4c_i18n_service_and_catalog_contracts",
@@ -165,9 +170,9 @@ def build_category_suite(category: str) -> unittest.TestSuite:
         # Native IPC, command line arguments, process lifecycle
         from shell.tests.test_display_preview import PreviewContracts
         suite.addTests(loader.loadTestsFromTestCase(PreviewContracts))
-        from tests.test_shell_runtime import ShellLauncherTests
+        from tests.shell.test_shell_runtime import ShellLauncherTests
         suite.addTests(loader.loadTestsFromTestCase(ShellLauncherTests))
-        from tests.test_shell import TestShellManagement
+        from tests.shell.test_shell import TestShellManagement
         native_test_names = [
             "test_default_shell_is_noctalia",
             "test_set_shell_valid",
@@ -189,7 +194,7 @@ def build_category_suite(category: str) -> unittest.TestSuite:
 
     elif category == "GRAPHICS":
         # Presentation under Weston Wayland
-        from tests.test_shell_runtime import ShellPresentationTests
+        from tests.shell.test_shell_runtime import ShellPresentationTests
         suite.addTests(loader.loadTestsFromTestCase(ShellPresentationTests))
 
     return suite

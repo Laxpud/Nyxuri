@@ -11,9 +11,13 @@
 ## 基础设施缺口（快速上线时跳过，回来先做这些）
 
 - [ ] **TUI 未接入**：`menus.py` 无 shell 切换菜单，`translations.toml` 无桌面外壳词条；目前只有 CLI `nyxuri shell` 一条路
-- [ ] **quickshell 依赖未声明**：不在任何 package manifest，目前靠 `noctalia` AUR 包传递引入；单独选用 nyxuri-shell 时 deps 体系无感知
-- [ ] **卸载残留**：`state/uninstall.py` 只清 `~/.local/bin/nyxuri`，不清 `~/.local/bin/nyxuri-shell` 软链（违反 H7 无残留）
 
 ## 已修复
 
-- （空）
+- [x] **quickshell 依赖未声明**（2026-10-17 KM4 清算）：根 `catalog.toml` 新增
+  `quickshell` 条目（`detect` + `packages_aur`），`deps apps` 菜单与 gen-deps
+  optdepends 同源可见；顺带修复 KM3.5 搬家后 PKGBUILD 生成标记 stale 导致
+  `gen-deps --update` 静默 no-op 的预存 bug。
+- [x] **卸载残留**（2026-10-17 复核）：`state/uninstall.py` 已随 cli 条目清理
+  `~/.local/bin/nyxuri-shell` 软链（含 `/shell/bin/` 旧路径形态）；沙箱实证
+  `nyxuri uninstall --all` 双软链清零。登记时该代码尚未存在，现已过时。

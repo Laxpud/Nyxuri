@@ -19,12 +19,13 @@ export CLAVIS_GENERATED_HOME="$test_root/generated"
 # Hermetic: a developer session may carry NYXURI_SHELL_* overrides that would
 # redirect the generation target out of the sandbox.
 unset NYXURI_SHELL_GENERATED_HOME NYXURI_SHELL_CONFIG_HOME NYXURI_SHELL_DATA_HOME
-mkdir -p "$HOME" "$HOME/.config/noctalia/templates"
-# The shared template pool is deployed to ~/.config/noctalia/templates; the
-# sandbox fakes it so the builtin registry entries resolve like on a real
-# installation. The registry uses literal ~ paths (parser expands $HOME).
+mkdir -p "$HOME" "$HOME/.config/nyxuri/templates"
+# The shared template pool is deployed to ~/.config/nyxuri/templates by the
+# `theme` unit (KM4/P5 neutral pool); the sandbox fakes it so the builtin
+# registry entries resolve like on a real installation. The registry uses
+# literal ~ paths (parser expands $HOME).
 for f in gtk-3.0.css gtk-4.0.css niri-glow-material-you.kdl palette.toml; do
-    printf '/* shared pool fixture */\n' > "$HOME/.config/noctalia/templates/$f"
+    printf '/* shared pool fixture */\n' > "$HOME/.config/nyxuri/templates/$f"
 done
 manager="$repo_root/scripts/theme/manage-matugen-templates.sh"
 generator="$repo_root/scripts/theme/generate-matugen-colors.sh"
@@ -42,7 +43,7 @@ manage list > "$test_root/list.json"
 jq -e '.errors == [] and ([.templates[] | select(.origin == "builtin")] | length == 7)
     and all(.templates[]; .valid)
     and any(.templates[]; .id == "kitty" and (.inputPath | test("kitty/kitty\\.conf$")))
-    and any(.templates[]; .id == "gtk3" and (.inputPath | test("noctalia/templates/gtk-3\\.0\\.css$")))' \
+    and any(.templates[]; .id == "gtk3" and (.inputPath | test("nyxuri/templates/gtk-3\\.0\\.css$")))' \
     "$test_root/list.json" >/dev/null
 assert test ! -e "$CLAVIS_CONFIG_HOME/matugen"
 

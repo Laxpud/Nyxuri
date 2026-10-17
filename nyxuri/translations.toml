@@ -614,6 +614,10 @@ en = "System Tools"
 zh = "Brave Origin"
 en = "Brave Origin"
 
+[app_quickshell]
+zh = "Quickshell"
+en = "Quickshell"
+
 [app_libreoffice]
 zh = "LibreOffice"
 en = "LibreOffice"

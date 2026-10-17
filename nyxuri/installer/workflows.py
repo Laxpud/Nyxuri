@@ -15,7 +15,11 @@ from nyxuri.deploy import (
     render_completion_screen,
     run_user_hooks,
 )
-from nyxuri.deploy.deploy import enable_wallpapers_unit as _enable_wallpapers, wallpapers_pack_present
+from nyxuri.deploy.deploy import (
+    enable_theme_unit as _enable_theme,
+    enable_wallpapers_unit as _enable_wallpapers,
+    wallpapers_pack_present,
+)
 from nyxuri.pkg.deps import get_missing_deps, install_selected_deps
 from nyxuri.kernel import transaction
 from nyxuri.core import msg
@@ -133,12 +137,15 @@ def install_configs_workflow(mode: str = "full") -> bool:
     # 3. Wallpapers — the unit path: `on wallpapers` syncs the blueprint
     # fallback into the shared living area (no-clobber). The external pack
     # is user-domain content (units/wallpapers/hooks/install-pack), never
-    # an install phase.
+    # an install phase. The theme pool (shared template living area) rides
+    # the same unit path: `on theme` no-clobber merges the blueprint
+    # templates; user-edited templates are never clobbered.
     wallpaper_ok = None
     if do_wallpapers:
         cur_step += 1
         print(msg("install_step_wallpapers", f"{cur_step}/{steps}"))
         wallpaper_ok = _enable_wallpapers()
+    _enable_theme()
 
     # 4. Unit hook replay: already-enabled units re-run their declared
     # on-side hooks (skins, renders). Activation of NEW units belongs to
@@ -168,6 +175,7 @@ def offer_overwrite_upgrade(flag: str = "") -> bool:
             render_completion_screen("update", failed_items=failed_items)
             return False
         wallpaper_ok = _enable_wallpapers()
+        _enable_theme()
         transaction.replay_enabled_hooks()
         _finish_successful_deploy("update", wallpaper_ok=wallpaper_ok)
         return True
@@ -182,6 +190,7 @@ def offer_overwrite_upgrade(flag: str = "") -> bool:
             render_completion_screen("update", failed_items=failed_items)
             return False
         wallpaper_ok = _enable_wallpapers()
+        _enable_theme()
         transaction.replay_enabled_hooks()
         _finish_successful_deploy("update", wallpaper_ok=wallpaper_ok)
         return True

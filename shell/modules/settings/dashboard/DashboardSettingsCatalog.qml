@@ -160,6 +160,12 @@ QtObject {
             "icon": "toolbar",
             "cards": [
                 {
+                    "type": "toggle",
+                    "key": "bar:Enabled",
+                    "title": I18n.tr("Enabled"),
+                    "icon": "toggle_on"
+                },
+                {
                     "type": "select",
                     "key": "bar:Position",
                     "title": I18n.tr("Position"),
@@ -360,7 +366,6 @@ QtObject {
                     "title": I18n.tr("Fill mode"),
                     "icon": "fit_screen"
                 },
-
                 {
                     "type": "toggle",
                     "key": "wallpaper:Auto cycle",

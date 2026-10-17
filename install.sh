@@ -141,7 +141,7 @@ engine_is_complete() {
     for module in __init__ menus workflows; do
         [ -f "$target_dir/nyxuri/installer/$module.py" ] || return 1
     done
-    # 蓝图: units/ 12 目录 + 壁纸单元 hook + fish 主配置
+    # 蓝图: units/ 13 目录（KM4 + theme 共享模板池）+ 壁纸/主题 merge hook + fish 主配置
     [ -d "$target_dir/units" ] \
         && [ -f "$target_dir/units/fish/config.fish" ] \
         && [ -f "$target_dir/units/wallpapers/hooks/install-pack" ] \

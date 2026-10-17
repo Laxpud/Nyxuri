@@ -120,11 +120,30 @@ Scope {
         SystemIdentityService.setUptimeConsumer("lock-screen", root.active);
         SystemMonitorService.setConsumerModules("lock-screen", root.active ? ["cpu", "memory", "disk"] : []);
     }
+
+    // Unit self-registration (unit-model.md §6): the lock unit owns its
+    // gateway presence and its IPC surface; both exist exactly while the
+    // unit is loaded.
+    Component.onCompleted: ActionGateway.sessionLocker = root
     Component.onDestruction: {
         preLockCapture.cancel();
         preLockCapture.clear();
         SystemIdentityService.setUptimeConsumer("lock-screen", false);
         SystemMonitorService.clearConsumer("lock-screen");
+        if (ActionGateway.sessionLocker === root)
+            ActionGateway.sessionLocker = null;
+    }
+
+    IpcHandler {
+        target: "lock"
+
+        function open() {
+            return root.open();
+        }
+
+        function isLocked() {
+            return root.isLocked();
+        }
     }
 
     PreLockCapture {

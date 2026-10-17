@@ -26,7 +26,7 @@ Nyxuri/
 │   ├─ migrations/    线性状态迁移（KM5 清算）
 │   └─ cli.py · core.py（环境+锁+日志+i18n 地基）· sysdoctor.py（系统体检）·
 │       tui.py · translations.toml（双语文案）
-├─ units/             蓝图 · 12 目录 = 11 真单元 + wallpapers（merge 共享生活区）
+├─ units/             蓝图 · 13 目录 = 12 真单元 + wallpapers（KM4 + theme 共享模板池；wallpapers/theme 为 merge 共享生活区）
 ├─ shell/             自研 Quickshell 桌面（契约见 shell/AGENTS.md；`shell/units/` 为
 │                     shell 命名空间蓝图，12 个 runtime 单元，KM4）
 ├─ tests/             镜像源码树：kernel/ deploy/ pkg/ state/ desktop/ installer/

@@ -24,7 +24,7 @@
 | KM2 | 开关事务与 Vault 归档 | 已完成 |
 | KM3 | 命令行收敛（4 动词接管）与 TUI 工坊 | 已完成 |
 | KM3.5 | 拆迁与正名（KM5 前置）：旧世界处决 + 文件树表达架构 | 已完成 |
-| KM4 | Shell 彻底模块化 + 运行态直通（吸收原 Shell P5） | 进行中 |
+| KM4 | Shell 彻底模块化 + 运行态直通（吸收原 Shell P5） | 待验收 |
 | KM5 | 引导转化（installer/ 处决 + install.sh 引导化）、migrations 清算与五原则总验收 | 待开始 |
 
 P6（整体验收与未来移植）保持在 KM5 之后，台账见 [shell/ROADMAP.md](shell/ROADMAP.md)。
@@ -36,12 +36,26 @@ KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此�
 - **KM3 命令行与 TUI**：4 动词接管全库（`list`, `on`, `off`, `doctor`），旧命令设别名与死刑倒计时；TUI 双栏零件台；退役 `nyxuri/modules/` 专用业务模块。验收：所有能力通用动词闭环，双语文案全量覆盖。
 - **KM3.5 拆迁与正名**（KM5 前置）：三世代同屋檐的总清算——处决在册死刑犯（旧命令别名 ×12、`RETIREMENTS` 整表、`template_registry.py`、17 个零文件假单元、`assets/` 旁路）；蓝图正名 `configs/` → `units/`（壁纸升格单元、假单元数据收敛 `catalog.toml`）；引擎物理分层（`kernel/` · `desktop/` · 供给收编 `pkg/`、微文件清零、`installer/` 等死区隔离）；测试镜像源码树；llms-wiki 29 → ≤15 页。实施要点见下方专节。
 - **KM4 Shell 彻底模块化 + 运行态直通**（吸收原 Shell P5）：Shell 蜕变为纯宿主，业务全部模块化；单一开关真相，Shell 运行态仅为账本投影；单向 IPC 信号触发重绘；原 P5 验收标准平移。验收记录归 shell 台账。
-  引擎侧已落地（KM4·M1，2026-10-17）：registry 命名空间根（`shell/units/` → `shell.` 前缀，
-  12 个 Shell 单元蓝图）；manifest `runtime` 运行态单元声明（无载荷、无生活区，
-  `on`/`off` 纯账本 + 一次事件，`off` 永不触碰实机同名目录）；`unit-changed` 投递接线
-  （`desktop/bridge.py`，复用 Shell 既有 Quickshell IPC，无订阅者即 no-op）；契约同步
-  unit-model §6 / manifest-schema。15 项内核测试 + 沙箱部署绿。Shell 侧微内核宿主
-  （插槽装配、StateProjection、设置开关改道）为下一步。
+  引擎侧（KM4·M1，2026-10-17）：registry 命名空间根（`shell/units/` → `shell.` 前缀，
+  12 个 Shell 单元蓝图）；manifest `runtime` 运行态单元声明；`unit-changed` 投递接线
+  （`desktop/bridge.py`）；契约同步 unit-model §6 / manifest-schema。
+  Shell 侧（KM4·M2–M6，2026-10-17）：微内核宿主落地——`AppShell` 零按名实例化，
+  `SlotHost` 目录驱动 `Repeater + Loader`，`StateProjection` 只读投影 `state.json`
+  （无记录 = 默认启用，损坏 = 全启用降级），宿主 `IpcHandler target: "unit"` 闭合
+  事件回路；单元自有 IPC（lock/spotlight/power-menu/control-center/settings 随单元
+  生死），宿主只留 unit/shell/theme/shortcut-map/wallpaper；安全守护——lock 持有期
+  禁卸载、`watchFiles` 冻结留宿主、idle 锁请求对 `shell.lock` off 显式降级；
+  `UnitControlService` 派发 `nyxuri on/off shell.<domain>`，ShellPage 12 单元全景
+  开关（不乐观翻转，只随事件落地）；Shell 私有开关字段处决（settings.json
+  `bar.enabled`/`keystoneEnabled`、dock.json `enabled` → 干净断裂退役）；
+  `shell/tests/test_unit_catalog.py` 钉死目录↔插槽↔事件回路契约；
+  闭包契约测试重写为 R2/R9/R10 的 KM4 语义。P5 平移项——共享池中立化
+  （`units/theme/` 单元，merge 共享生活区 `~/.config/nyxuri/templates/`，部署流程
+  自动 `on theme`，noctalia-config 与 TemplateService 注册同源改指新池）；顺带清算
+  shell/KNOWN-ISSUES 两项（quickshell 入 `catalog.toml` + PKGBUILD 生成标记 stale
+  修复；卸载残留复核实证已清）。全量引擎 966 测试 + Shell 分类 118 测试 +
+  check.sh + 沙箱部署绿。六动作与 Noctalia/Wallpaper Picker 双轨稳固的行为、
+  视觉实机验收待作者确认。
 - **KM5 引导转化与终极清算**：`install.sh` 退役为一次性引导脚本，并处决 `nyxuri/installer/` 等死区（workflows / menus 隔离件）；`migrations/` 旧版迁移清算；契约测试强制触发死刑断言，物理删除旧命令兼容层；五原则逐条给出可复现证据。验收：退役清单清空为零，仓库代码实现净减法。（拆迁主体已前置至 KM3.5，本阶段只剩引导收口与总验收。）
 
 ### KM3.5 拆迁与正名（KM5 前置）

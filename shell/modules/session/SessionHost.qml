@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.app
 
 Scope {
@@ -46,6 +47,24 @@ Scope {
 
         function onSessionToggleRequested(screen) {
             root.toggle(screen);
+        }
+    }
+
+    // Unit-owned IPC surface (unit-model.md §6): the session unit's
+    // power-menu exists exactly while the unit is loaded.
+    IpcHandler {
+        target: "power-menu"
+
+        function open(): void {
+            ActionGateway.requestSessionOpen();
+        }
+
+        function close(): void {
+            ActionGateway.requestSessionClose();
+        }
+
+        function toggle(): void {
+            ActionGateway.requestSessionToggle();
         }
     }
 

@@ -113,16 +113,6 @@ Item {
 
                 SettingsRow {
                     Layout.fillWidth: true
-                    title: I18n.tr("Show Keystone")
-                    trailing: StyledSwitch {
-                        checked: PersonalizationConfig.keystoneEnabled
-                        Accessible.name: I18n.tr("Show Keystone")
-                        onToggled: PersonalizationConfig.setValue("keystoneEnabled", checked)
-                    }
-                }
-
-                SettingsRow {
-                    Layout.fillWidth: true
                     title: I18n.tr("Floating")
                     trailing: StyledSwitch {
                         checked: PersonalizationConfig.keystoneOverlay

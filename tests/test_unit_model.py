@@ -44,16 +44,25 @@ class TestUnitModelContract(unittest.TestCase):
         self.assertIn("纯文件平铺", content)
 
     def test_shell_coordination_invariants(self):
-        """Shell coordination must follow single switch truth, quickshell IPC, microkernel, and slots."""
+        """Kernel side keeps three facts; slot taxonomy lives in shell/AGENTS.md (KM4)."""
         content = self.unit_model_md.read_text(encoding="utf-8")
-        self.assertIn("微内核宿主", content)
-        self.assertIn("六大几何插槽模型", content)
-        self.assertIn("单一开关真相", content)
-        self.assertIn("ActionGateway", content)
+        # The three kernel-side facts (§6, KM4 trim).
+        self.assertIn("同一账本", content)
+        self.assertIn("单一事件通道", content)
+        self.assertIn("点分 ID", content)
         self.assertIn("quickshell ipc unit reload", content)
-        self.assertIn("Loader", content)
         self.assertIn("shell.<domain>", content)
+        self.assertIn("只读投影", content)
         self.assertIn("绝对绝缘", content)
+        # KM4 enforcement rows on the death list.
+        self.assertIn("StateProjection", content)
+        self.assertIn("units/theme/", content)
+        # The migrated microkernel taxonomy now lives on the shell side.
+        shell_agents = (self.unit_model_md.parent.parent / "shell" / "AGENTS.md").read_text(
+            encoding="utf-8")
+        for term in ("微内核宿主", "六大几何插槽", "SlotHost", "Loader", "ActionGateway"):
+            self.assertIn(term, shell_agents,
+                          f"slot taxonomy must live in shell/AGENTS.md: {term}")
 
 
 class TestKernelResolver(unittest.TestCase):

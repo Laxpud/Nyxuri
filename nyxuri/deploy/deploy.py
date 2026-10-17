@@ -457,6 +457,19 @@ def enable_wallpapers_unit() -> Optional[bool]:
         return False
 
 
+def enable_theme_unit() -> Optional[bool]:
+    """Best-effort ``on theme`` for deploy flows: the shared template pool is
+    load-bearing for both shells' gtk/niri/palette renders (KM4/P5 neutral
+    pool). No-clobber merge — user-edited templates survive redeploys."""
+    try:
+        from nyxuri.kernel import transaction
+        steps = transaction.unit_on("theme")
+        return bool(steps) and all(s.ok for s in steps)
+    except Exception as exc:
+        log_msg("WARN", f"theme unit enable failed: {exc}")
+        return False
+
+
 def test_deploy() -> bool:
     """Developer test command: fast idempotent re-deploy in current environment."""
     print(msg("test_start"))
@@ -470,6 +483,7 @@ def test_deploy() -> bool:
         return False
     _phase_render_templates()
     wallpaper_ok = enable_wallpapers_unit()
+    enable_theme_unit()
     render_completion_screen(
         mode="test",
         chosen_items=items,

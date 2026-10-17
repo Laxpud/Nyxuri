@@ -26,14 +26,16 @@ GTK3 热重载，GTK4 靠 `@media (prefers-color-scheme)` 实时切换。
 ```
 units/noctalia/
 ├── README.md              ← 本文档
-├── noctalia-config.toml   ← hook + user template 注册
+├── noctalia-config.toml   ← hook + user template 注册（模板池输入指向
+│                             ~/.config/nyxuri/templates/，由 units/theme 部署）
 ├── wallpaper-hook.sh      ← 壁纸切换 hook（视频缩略图）
 ├── mpvpaper-sync.sh       ← mpvpaper 视频壁纸同步
-└── templates/
-    ├── gtk-3.0.css        ← GTK3 M3 模板（无条件 @define-color）
-    ├── gtk-4.0.css        ← GTK4 M3 模板（双 @media 块）
-    └── niri-glow-material-you.kdl ← Niri 动态聚焦光晕（跟随当前配色）
+└── tools/                 ← orbit 系列（自研工具，按决议留守）
 ```
+
+共享模板池（gtk-3.0.css / gtk-4.0.css / niri-glow-material-you.kdl /
+palette.toml / mango.conf）已迁 `units/theme/`（KM4/P5 中立化），不再随
+noctalia 单元部署。
 
 ### 系统级深浅同步 — `nyxuri theme`（CLI，唯一写手）
 
@@ -286,9 +288,9 @@ GTK3 跳过第二行用 flat 色，GTK4 用第二行覆盖。`@define-color` 中
 ### 6.6 部署与渲染流程
 
 ```
-units/noctalia/templates/gtk-3.0.css / gtk-4.0.css  (模板源)
-  ↓ nyxuri install / on noctalia（atomic_replace_item，随 noctalia 单元部署）
-~/.config/noctalia/templates/gtk-3.0.css / gtk-4.0.css
+units/theme/gtk-3.0.css / gtk-4.0.css  (模板源，KM4/P5 中立共享池)
+  ↓ nyxuri install / on theme（merge no-clobber，随 theme 单元部署）
+~/.config/nyxuri/templates/gtk-3.0.css / gtk-4.0.css
 ~/.config/noctalia/noctalia-config.toml  (/home/user → $HOME 替换)
   ↓ Noctalia 壁纸/明暗切换时自动渲染
 ~/.config/gtk-3.0/gtk.css
@@ -300,12 +302,12 @@ units/noctalia/templates/gtk-3.0.css / gtk-4.0.css  (模板源)
 ```toml
 [theme.templates.user.nyxuri_gtk3]
 index = 3
-input_path = "/home/user/.config/noctalia/templates/gtk-3.0.css"
+input_path = "/home/user/.config/nyxuri/templates/gtk-3.0.css"
 output_path = "/home/user/.config/gtk-3.0/gtk.css"
 
 [theme.templates.user.nyxuri_gtk4]
 index = 4
-input_path = "/home/user/.config/noctalia/templates/gtk-4.0.css"
+input_path = "/home/user/.config/nyxuri/templates/gtk-4.0.css"
 output_path = "/home/user/.config/gtk-4.0/gtk.css"
 ```
 
