@@ -24,7 +24,7 @@
 | KM2 | 开关事务与 Vault 归档 | 已完成 |
 | KM3 | 命令行收敛（4 动词接管）与 TUI 工坊 | 已完成 |
 | KM3.5 | 拆迁与正名（KM5 前置）：旧世界处决 + 文件树表达架构 | 已完成 |
-| KM4 | Shell 彻底模块化 + 运行态直通（吸收原 Shell P5） | 待开始 |
+| KM4 | Shell 彻底模块化 + 运行态直通（吸收原 Shell P5） | 进行中 |
 | KM5 | 引导转化（installer/ 处决 + install.sh 引导化）、migrations 清算与五原则总验收 | 待开始 |
 
 P6（整体验收与未来移植）保持在 KM5 之后，台账见 [shell/ROADMAP.md](shell/ROADMAP.md)。
@@ -36,6 +36,12 @@ KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此�
 - **KM3 命令行与 TUI**：4 动词接管全库（`list`, `on`, `off`, `doctor`），旧命令设别名与死刑倒计时；TUI 双栏零件台；退役 `nyxuri/modules/` 专用业务模块。验收：所有能力通用动词闭环，双语文案全量覆盖。
 - **KM3.5 拆迁与正名**（KM5 前置）：三世代同屋檐的总清算——处决在册死刑犯（旧命令别名 ×12、`RETIREMENTS` 整表、`template_registry.py`、17 个零文件假单元、`assets/` 旁路）；蓝图正名 `configs/` → `units/`（壁纸升格单元、假单元数据收敛 `catalog.toml`）；引擎物理分层（`kernel/` · `desktop/` · 供给收编 `pkg/`、微文件清零、`installer/` 等死区隔离）；测试镜像源码树；llms-wiki 29 → ≤15 页。实施要点见下方专节。
 - **KM4 Shell 彻底模块化 + 运行态直通**（吸收原 Shell P5）：Shell 蜕变为纯宿主，业务全部模块化；单一开关真相，Shell 运行态仅为账本投影；单向 IPC 信号触发重绘；原 P5 验收标准平移。验收记录归 shell 台账。
+  引擎侧已落地（KM4·M1，2026-10-17）：registry 命名空间根（`shell/units/` → `shell.` 前缀，
+  12 个 Shell 单元蓝图）；manifest `runtime` 运行态单元声明（无载荷、无生活区，
+  `on`/`off` 纯账本 + 一次事件，`off` 永不触碰实机同名目录）；`unit-changed` 投递接线
+  （`desktop/bridge.py`，复用 Shell 既有 Quickshell IPC，无订阅者即 no-op）；契约同步
+  unit-model §6 / manifest-schema。15 项内核测试 + 沙箱部署绿。Shell 侧微内核宿主
+  （插槽装配、StateProjection、设置开关改道）为下一步。
 - **KM5 引导转化与终极清算**：`install.sh` 退役为一次性引导脚本，并处决 `nyxuri/installer/` 等死区（workflows / menus 隔离件）；`migrations/` 旧版迁移清算；契约测试强制触发死刑断言，物理删除旧命令兼容层；五原则逐条给出可复现证据。验收：退役清单清空为零，仓库代码实现净减法。（拆迁主体已前置至 KM3.5，本阶段只剩引导收口与总验收。）
 
 ### KM3.5 拆迁与正名（KM5 前置）

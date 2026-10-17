@@ -40,6 +40,7 @@ from nyxuri.state import (
     uninstall_nyxuri,
 )
 from nyxuri.core import msg
+from nyxuri.desktop import bridge
 from nyxuri.pkg.net import safe_git_checkout_ref, safe_git_pull
 from nyxuri.tui import press_any_key, prompt_confirm, select_language
 from nyxuri.installer.menus import deps_menu_loop, main_menu_loop
@@ -197,7 +198,10 @@ def _show_unit_detail(unit: str) -> int:
             print(f"  {msg('cli_detail_label')}: {m.label}")
         if m.category:
             print(f"  {msg('cli_detail_category')}: {m.category}")
-        print(f"  {msg('cli_detail_target')}: {get_env().config_dir / (m.target or unit)}")
+        if m.runtime:
+            print(f"  {msg('cli_detail_runtime')}")
+        else:
+            print(f"  {msg('cli_detail_target')}: {get_env().config_dir / (m.target or unit)}")
         if m.dependencies:
             print(f"  {msg('cli_detail_dependencies')}: {', '.join(m.dependencies)}")
         pkgs = (*m.packages_repo, *m.packages_aur, *m.packages_flatpak)
@@ -551,6 +555,10 @@ def main() -> None:
     acquire_lock()
     init_logger()
     get_env()
+    # The event delivery is the outer layer's job (unit-model.md §6): wire
+    # the Shell bridge once so every verb (CLI, TUI, installer menus) that
+    # lands a unit transaction notifies the running shell over its own IPC.
+    bridge.wire()
     ensure_nyxuri_symlink()
 
     # Post-update handoff: a previous run pulled new code and re-execed into

@@ -27,7 +27,8 @@ Nyxuri/
 │   └─ cli.py · core.py（环境+锁+日志+i18n 地基）· sysdoctor.py（系统体检）·
 │       tui.py · translations.toml（双语文案）
 ├─ units/             蓝图 · 12 目录 = 11 真单元 + wallpapers（merge 共享生活区）
-├─ shell/             自研 Quickshell 桌面（契约见 shell/AGENTS.md）
+├─ shell/             自研 Quickshell 桌面（契约见 shell/AGENTS.md；`shell/units/` 为
+│                     shell 命名空间蓝图，12 个 runtime 单元，KM4）
 ├─ tests/             镜像源码树：kernel/ deploy/ pkg/ state/ desktop/ installer/
 │                     tools/{orbit,wallpaper_picker,translate}/ shell/ + 契约测试置顶
 ├─ packaging/         AUR PKGBUILD + gen-deps.py（depends/optdepends 自动汇聚）

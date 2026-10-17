@@ -381,6 +381,9 @@ class Environment:
         self.run_mode, self.mode_label, self.repo_dir = _detect_run_mode(root_dir, self.cache_dir)
 
         self.units_src = self.repo_dir / CONFIG_DIR_NAME
+        # Shell blueprint root (unit-model.md §6): the shell namespace's unit
+        # manifests live inside the shell tree — file tree expresses architecture.
+        self.shell_units_src = self.repo_dir / "shell" / "units"
         # Nyxuri's own home under ~/.config: backups, presets, active state.
         # (state_dir holds runtime transient; nyx_dir holds user data — §10.4)
         self.nyx_dir = self.config_dir / STORAGE_NAME

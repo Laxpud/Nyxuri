@@ -16,6 +16,12 @@ Disable reverses it: reverse-dependency guard → vault archive → managed
 wipe to a white living area → ledger record → event. Package management is
 asymmetric (§7.1): ``off`` only reports the packages it leaves behind.
 
+Runtime units (KM4, §6) are the third shape: ``runtime = true`` in the
+manifest declares a payload-less existence — no living area, no vault
+in/out, no wipe, empty ``files`` snapshot. The ledger record plus one
+``unit-changed`` event IS the whole transaction; the running host (the
+Shell) reacts by unloading or loading the domain.
+
 The event sink is injected via :func:`set_event_sink`; the kernel never
 imports or subprocesses a delivery — naming and wiring it is the outer
 layer's job. Without a subscriber events are no-ops.
@@ -31,7 +37,7 @@ from typing import Callable, Dict, List, Optional
 from nyxuri.kernel import ledger, registry
 from nyxuri.core import get_env, log_msg, remove_path
 from nyxuri.deploy.deploy import _phase_atomic_deployment, merge_deploy_unit
-from nyxuri.deploy.manifest import ModuleManifest, load_manifest, living_path
+from nyxuri.deploy.manifest import ModuleManifest, living_path
 from nyxuri.deploy.preset import write_active_preset
 from nyxuri.kernel.resolver import resolve_order
 
@@ -83,16 +89,27 @@ def _unit_dest(unit_id: str, manifest: ModuleManifest) -> Path:
     return living_path(manifest, get_env().config_dir)
 
 
+def _is_runtime(manifest: ModuleManifest) -> bool:
+    """A payload-less unit (manifest ``runtime = true``, unit-model.md §6).
+
+    Its existence is the ledger record plus the running host's reaction to
+    the unit-changed event — never files under ~/.config. The declaration
+    is explicit: no scan of blueprint contents may silently turn a runtime
+    unit into a deployable one (or vice versa).
+    """
+    return manifest.runtime
+
+
 def _blueprint_rels(manifest: ModuleManifest) -> List[str]:
     """The unit's payload file names (manifest.toml and hooks/ excluded).
 
     For merge units these names ARE ownership: whatever matches them in the
     shared living area is ours to withdraw, nothing else.
     """
-    root = get_env().units_src / manifest.name
+    root = registry.unit_dir(manifest.name)
+    if root is None:
+        return []
     out: List[str] = []
-    if not root.is_dir():
-        return out
     for path in sorted(root.rglob("*")):
         if path.is_dir():
             continue
@@ -422,15 +439,18 @@ def _wipe_unit(unit_id: str, dest: Path, rec: Optional[dict],
 
 
 def _hook_script(unit_id: str, spec: str):
-    """Resolve ``configs/<unit>/hooks/<spec>``; None when absent or malformed."""
+    """Resolve ``<blueprint>/<unit>/hooks/<spec>``; None when absent/malformed."""
     if not spec or "/" in spec or spec.startswith("."):
         return None
-    script = get_env().units_src / unit_id / "hooks" / spec
+    root = registry.unit_dir(unit_id)
+    if root is None:
+        return None
+    script = root / "hooks" / spec
     return script if script.is_file() else None
 
 
 def _run_unit_hook(unit_id: str, manifest: ModuleManifest, spec: str) -> bool:
-    """Execute a declared unit hook: ``configs/<unit>/hooks/<spec>``.
+    """Execute a declared unit hook: ``<unit>/hooks/<spec>`` in its blueprint.
 
     Hooks are the unit's own behavior (KM3 contract, unit-model.md §4) —
     executable files living in the blueprint, never kernel business code.
@@ -447,14 +467,15 @@ def _run_unit_hook(unit_id: str, manifest: ModuleManifest, spec: str) -> bool:
         return False
     import subprocess
 
+    unit_src = registry.unit_dir(unit_id)
     hook_env = {
         **os.environ,
         # Blueprint is source-absolute read-only: hooks importing engine code
         # must never drop __pycache__ into the source tree (P0 invariant).
         "PYTHONDONTWRITEBYTECODE": "1",
         "NYXURI_UNIT": unit_id,
-        "NYXURI_UNIT_SRC": str(get_env().units_src / unit_id),
-        "NYXURI_UNIT_DEST": str(_unit_dest(unit_id, manifest)),
+        "NYXURI_UNIT_SRC": str(unit_src or ""),
+        "NYXURI_UNIT_DEST": "" if _is_runtime(manifest) else str(_unit_dest(unit_id, manifest)),
     }
     root = Path(__import__("nyxuri").__file__).resolve().parent.parent
     hook_env["PYTHONPATH"] = str(root) + (
@@ -511,25 +532,32 @@ def unit_on(
                 results.append(Step(uid, False, "missing-packages: " + ", ".join(missing)))
                 return results
         dest = _unit_dest(uid, manifest)
-        if not manifest.target and not manifest.merge:
-            # Vault in/out is a directory-unit affordance; a single-file
-            # unit's living area is one blueprint-managed file with no
-            # user-owned layer to archive or restore, and a merge unit's
-            # shared area preserves user content in place (no-clobber).
-            _vault_restore(uid, dest)
-        if preset is not None and uid == unit_id and not manifest.merge:
-            write_active_preset(uid, preset)
-        if manifest.merge:
-            laid = merge_deploy_unit(uid, manifest)
-            if laid is None:
+        runtime = _is_runtime(manifest)
+        files: Dict[str, str] = {}
+        if runtime:
+            # Runtime unit (§6): no living area, no vault, no deploy. The
+            # ledger record plus the event below is the whole transaction.
+            pass
+        else:
+            if not manifest.target and not manifest.merge:
+                # Vault in/out is a directory-unit affordance; a single-file
+                # unit's living area is one blueprint-managed file with no
+                # user-owned layer to archive or restore, and a merge unit's
+                # shared area preserves user content in place (no-clobber).
+                _vault_restore(uid, dest)
+            if preset is not None and uid == unit_id and not manifest.merge:
+                write_active_preset(uid, preset)
+            if manifest.merge:
+                laid = merge_deploy_unit(uid, manifest)
+                if laid is None:
+                    results.append(Step(uid, False, "deploy-failed"))
+                    return results
+                files = {rel: _hash_file(dest / rel) for rel in laid}
+            elif uid in _phase_atomic_deployment([uid]):
                 results.append(Step(uid, False, "deploy-failed"))
                 return results
-            files = {rel: _hash_file(dest / rel) for rel in laid}
-        elif uid in _phase_atomic_deployment([uid]):
-            results.append(Step(uid, False, "deploy-failed"))
-            return results
-        else:
-            files = snapshot_files(dest, manifest)
+            else:
+                files = snapshot_files(dest, manifest)
         hook_note = ""
         if manifest.post_install:
             # Runs BEFORE the ledger snapshot: a hook that lands files inside
@@ -543,8 +571,9 @@ def unit_on(
             preset=_active_preset_name(uid),
             # Merge units snapshot at deploy time (laid files only — the
             # shared area's other content is never ours); atomic units
-            # snapshot after the hook so hook products are covered.
-            files=files if manifest.merge else snapshot_files(dest, manifest),
+            # snapshot after the hook so hook products are covered; runtime
+            # units keep the empty map (nothing on disk is theirs).
+            files=files if (runtime or manifest.merge) else snapshot_files(dest, manifest),
             vault=None,
         )
         _emit(uid, "enabled")
@@ -573,11 +602,15 @@ def unit_off(unit_id: str, *, cascade: bool = False) -> List[Step]:
         rec = ledger.get_unit(uid)
         manifest = registry.load_unit(uid)
         dest = _unit_dest(uid, manifest)
+        runtime = _is_runtime(manifest)
         if uid not in _enabled_set() and not (dest.exists() or dest.is_symlink()):
             results.append(Step(uid, True, "already-disabled"))
             continue
-        archived = [] if manifest.merge else _vault_archive(uid, dest, manifest)
-        foreign = _wipe_unit(uid, dest, rec, manifest)
+        # Runtime units have no living area: nothing to archive, nothing to
+        # wipe — disabling is landing the ledger record and firing the event
+        # the running host unload on (§6).
+        archived = [] if (manifest.merge or runtime) else _vault_archive(uid, dest, manifest)
+        foreign = [] if runtime else _wipe_unit(uid, dest, rec, manifest)
         detail = "disabled"
         if manifest.post_remove and not _run_unit_hook(uid, manifest, manifest.post_remove):
             detail += f"; hook-failed: {manifest.post_remove}"
@@ -623,9 +656,15 @@ def audit_units(unit_id: Optional[str] = None) -> Dict[str, str]:
         candidates = sorted(set(known) | set(ledger.all_units()))
     report: Dict[str, str] = {}
     for uid in candidates:
-        manifest = load_manifest(get_env().units_src / uid)
-        dest = _unit_dest(uid, manifest)
+        manifest = registry.load_unit(uid)
         rec = ledger.get_unit(uid)
+        if _is_runtime(manifest):
+            # Nothing on disk belongs to a runtime unit — the ledger record
+            # is the whole existence, so there is nothing to drift or ghost.
+            if rec is not None:
+                report[uid] = STATE_SYNCED
+            continue
+        dest = _unit_dest(uid, manifest)
         if rec is not None and rec.get("state") == "enabled":
             if manifest.merge:
                 synced = _merge_managed_view(dest, manifest) == (rec.get("files") or {})

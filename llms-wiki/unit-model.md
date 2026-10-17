@@ -58,7 +58,8 @@
 
 ```
 transaction（编排：唯一可触碰副作用的模块）
- ├─► registry   唯一扫描 units/ 与 manifest 的模块（蓝图域唯一入口）
+ ├─► registry   唯一扫描单元蓝图与 manifest 的模块（蓝图域唯一入口；
+ │              蓝图根：`units/` → 裸 ID，`shell/units/` → `shell.` 前缀，KM4）
  ├─► resolver   纯函数：依赖图进，拓扑序出（零 I/O、零状态，表驱动可测）
  └─► ledger     唯一读写 state.json 的模块（状态域唯一入口）
 ```
@@ -239,8 +240,16 @@ Nyxuri Shell 绝非特权单体，其内部亦彻底单元化。Shell 本身蜕�
 ### 3. 横向解耦与单一开关真相
 * **横向零依赖**：Shell 单元之间严禁跨域调用，跨域桌面意图唯一路由至 `ActionGateway.executeIntent()`；
 * **双向单一真相**：Shell 设置面板拨动开关仅通过 `ActionGateway` 派发 `nyxuri on/off` 调用内核事务，Shell 永远只是账本在屏幕上的**只读投影**；
-* **单向事件通知**：事务落账后只发一次 `unit-changed` 事件。这是抽象端口，不是内核命令——当前唯一投递实现是 `quickshell ipc unit reload`，由外层注入，内核不 import、不 subprocess quickshell；无订阅者时为 no-op（测试与无 Shell 环境零负担）；
+* **单向事件通知**：事务落账后只发一次 `unit-changed` 事件。这是抽象端口，不是内核命令——当前唯一投递实现是 `quickshell ipc unit reload`，由外层注入（`nyxuri/desktop/bridge.py`，CLI 入口 `bridge.wire()` 统一接线），内核不 import、不 subprocess quickshell；无订阅者时为 no-op（测试与无 Shell 环境零负担）；
 * **点分 ID 约定**：Shell 域单元以 `shell.<domain>` 命名（如 `nyxuri off shell.dock`），统一挂入 `state.json` 与 4 大动词管辖。内核只认点分 ID 本身，不特判任何前缀。
+
+**内核侧承载（KM4 落地）**：Shell 单元物理住在 `shell/units/<domain>/`（文件树表达架构），
+registry 以**命名空间根**解析——`units/` 产裸 ID，`shell/units/` 产 `shell.` 前缀 ID，
+前缀属于根不属于逐 ID 特判；manifest `name` 一律补齐为全点分 ID（账本键、Vault 路径、
+报告所见即 registry ID）。Shell 单元以 `runtime = true` 声明**运行态单元**：无载荷、
+无生活区、无 Vault 进出，`on`/`off` = 账本落记 + 一次事件，运行中的 Shell 据事件
+装载/卸载该域；`off` 永不触碰实机同名目录（无目标即无抹白），doctor 恒 `Synced`。
+deploy/deps 的包世界（`discover_manifest_apps`）只扫 `units/`，Shell 单元对包体系不可见。
 
 ---
 

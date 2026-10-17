@@ -1085,6 +1085,10 @@ en = "Category"
 zh = "部署目标"
 en = "Target"
 
+[cli_detail_runtime]
+zh = "运行态单元：开关落在账本，由运行中的 Shell 投影，无部署目标"
+en = "Runtime unit: the switch lives in the ledger, projected by the running shell — no deploy target"
+
 [cli_detail_dependencies]
 zh = "依赖单元"
 en = "Dependencies"

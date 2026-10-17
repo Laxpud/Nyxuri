@@ -12,6 +12,8 @@ Schema (all fields optional, flat at top level)::
     target = "~/Pictures/Wallpapers"  # shared living area (implies merge use)
     merge = true               # shared living area: no-clobber deploy, off
                                # withdraws only laid files (never rm -rf)
+    runtime = true             # ledger-only unit: no living area, no deploy;
+                               # the running host reacts to the unit-changed event
     packages        = ["mangowm"]       # default = [<unit name>]
     packages_aur    = []                # default = []  (AUR helper installs)
     packages_flatpak = []               # default = []  (Flathub app IDs)
@@ -76,6 +78,8 @@ class ModuleManifest:
     system_paths: List[str] = field(default_factory=list)  # declared /etc etc. touchpoints
     target: str = ""           # Single-file unit: deployed file name under ~/.config
     merge: bool = False        # Shared living area: no-clobber deploy, snapshot = laid files
+    runtime: bool = False      # Ledger-only unit (shell.*): no living area, the
+                               # running host reacts to the unit-changed event
     preset_inherit: bool = False
     preset_allow: List[str] = field(default_factory=list)
     preset_standalone: List[str] = field(default_factory=list)
@@ -191,6 +195,7 @@ def load_manifest(app_src: Path) -> ModuleManifest:
         system_paths=_as_str_list(privilege.get("system_paths")),
         target=str(data.get("target", "")),
         merge=bool(data.get("merge", False)),
+        runtime=bool(data.get("runtime", False)),
         preset_inherit=bool(presets.get("inherit")),
         preset_allow=_as_str_list(presets.get("allow")),
         preset_standalone=_as_str_list(presets.get("standalone")),
