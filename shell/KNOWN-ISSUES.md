@@ -14,6 +14,15 @@
 
 ## 已修复
 
+- [x] **settings 开关全部无反应**（2026-10-17，同日复核发现）：开关派发本身正常
+  （账本落记录、`unit switch done`），但桌面纹丝不动——`nyxuri/desktop/
+  shell_switcher.py` 的 `probe_running_shells()` 把 `os.getppid()` 一并排除，
+  而 shell 的 UnitControlService 派生 nyxuri 时父进程恰是待通知的 qs 实例，
+  bridge 探测永远扑空、unit-changed 静默丢失。修为只排除自身（wrapper 以
+  `exec qs` 收尾，父进程不可能是 wrapper 脚本残留；非 shell 父进程由
+  classify 过滤）。回归测试以真实进程拓扑复现：argv0 伪装的 fake qs → 子进程
+  probe，旧代码必败、新代码必过（shebang 脚本会改写 cmdline，须用二进制
+  execve；`-c` 须先于 `-p`，否则 CPython 自吞该参数）。
 - [x] **desktopcards/sidebars 永久 compiled empty + 自愈无限重试**（2026-10-17，KM4.6 实机
   验收发现）：`settings` 窗口逐个 on/off 时 `shell.desktopcards`、`shell.sidebars`
   反复「enabled but compiled empty」直至放弃。终局根因是重构残留的两条失效相对

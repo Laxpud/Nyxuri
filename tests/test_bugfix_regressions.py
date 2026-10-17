@@ -12,6 +12,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -403,6 +404,65 @@ class TestShellSwitcherClassification(unittest.TestCase):
                 ok, message = shell_switcher.hot_switch_shell("nyxuri-shell", "/bin/sh")
             self.assertFalse(ok)
             self.assertIn("also failed", message)
+
+    def test_probe_sees_parent_shell_dispatching_a_unit_switch(self):
+        # Regression (2026-10-17): UnitControlService dispatches `nyxuri
+        # on/off shell.X` from inside the RUNNING shell, so this CLI's
+        # parent process IS the qs instance the bridge must notify.
+        # probe_running_shells() used to exclude getppid(), went blind
+        # there, and every shell-originated unit-changed delivery became
+        # a silent no-op (toggles landed the ledger, the desktop never
+        # re-projected). Reproduces the exact topology: a fake qs process
+        # (binary exec, argv preserved verbatim in /proc) → child prober
+        # whose getppid() is that qs.
+        from nyxuri.desktop import shell_switcher
+        repo = Path(shell_switcher.__file__).resolve().parents[2]
+        with TempEnv() as ctx:
+            fake_wrapper = ctx.home / "nyxuri-shell"
+            fake_wrapper.write_text("#!/bin/sh\n", encoding="utf-8")
+            fake_wrapper.chmod(0o755)
+            # resolve_custom_bin() via env pins known_shell_dirs to ctx.home,
+            # so the fake instance must target -p ctx.home to classify.
+            prober = ctx.home / "prober.py"
+            prober.write_text(
+                "import json\n"
+                "from nyxuri.desktop import shell_switcher\n"
+                "print(json.dumps(shell_switcher.probe_running_shells()))\n",
+                encoding="utf-8")
+            out_path = ctx.home / "probe-out.json"
+            err_path = ctx.home / "probe-err.txt"
+            # The fake qs is the real python binary (execve keeps argv
+            # verbatim: /proc shows "qs -c ... -p ... --no-duplicate").
+            # -c must precede -p or CPython's own parser would reject -p.
+            # The driver text ships inside the fake cmdline, so it touches
+            # no module names (classify() bad-lists several); the prober
+            # path travels via env instead.
+            driver = (
+                "import json, os, subprocess\n"
+                "r = subprocess.run([os.environ['PROBE_PY'], os.environ['PROBER']],\n"
+                "                   capture_output=True, text=True, timeout=25)\n"
+                "with open(os.environ['PROBE_OUT'], 'w', encoding='utf-8') as fh:\n"
+                "    fh.write(json.dumps({'out': r.stdout, 'err': r.stderr}))\n"
+            )
+            env = dict(os.environ,
+                       NYXURI_CUSTOM_SHELL_BIN=str(fake_wrapper),
+                       PROBE_PY=sys.executable, PROBER=str(prober), PROBE_OUT=str(out_path),
+                       PYTHONPATH=str(repo) + os.pathsep + os.environ.get("PYTHONPATH", ""))
+            fakeqs = subprocess.Popen(
+                ["qs", "-c", driver, "-p", str(ctx.home), "--no-duplicate"],
+                executable=sys.executable, env=env,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            try:
+                fakeqs.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                fakeqs.kill()
+                self.fail("fake qs instance did not exit")
+            self.assertTrue(out_path.exists(), "prober driver wrote nothing")
+            payload = json.loads(out_path.read_text(encoding="utf-8"))
+            self.assertTrue(payload["out"].strip(),
+                            f"prober produced no output; stderr: {payload['err']}")
+            result = [tuple(item) for item in json.loads(payload["out"])]
+            self.assertIn(("nyxuri-shell", fakeqs.pid), result)
 
 
 class TestPresetDurability(unittest.TestCase):

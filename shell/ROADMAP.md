@@ -159,6 +159,9 @@ KM4 合并进行。
   `../shared/cards/…` 少一级 `../`，SystemCards 模块解散后真身在 `shared/cards/`），
   文件不存在属硬错误；两处正名后恢复，settings ShellPage 误引 `UnitControl`
   一并正名 `UnitControlService`（预热与自愈上限修正独立成立，保留）。
+  开关无反应同场根治——`probe_running_shells` 误排 `getppid()`，shell 派生的
+  nyxuri 探测不到自己的 qs 父进程，bridge 静默丢 unit-changed；修为只排除
+  自身，真实进程拓扑回归测试坐实（tests/test_bugfix_regressions）。
 
 ## 当前门禁
 

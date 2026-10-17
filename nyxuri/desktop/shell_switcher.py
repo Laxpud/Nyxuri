@@ -146,7 +146,15 @@ def probe_running_shells() -> "list[Tuple[str, int]]":
     may only declare a clean field after removing every non-target instance.
     """
     instances: "list[Tuple[str, int]]" = []
-    my_pids = {os.getpid(), os.getppid()}
+    # Exclude only this process — never the parent. When the RUNNING shell
+    # dispatches a unit switch (UnitControlService), this CLI's parent IS
+    # the qs instance the bridge must notify; excluding getppid() turned
+    # every shell-originated unit-changed delivery into a silent no-op
+    # (2026-10-17 acceptance regression: toggles landed the ledger but the
+    # desktop never re-projected). The wrapper exec's into qs, so a parent
+    # is never a lingering wrapper script, and non-shell parents (terminals,
+    # test runners) are filtered by classify() anyway.
+    my_pids = {os.getpid()}
 
     def nyxuri_shell_dirs() -> "set[Path]":
         dirs: "set[Path]" = set()
