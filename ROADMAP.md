@@ -23,8 +23,9 @@
 | KM1 | 内核落地：注册表与单源目录统一 | 已完成 |
 | KM2 | 开关事务与 Vault 归档 | 已完成 |
 | KM3 | 命令行收敛（4 动词接管）与 TUI 工坊 | 已完成 |
+| KM3.5 | 拆迁与正名（KM5 前置）：旧世界处决 + 文件树表达架构 | 进行中 |
 | KM4 | Shell 彻底模块化 + 运行态直通（吸收原 Shell P5） | 待开始 |
-| KM5 | 引导转化、退役清单清空与五原则总验收 | 待开始 |
+| KM5 | 引导转化（installer/ 处决 + install.sh 引导化）、migrations 清算与五原则总验收 | 待开始 |
 
 P6（整体验收与未来移植）保持在 KM5 之后，台账见 [shell/ROADMAP.md](shell/ROADMAP.md)。
 KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此为唯一权威；下方为各阶段实施要点：
@@ -33,8 +34,60 @@ KM0 契约已正式上收 [unit-model](llms-wiki/unit-model.md)，全库以此�
 - **KM1 内核落地**：单源内核落地，坚持减法推迟网络多源；纯标库 `UnitRegistry`、`UnitResolver`、`UnitLedger`（分层契约见 [unit-model](llms-wiki/unit-model.md)）。分两步验收，**删除不寄生于新增**：① registry 落地——新单元接入 = 加目录 + 可选 manifest，零内核代码改动，契约测试改测真实内核（Kahn 参考副本退役）；② v1 物理删除——`.optional-apps.toml`、`starship.toml`、全部 `*.module.toml` 清零，`configs/` 纯平铺，死刑断言升级生效。
 - **KM2 开关事务**：`on / off` 原子闭环；反向依赖强阻断与级联关闭；Vault 进出与实机抹白；doctor 对账（`Synced` / `Drifted` / `Ghost` 三态审计）。验收：任一单元停用实机 100% 白纸零残留，自定义文件入 Vault 零丢失。
 - **KM3 命令行与 TUI**：4 动词接管全库（`list`, `on`, `off`, `doctor`），旧命令设别名与死刑倒计时；TUI 双栏零件台；退役 `nyxuri/modules/` 专用业务模块。验收：所有能力通用动词闭环，双语文案全量覆盖。
+- **KM3.5 拆迁与正名**（KM5 前置）：三世代同屋檐的总清算——处决在册死刑犯（旧命令别名 ×12、`RETIREMENTS` 整表、`template_registry.py`、17 个零文件假单元、`assets/` 旁路）；蓝图正名 `configs/` → `units/`（壁纸升格单元、假单元数据收敛 `catalog.toml`）；引擎物理分层（`kernel/` · `desktop/` · 供给收编 `pkg/`、微文件清零、`installer/` 等死区隔离）；测试镜像源码树；llms-wiki 29 → ≤15 页。实施要点见下方专节。
 - **KM4 Shell 彻底模块化 + 运行态直通**（吸收原 Shell P5）：Shell 蜕变为纯宿主，业务全部模块化；单一开关真相，Shell 运行态仅为账本投影；单向 IPC 信号触发重绘；原 P5 验收标准平移。验收记录归 shell 台账。
-- **KM5 引导转化与终极清算**：`install.sh` 退役为一次性引导脚本；契约测试强制触发死刑断言，物理删除旧命令兼容层；五原则逐条给出可复现证据。验收：退役清单清空为零，仓库代码实现净减法。
+- **KM5 引导转化与终极清算**：`install.sh` 退役为一次性引导脚本，并处决 `nyxuri/installer/` 等死区（workflows / menus 隔离件）；`migrations/` 旧版迁移清算；契约测试强制触发死刑断言，物理删除旧命令兼容层；五原则逐条给出可复现证据。验收：退役清单清空为零，仓库代码实现净减法。（拆迁主体已前置至 KM3.5，本阶段只剩引导收口与总验收。）
+
+### KM3.5 拆迁与正名（KM5 前置）
+
+> 起因：KM0–3 后仓库仍三个世代同屋檐——安装器残余与内核、Shell 世代交错平铺，
+> 文件树不表达架构，透明必须靠读完契约才能获得。本阶段把 KM5 的拆迁前置执行：
+> 先处决、再正名，一次契约同步。验收后 KM5 只剩引导收口与总验收。
+
+**处决清单（全部登记在册，本阶段执法）**：
+旧命令别名与幽灵指针 ×12（`deploy/backup/restore/remove/purge/recommended/wp/report`
++ `greeter/fcitx/gtk/fisher`）、`RETIREMENTS` 整表、`template_registry.py`
+（生产零引用）及其测试、`configs/` 下 17 个零文件假单元、`assets/` 与
+`deploy/assets.py`。
+
+**正名与分层（文件树即架构，每项一行「为什么在这」）**：
+
+| 对象 | 现状 | 终态 |
+|---|---|---|
+| 蓝图 | `configs/` 28 目录 | `units/` 12 目录：11 真单元 + `wallpapers/`（assets 升格；自研工具按决议留在 noctalia） |
+| 假单元数据 | 17 个零文件目录冒充单元 | 根 `catalog.toml`（`deps` 菜单与 gen-deps optdepends 同源；契约补「包目录清单不是单元」） |
+| 内核 | 四模块平铺埋没 | `nyxuri/kernel/`（契约 §2 物理承载修订） |
+| 供给 | `deps.py`、`network.py` 游离，`pkg/cli.py` 撞名 | 全部收编 `nyxuri/pkg/`（deps · detection · net · fzf） |
+| 地基 | `core.py` + `constants.py` + `i18n.py` 三散件 | 并入单一 `core.py`（顶层无微文件） |
+| 诊断 | `doctor.py` 与对账 doctor 重名 | `sysdoctor.py` |
+| 桌面能力 | theme / shell_switcher / clean 散落 | `nyxuri/desktop/`；clean.py 能力保留，拆除自带私人 i18n/颜色/宽度微框架，接 `nyxuri.i18n` 与 tui 原语（710 → ~500，功能零变化） |
+| 预设机制 | `deploy/preset.py` 918 行引擎与动词业务混居 | 引擎半（继承/staging/fd 安全）留 deploy；apply/save/delete/edit 流程迁出 deploy 层，渲染一律归 UI 域 |
+| 安装器 | workflows / menus 居引擎顶层 | `nyxuri/installer/` 等死区——KM5 随 install.sh 引导化整目录处决 |
+| 构建 | `nyxuri/packaging/` 混进运行时包 | 仓库根 `packaging/` |
+| 测试 | 62 文件平铺，18 个 translate 淹没根目录 | 镜像源码树约 40 文件：`kernel/ deploy/ pkg/ state/ desktop/ tools/translate/{core,catalog,tui}`，契约测试置顶，bugfix 抽屉拆散归位 |
+| 文档 | llms-wiki 根 29 页（三世代重叠） | ≤15 页：`assets-deploy` / `install-modes` / `two-axis-config` / `tui-switcher` 归档 `archive/`；`concept-glossary` 并入 unit-model、`declarative` 并入 manifest-schema、`runtime-topology` 并入 overview；其余逐页过 docs-charter，答不出「为什么在这」即合并或归档；AGENTS.md 路由同波更新；humans-wiki CLI-Reference 重写到动词世界；overview.md 重写为一页仓库地图 |
+
+**配套修复**：
+单元钩子注入 `PYTHONDONTWRITEBYTECODE=1`（蓝图「源码绝对只读」不变量，P0）；
+manifest `target` 支持 `~/` 前缀（壁纸单元落 `~/Pictures/Wallpapers`，外部包下载转
+`hooks/install-pack`，`wallpapers` 动词处决并指向 `on wallpapers`）。
+
+**终态一屏图（验收即对照）**：
+
+```
+Nyxuri/
+├─ nyxuri/            引擎 · 12 项
+│   ├─ kernel/ deploy/ pkg/ state/ desktop/ installer/ migrations/
+│   └─ cli.py core.py translations.toml sysdoctor.py tui.py
+├─ units/             蓝图 · 12 真单元
+├─ shell/ tests/ llms-wiki/ humans-wiki/ packaging/
+└─ catalog.toml install.sh
+```
+
+**验收（五原则证据 + 净减法）**：
+引擎净删 ≥900 行；CLI 表面 32 → 20 条目（17 活动词 + help）；蓝图 28 → 12 目录；
+`nyxuri/` 顶层 25 → 12 项；llms-wiki 根 29 → ≤15 页；测试 62 平铺 → 镜像树 ~40；
+全量契约测试绿 + 沙箱部署绿。install.sh 引导化与 migrations 清算不在本阶段，仍留 KM5。
 
 ### 全局门禁（每阶段验收都过）
 
