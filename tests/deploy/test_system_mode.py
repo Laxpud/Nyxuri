@@ -262,27 +262,38 @@ class TestCliLinkOwnership(unittest.TestCase):
 
 
 class TestSafeGitPullSystemBranch(unittest.TestCase):
-    """§5.6: system mode refuses git pull, hints pacman."""
+    """§5.6: system mode refuses git pull, hints pacman.
+
+    Regression (2026-10-18 real-package smoke): the repo-shape guards used to
+    precede the system branch — a pacman-owned tree ships NO .git, so real
+    system packages got "update failed" instead of the pacman hint. The short
+    circuit must fire before any .git probing.
+    """
 
     def setUp(self):
         self._ctx = TempEnv()
         self._ctx.__enter__()
         self._ctx.env.run_mode = "system"
-        # safe_git_pull needs a .git dir + git binary to reach the system branch.
-        # TempEnv defaults repo_dir to the real repo root — redirect into the
-        # temp HOME so we never mkdir inside the actual repository tree.
+        # Real package shape: NO .git in the tree (payload ships code only).
         self._ctx.env.repo_dir = self._ctx.home / "repo"
-        (self._ctx.env.repo_dir / ".git").mkdir(parents=True)
+        self._ctx.env.repo_dir.mkdir(parents=True)
 
     def tearDown(self):
         self._ctx.__exit__()
 
-    def test_system_mode_returns_none_and_skips_pull(self):
+    def test_system_mode_returns_none_without_git_dir(self):
         from nyxuri.pkg.net import safe_git_pull
         with patch("nyxuri.pkg.net.shutil.which", return_value="/usr/bin/git"), \
              patch("builtins.print"):
             result = safe_git_pull(self._ctx.env.repo_dir)
         self.assertIsNone(result, "system mode must skip git pull (return None)")
+
+    def test_system_mode_pinned_checkout_returns_none_without_git_dir(self):
+        from nyxuri.pkg.net import safe_git_checkout_ref
+        with patch("nyxuri.pkg.net.shutil.which", return_value="/usr/bin/git"), \
+             patch("builtins.print"):
+            result = safe_git_checkout_ref(self._ctx.env.repo_dir, "v1.2.3")
+        self.assertIsNone(result, "system mode must skip pinned checkout (return None)")
 
 
 class TestRemovePath(unittest.TestCase):

@@ -283,7 +283,18 @@ def fetch_raw_with_fallback(user_repo: str, branch: str, file_path: str, output_
 
 
 def safe_git_pull(target_dir: Path) -> Optional[bool]:
-    """Pull upstream changes: True=updated, None=skipped, False=failed."""
+    """Pull upstream changes: True=updated, None=skipped, False=failed.
+
+    System package mode short-circuits FIRST — a pacman-owned tree ships no
+    .git at all (code without history), so the repo-shape guards below must
+    never run before it (§5.6: honest "pacman manages updates" over a bogus
+    network/git failure).
+    """
+    if get_env().run_mode == "system":
+        print(msg("update_use_pacman"))
+        log_msg("INFO", "System package mode: refusing git pull (pacman manages updates)")
+        return None
+
     if not shutil.which("git"):
         print(msg("git_required"))
         return False
@@ -295,14 +306,6 @@ def safe_git_pull(target_dir: Path) -> Optional[bool]:
     run_mode = get_env().run_mode
     env = {**os.environ, "LC_ALL": "C"}
 
-    # System package mode: the source tree is owned by pacman, not git. Refuse
-    # `git pull` and point the user at pacman — honest over fancy (§5.6): we
-    # can't know upstream's version without hitting AUR RPC / GitHub API, which
-    # would violate the pure-stdlib principle. pacman reports updates itself.
-    if run_mode == "system":
-        print(msg("update_use_pacman"))
-        log_msg("INFO", "System package mode: refusing git pull (pacman manages updates)")
-        return None
     # Check for uncommitted changes
     res_status = subprocess.run(
         ["git", "status", "--porcelain"],
@@ -403,7 +406,15 @@ def safe_git_checkout_ref(target_dir: Path, ref: str) -> Optional[bool]:
     but the target is a user-specified tag/commit instead of the branch tip.
     Dirty trees are refused outright: a pinned reset is destructive, and
     silently skipping would defeat the point of asking for an exact version.
+
+    Like safe_git_pull, the system-package short-circuit precedes the repo
+    guards: a pacman-owned tree has no .git to probe.
     """
+    if get_env().run_mode == "system":
+        print(msg("update_use_pacman"))
+        log_msg("INFO", "System package mode: refusing pinned checkout (pacman manages updates)")
+        return None
+
     if not shutil.which("git"):
         print(msg("git_required"))
         return False
@@ -412,13 +423,7 @@ def safe_git_checkout_ref(target_dir: Path, ref: str) -> Optional[bool]:
         log_msg("ERROR", f"Update target is not a Git repository: {target_dir}")
         return False
 
-    run_mode = get_env().run_mode
     env = {**os.environ, "LC_ALL": "C"}
-
-    if run_mode == "system":
-        print(msg("update_use_pacman"))
-        log_msg("INFO", "System package mode: refusing pinned checkout (pacman manages updates)")
-        return None
 
     res_status = subprocess.run(
         ["git", "status", "--porcelain"],

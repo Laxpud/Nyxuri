@@ -7,17 +7,27 @@
 
 ## [Unreleased]
 
+### Added
+- AUR 上架 `nyxuri-git`：`paru -S nyxuri-git` 一条命令安装完整 Nyxuri（管理引擎、全部配置单元与 Nyxuri Shell），此后更新交给 pacman
+
+## [v4.0.0-alpha.2] - 2026-10-18
+
+### Added
+- 桌面全面单元化：每个部件（合成器、终端、输入法，以及 Shell 的状态栏、启动器、锁屏、通知等）都是可开关的单元，`nyxuri on/off <名称>` 一键启停、即时生效
+- 新增交互式控制面板：直接运行 `nyxuri` 浏览、搜索并开关所有单元
+- 新增 Mango WM 适配与多窗口管理器支持：保留 Niri 标准模板的同时，接入 Mango 窗口管理器配置、热重载与门户映射
+- 安装菜单与部署流程支持窗口管理器互斥单选，并按当前运行环境自动首选，避免同时部署多个 WM 导致冲突
+
 ### Changed
-- `install.sh` 退役为一次性引导：不再接受参数、不再作为常驻入口；新增长期启动器 `nyxuri/launcher.sh`，`~/.local/bin/nyxuri` 旧软链会在下次运行时自动治愈重指（AUR 包 `/usr/bin/nyxuri` 同步改指）
+- 桌面软件不再随安装捆绑：启用哪个单元，才安装它需要的软件
+- `install.sh` 退役为一次性引导，常驻入口是 `nyxuri` 命令；旧软链会在下次运行时自动治愈重指
+- 升级或重装管理器不会动你已部署的配置：对账用 `nyxuri list`，想应用新版本模板时再显式 `nyxuri install full`
+- `Ctrl+Shift+C/V` 成为 Kitty 唯一复制粘贴路径：Windows 式 Ctrl+C/V 劫持与右键粘贴全部退役，按键还给终端程序
 - 沙箱部署测试入口改为 `HOME=$(mktemp -d) python3 -m nyxuri test`（原 `./install.sh test` 随透传退役）
 
 ### Removed
-- 移除 `nyxniri` 兼容层：系统软链、fish 别名与补全、`NYXNIRI_*` 环境变量回退全部退役，统一单前缀 `NYXURI_*`
-- 移除 `nyxuri/migrations/` 线性迁移机制（nyxniri 时代 tombstone 清算完毕；卸载时历史目录清扫保留）
-
-### Added
-- 新增 Mango WM 适配与多窗口管理器支持：保留 Niri 标准模板的同时，接入 Mango 窗口管理器配置、热重载与门户映射
-- 安装菜单与部署流程支持窗口管理器互斥单选（Radio 单选组），支持按环境自动首选运行中的 WM，避免同时部署多个 WM 导致冲突
+- 移除 `nyxniri` 兼容层：旧命令、环境变量与别名全部退役，统一为 `nyxuri` / `NYXURI_*`
+- 配置目录 `configs/` 更名 `units/`：目录即单元
 
 ## [v4.0.0-alpha.1] - 2026-10-07
 

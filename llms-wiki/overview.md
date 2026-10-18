@@ -30,7 +30,8 @@ Nyxuri/
 │                     shell 命名空间蓝图，12 个 runtime 单元，KM4）
 ├─ tests/             镜像源码树：kernel/ deploy/ pkg/ state/ desktop/ installer/
 │                     tools/{orbit,wallpaper_picker,translate}/ shell/ + 契约测试置顶
-├─ packaging/         AUR PKGBUILD + gen-deps.py（depends/optdepends 自动汇聚）
+├─ packaging/         AUR PKGBUILD + gen-deps.py（单包全量：引擎+单元+Shell；
+│                     depends=引擎运行时，optdepends 自动汇聚）+ .install 提示
 ├─ llms-wiki/ humans-wiki/
 ├─ catalog.toml       包目录清单——「装但不部署」，不是单元
 └─ install.sh         一次性引导（KM5：无参数透传；常驻入口 = nyxuri/launcher.sh）
@@ -38,7 +39,7 @@ Nyxuri/
 
 每个目录一行「为什么在这」：kernel 是不可开关的底座；deploy 只管文件机械；
 pkg 管包与供给；state 管账本外的状态副本；desktop 管活桌面副作用；installer 是
-交互菜单与整装编排（作者裁决常驻）；packaging 是开发者工具不进运行时；catalog.toml 喂菜单与 optdepends。
+交互菜单与整装编排（作者裁决常驻）；packaging 是开发者工具不进运行时；catalog.toml 只喂 `deps apps` 菜单（T1 起与 PKGBUILD 脱钩）。
 
 ## 三个概念（用户面）
 

@@ -17,7 +17,7 @@
 | 站 | 交付 | 状态 |
 | --- | --- | --- |
 | T0 | 终端体验修复：复制粘贴终审 + 终端程序启动失败可见 | 进行中 |
-| T1 | 上架 AUR：单包全量 nyxuri-git | 待开始 |
+| T1 | 上架 AUR：单包全量 nyxuri-git | 进行中 |
 | T2 | TUI 重做：正经 TUI 库重写市场界面 | 待开始 |
 | T3 | 设置界面替换：Caelestia 式默认 + Dashboard 双轨 | 待开始 |
 | T4 | Shell 可控性与透明化 | 待开始 |
@@ -42,12 +42,27 @@
 
 ### T1 上架 AUR（已定案：单包全量）
 
-- 单包 `nyxuri-git`：引擎 + 单元 + Shell 同船——现 PKGBUILD 只装
-  `nyxuri/ units/ catalog.toml`，缺 `shell/` 树，`shell.*` 单元在包模式下是死的；
-  quickshell 挂 optdepends，key-cli 维持独立包。
-- Shell 系统模式落位：`/usr/share/nyxuri/shell` + `.system-install` 语义核对；
-  wrapper 清 qmlcache 必须指向用户缓存，禁止写包目录。
-- 干净 chroot 构建验证 → 上传 AUR + SRCINFO → humans-wiki 安装文档同步。
+- **已落地（2026-10-18，含实机冒烟）**：PKGBUILD 重构——source 加 `pkgname::` 重命名修复
+  克隆目录断裂（原 PKGBUILD 从未通过 makepkg，实测实锤）；单包全量
+  `shell/` 树同船（`shell.*` 单元包模式下激活，实机 `nyxuri list`/`doctor` 验证）
+  + 剪枝（tests、scripts/dev、过程文档；references/ 由 .gitignore 天然隔离）+
+  `CHANGELOG.md` 进包（系统模式 `get_version` 真实化）+ `/usr/bin/nyxuri-shell`
+  系统入口 + 双 LICENSE + `.install` 升级提示（升级不自动重部署，`nyxuri list`
+  对账、`nyxuri install full` 显式应用）。依赖策略翻转：`depends=('python')`
+  引擎运行时唯一，全部单元包 + CORE/AUR 会话工具链 + `ENGINE_OPTDEPENDS`
+  （quickshell）转 optdepends——pacman 不再强塞桌面，干净 chroot 从此可解；
+  catalog.toml 与 PKGBUILD 脱钩（只喂 `deps apps` 菜单）。
+  实机冒烟全过：`/usr/bin/nyxuri` 系统模式识别、update 拒 git pull 提示 pacman
+  （顺带修复系统包无 `.git` 时误报「更新失败」的短路顺序 bug）、doctor 三态对账、
+  包版 shell 冷启动 IPC ready + 零包目录写入 + qmlcache/.qsb 全落用户缓存、
+  `--stop` 干净退出不扰原会话。
+  key-cli 暂缓：Clavis 上游独立后端，登记 [shell/KNOWN-ISSUES](shell/KNOWN-ISSUES.md)，
+  待收回仓库内化后再落依赖。
+- 阻断（2026-10-18）：AUR 注册官方暂停（arch 论坛账号 ≠ AUR 账号），上架搁置。
+  代码与验证已全数收口：makepkg 实测、干净 chroot 构建、namcap E 清零
+  （假阳性定性见 [packaging/README](packaging/README.md)）。注册恢复后按
+  [packaging/README](packaging/README.md) 三步上架，再回填 README/humans-wiki
+  安装段——CHANGELOG 的 AUR 条目已相应移回 Unreleased，发布不挂空招牌。
 
 ### T2 TUI 重做（正经 TUI 库）
 
