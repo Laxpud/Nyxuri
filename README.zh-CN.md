@@ -98,6 +98,22 @@ cd ~/Nyxuri && ./install.sh
 ```
 </details>
 
+### 从 AUR 安装
+
+```bash
+paru -S nyxuri-git
+```
+
+若系统未安装 AUR 助手，可手动构建并安装 `nyxuri-git` 软件包：
+
+```bash
+# 克隆 PKGBUILD 仓库
+git clone https://aur.archlinux.org/nyxuri-git.git
+
+# 构建并安装
+cd nyxuri-git && makepkg -si
+```
+
 ## 架构与单元
 
 ```text

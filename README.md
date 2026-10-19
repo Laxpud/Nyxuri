@@ -98,6 +98,22 @@ cd ~/Nyxuri && ./install.sh
 ```
 </details>
 
+### From AUR
+
+```bash
+paru -S nyxuri-git
+```
+
+If no AUR helper is installed in your system, build and install the `nyxuri-git` package manually:
+
+```bash
+# clone PKGBUILD repository
+git clone https://aur.archlinux.org/nyxuri-git.git
+
+# build & install
+cd nyxuri-git && makepkg -si
+```
+
 ## Architecture & Units
 
 ```text
