@@ -448,7 +448,16 @@ class TestCleanCache(unittest.TestCase):
         self.assertIn("uninstall --unused --delete-data -y --user", lines)
         self.assertIn("find /var/tmp -mindepth 1 -maxdepth 1 -mtime +7 -exec rm -rf -- {} +", lines)
         if Path("/var/lib/flatpak").is_dir():
-            self.assertIn("flatpak uninstall --unused --delete-data -y --system", lines)
+            self.assertIn("uninstall --unused --delete-data -y --system", lines)
+            self.assertNotIn("flatpak uninstall --unused --delete-data -y --system", lines)
+        if (
+            Path("/var/cache/pacman/pkg").is_dir()
+            and not Path("/var/cache/pacman/pkg").is_symlink()
+            and not Path("/var/lib/pacman/db.lck").exists()
+        ):
+            self.assertIn(
+                "find /var/cache/pacman/pkg -mindepth 1 -maxdepth 1 "
+                "-type d -name download-* -exec rm -rf -- {} +", lines)
         if Path("/var/lib/systemd/coredump").is_dir():
             self.assertIn(
                 "find /var/lib/systemd/coredump -mindepth 1 -maxdepth 1 "
@@ -474,6 +483,7 @@ class TestCleanCache(unittest.TestCase):
         self.assertNotIn("tee /proc/sys/vm/drop_caches", lines)
         self.assertNotIn("fstrim -av", lines)
         self.assertNotIn("uninstall --unused --delete-data -y --user", lines)
+        self.assertNotIn("uninstall --unused --delete-data -y --system", lines)
 
     def test_only_rejects_unknown_key(self):
         """--only 非法 key：报错并列出合法值，零动作。"""
@@ -535,6 +545,72 @@ class TestCleanCache(unittest.TestCase):
         self.assertTrue((self.home / ".cache").is_symlink(), "symlink was removed")
         self.assertFalse((self.home / ".npm/marker").exists(), "other fences still work")
         self.assertIn("symlink", proc.stderr)
+
+    def test_flatpak_runs_as_user_task_without_sudo_elevation(self):
+        """Flatpak 清理为纯用户任务：不走 sudo -v 提权，去 sudo 执行。(#141)"""
+        proc = self._run("--only", "flatpak")
+
+        self.assertEqual(proc.returncode, 0, proc.stderr[-400:])
+        lines = self._calls_text().splitlines()
+        self.assertNotIn("-v", lines)
+        self.assertIn("uninstall --unused --delete-data -y --user", lines)
+        if Path("/var/lib/flatpak").is_dir():
+            self.assertIn("uninstall --unused --delete-data -y --system", lines)
+            self.assertNotIn("flatpak uninstall --unused --delete-data -y --system", lines)
+
+    def test_scc_cleans_download_dirs_before_pacman_scc(self):
+        """pacman -Scc 前置清理 download-*：避免 EISDIR 导致 exit 193。(#141)"""
+        proc = self._run("--only", "scc")
+
+        self.assertEqual(proc.returncode, 0, proc.stderr[-400:])
+        lines = self._calls_text().splitlines()
+        self.assertIn("pacman -Scc", lines)
+        find_cmd = (
+            "find /var/cache/pacman/pkg -mindepth 1 -maxdepth 1 "
+            "-type d -name download-* -exec rm -rf -- {} +"
+        )
+        if (
+            Path("/var/cache/pacman/pkg").is_dir()
+            and not Path("/var/cache/pacman/pkg").is_symlink()
+            and not Path("/var/lib/pacman/db.lck").exists()
+        ):
+            self.assertIn(find_cmd, lines)
+            self.assertLess(lines.index(find_cmd), lines.index("pacman -Scc"))
+
+    def test_scc_skips_download_cleanup_when_locked(self):
+        """当 db.lck 存在（pacman 正在运行）时，跳过 download-* 目录清理。(#141)"""
+        from unittest.mock import patch
+        import nyxuri.desktop.clean as clean
+
+        called_cmds = []
+        with patch.object(clean, "act", side_effect=lambda cmd, **kw: called_cmds.append((cmd, kw))):
+            with patch.object(Path, "is_dir", return_value=True):
+                with patch.object(Path, "is_symlink", return_value=False):
+                    with patch.object(Path, "exists", return_value=True):
+                        tasks = clean.build_tasks({}, [])
+                        scc_task = next(t for t in tasks if t["key"] == "scc")
+                        scc_task["run"]()
+
+        self.assertEqual(len(called_cmds), 1)
+        self.assertEqual(called_cmds[0][0], ["pacman", "-Scc"])
+
+    def test_scc_runs_download_cleanup_when_unlocked(self):
+        """当 db.lck 不存在时，先 find 清理 download-* 再调用 pacman -Scc。(#141)"""
+        from unittest.mock import patch
+        import nyxuri.desktop.clean as clean
+
+        called_cmds = []
+        with patch.object(clean, "act", side_effect=lambda cmd, **kw: called_cmds.append((cmd, kw))):
+            with patch.object(Path, "is_dir", return_value=True):
+                with patch.object(Path, "is_symlink", return_value=False):
+                    with patch.object(Path, "exists", return_value=False):
+                        tasks = clean.build_tasks({}, [])
+                        scc_task = next(t for t in tasks if t["key"] == "scc")
+                        scc_task["run"]()
+
+        self.assertEqual(len(called_cmds), 2)
+        self.assertEqual(called_cmds[0][0][:4], ["find", "/var/cache/pacman/pkg", "-mindepth", "1"])
+        self.assertEqual(called_cmds[1][0], ["pacman", "-Scc"])
 
 
 class TestBrightnessKeys(unittest.TestCase):

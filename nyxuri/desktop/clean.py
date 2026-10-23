@@ -283,9 +283,18 @@ def build_tasks(sizes, flat_roots):
 
     if shutil.which("pacman"):
         # --noconfirm 会按默认值答 N，包缓存反而清不掉；两问都必须显式喂 y。
+        def _scc():
+            pkg_cache = Path("/var/cache/pacman/pkg")
+            db_lock = Path("/var/lib/pacman/db.lck")
+            if pkg_cache.is_dir() and not pkg_cache.is_symlink() and not db_lock.exists():
+                act(["find", str(pkg_cache), "-mindepth", "1", "-maxdepth", "1",
+                     "-type", "d", "-name", "download-*", "-exec", "rm", "-rf", "--", "{}", "+"],
+                    sudo=True)
+            act(["pacman", "-Scc"], sudo=True, input_text="y\ny\n")
+
         add("scc", t("清空 pacman 包缓存", "Wipe pacman package cache"),
             "/var/cache/pacman/pkg (-Scc)", sizes.get(Path("/var/cache/pacman/pkg")),
-            True, lambda: act(["pacman", "-Scc"], sudo=True, input_text="y\ny\n"))
+            True, _scc)
     if orphans:
         names = " ".join(orphans[:6]) + (" …" if len(orphans) > 6 else "")
         add("orphans", t(f"移除 {len(orphans)} 个孤立包", f"Remove {len(orphans)} orphan package(s)"),
@@ -315,11 +324,10 @@ def build_tasks(sizes, flat_roots):
             if (HOME / ".local/share/flatpak").is_dir():
                 act(["flatpak", "uninstall", "--unused", "--delete-data", "-y", "--user"])
             if Path("/var/lib/flatpak").is_dir():
-                act(["flatpak", "uninstall", "--unused", "--delete-data", "-y", "--system"],
-                    sudo=True)
+                act(["flatpak", "uninstall", "--unused", "--delete-data", "-y", "--system"])
         add("flatpak", t("移除未用 Flatpak 运行时与数据", "Remove unused Flatpak runtimes and data"),
             "flatpak --unused --delete-data",
-            sizes.get(HOME / ".local/share/flatpak"), True, _flatpak)
+            sizes.get(HOME / ".local/share/flatpak"), False, _flatpak)
 
     def _drop_caches():
         act(["sync"])
