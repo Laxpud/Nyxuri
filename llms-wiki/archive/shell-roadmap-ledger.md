@@ -514,7 +514,7 @@ state/logs/shell.log）后，日志点失踪暴露出第三个根因（缓存陈
 
 ## T3 实施记录（追加式，2026-10-24）
 
-### M0 配置轴 3 ➔ 2 收敛与路由元数据（待验收）
+### M0 配置轴 3 ➔ 2 收敛与路由元数据（已完成）
 
 **实现**：
 - `PersonalizationConfig.settingsPanelStyles` 收敛为 `default` + `dashboard` 两值；
@@ -535,10 +535,9 @@ state/logs/shell.log）后，日志点失踪暴露出第三个根因（缓存陈
 + `test_i18n_catalog` 10 绿；`check.sh` changed scope 全绿（104 advisory 为既有
 基线）；lifecycle-audit clean。`SearchCatalog.js` 已重新生成（+40 行，纯数据）。
 
-**待验收**：行为保持性无视觉变化（minimal 本就非默认档），作者复核后 M0 转
-已完成；M1（偏好原子套件纯 QML 拷入 `units/settings/controls/`）待开始。
+**验收（2026-10-25）**：作者实机复核通过，M0 转已完成。
 
-### M1 偏好原子套件纯 QML 拷入与重构（待验收，2026-10-24）
+### M1 偏好原子套件纯 QML 拷入与重构（已完成，2026-10-24）
 
 **实现**（11 原件全落 `shell/units/settings/controls/`，100% 纯 QML/JS，
 零 Caelestia/Quickshell-native 依赖）：
@@ -592,11 +591,10 @@ token 的已知限制，全库 --all 同类 3902 条为基线；unqualified 与
 id-shadows（MouseArea.drag 遮蔽）已修零）；lifecycle-audit clean；
 qmlformat 全量格式化通过。
 
-**待验收**：原子尚无页面消费者（M3 积木化翻新时接入）；实机视觉
-验收（比例、动画手感、StateLayer 反馈）与 M0 一并在作者实机复核后
-转已完成。M2（视窗外壳与 NavPane 双行导航骨架）待开始。
+**验收（2026-10-25）**：作者实机复核通过（比例、动画手感、StateLayer
+反馈；页面消费者随 M3 接入），M1 转已完成。
 
-### M2 视窗外壳与 NavPane 双行导航骨架（待验收，2026-10-24）
+### M2 视窗外壳与 NavPane 双行导航骨架（已完成，2026-10-24）
 
 **实现**（chrome-only 重塑，业务面零改动）：
 - `ControlCenterWindow` 重写外壳：退役 titlebar 框与 `navExpanded` 展开
@@ -637,12 +635,10 @@ search-catalog 契约与 i18n 完整性）；check.sh changed scope 全绿
 （104 advisory 全为既有 missing-property 基线）；lifecycle-audit clean；
 qmlformat 全量格式化通过。
 
-**待验收**：实机视觉/交互（连通组形态、激活胶囊形变手感、搜索过滤+
-深链弹层、拖拽与关闭按钮、路由标题 switchAnim）；M0/M1 视觉验收顺延
-合并复核（M2 动了 M1 的 ConnectedRect）。M3（核心页面首批积木化翻新）
-待开始。
+**验收（2026-10-25）**：作者实机复核通过（连通组形态、激活胶囊形变、拖拽、
+路由标题 switchAnim；后续 fidelity 修订见下），M2 转已完成。
 
-### M2-fidelity 修订：逐项对齐 Caelestia 实测值 + About 页（待验收，2026-10-25）
+### M2-fidelity 修订：逐项对齐 Caelestia 实测值 + About 页（已完成，2026-10-25）
 
 > 起因：作者对照实机截图指出与原版差距大（搜索框大小/窗口圆角/胶囊
 > 形变/搜索结果真实性四项）。逐行比对参考树与 C++ 侧 tokens.hpp 后
@@ -697,9 +693,8 @@ changed scope 全绿（249 advisory = missing-property 基线类 + 2 既有
 singleton 提示；SettingsPageHost `id: layer` 遮蔽顺手正名
 `pageLayer`）；qmlformat 全量通过。
 
-**待验收**：实机视觉对照（搜索框比例、窗口 16px 圆角、胶囊 32/12 形变、
-渐隐列表、关闭钮红 hover、方向感知切页、About 页）；blob C++ 形状与
-transparency layer 调色为既定不移植项（blur+实色近似）。M3 待开始。
+**验收（2026-10-25）**：作者实机复核通过（搜索框比例、胶囊 32/12 形变、
+渐隐列表、方向感知切页、About 页；后续像素级修订见第二轮）。
 
 **事故修复（2026-10-25，mod+i 失灵）**：`FloatingWindow.minimumWidth/
 Height` 并非 Quickshell 属性（正名 `minimumSize`），误赋值使 settings
@@ -710,7 +705,7 @@ shell/AGENTS Quickshell 运行时约束 ④；`lint-qml.sh` import 集补 Quicks
 插件路径（注：qs.* VFS 混合导入下 qmllint 仍不做成员校验，Quickshell
 API 面改动以实机为准）。IPC 实测 `--action settings` 返回 OPENING。
 
-### M2-fidelity 第二轮：像素级对齐 + 双色分区 chrome（待验收，2026-10-25）
+### M2-fidelity 第二轮：像素级对齐 + 双色分区 chrome（已完成，2026-10-25）
 
 > 起因：作者实机复核提出三项（导航行过宽且右侧页面无法显示／全部
 > 字体控件尺寸／关闭钮不对），要求逐细节对准原版。
@@ -748,10 +743,10 @@ API 面改动以实机为准）。IPC 实测 `--action settings` 返回 OPENING�
 实机 IPC OPENING/CLOSING 双向、窗口宽度恢复（niri 按应用记忆用户拖动
 尺寸 1664×1047 为用户偏好保留）。
 
-**待验收**：逐细节视觉对照（分区、搜索框 53px、24px 图标、行高 66、
-关闭钮贴角、About 页）；blob 果冻物理回弹为既定不移植项。M3 待开始。
+**验收（2026-10-25）**：作者实机复核通过（分区、搜索框 53px、行高 66、
+窗口宽度恢复）。
 
-### M2-fidelity 第三轮：作者三项裁决 + About 页静默死亡修复（待验收，2026-10-25）
+### M2-fidelity 第三轮：作者三项裁决 + About 页静默死亡修复（已完成，2026-10-25）
 
 **作者裁决的刻意偏离原版**（钉死防未来对照回改）：
 - 导航宽度：原版 `min(600, 窗宽/3)`（33%）观感偏宽——改 **`min(480, 窗宽/4)`**
