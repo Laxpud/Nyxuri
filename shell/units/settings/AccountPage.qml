@@ -55,11 +55,14 @@ NexusPageBase {
             "value": "dark"
         }
     ]
-    readonly property real wallpaperPreviewMaximumWidth: 152
-    readonly property real wallpaperPreviewWidth: Math.min(root.wallpaperPreviewMaximumWidth, Math.floor((
-                                                                                                             wallpaperGrid.width
-                                                                                                             - NexusStyle.padding.small
-                                                                                                             * 2) / 3))
+    // Quick-pick tiles always tile the full row: 6 items divide exactly into
+    // 6 columns (wide) or 2 rows of 3 (narrow), so there is never a ragged
+    // trailing cell or dead side space. The tile width is derived from the
+    // row, never capped — the old 152px cap was tuned for a ~450px card and
+    // broke apart inside the 800px Nexus column.
+    readonly property int wallpaperColumns: wallpaperGrid.width >= 640 ? 6 : 3
+    readonly property real wallpaperPreviewWidth: (wallpaperGrid.width - (wallpaperColumns - 1)
+                                                   * NexusStyle.padding.small) / wallpaperColumns
     readonly property real wallpaperPreviewHeight: Math.round(root.wallpaperPreviewWidth / 1.25)
     readonly property var pairedBluetoothDevices: {
         const result = [];
@@ -416,7 +419,7 @@ NexusPageBase {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.leftMargin: NexusStyle.padding.largeIncreased
                 anchors.rightMargin: NexusStyle.padding.largeIncreased
-                columns: 3
+                columns: root.wallpaperColumns
                 columnSpacing: NexusStyle.padding.small
                 rowSpacing: NexusStyle.padding.small
 
@@ -478,6 +481,17 @@ NexusPageBase {
                                 visible: false
                                 layer.enabled: true
                             }
+
+                            // Current-wallpaper selection ring: a 2px inset
+                            // primary stroke that rides above the tile.
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: NexusStyle.rounding.medium
+                                color: "transparent"
+                                border.width: 2
+                                border.color: Appearance.m3colors.m3primary
+                                visible: WallpaperService.currentWallpaper === wallpaperChoice.modelData
+                            }
                         }
 
                         contentItem: Item {}
@@ -485,7 +499,8 @@ NexusPageBase {
                 }
 
                 Rectangle {
-                    Layout.preferredWidth: root.wallpaperPreviewWidth
+                    Layout.columnSpan: root.wallpaperColumns
+                    Layout.fillWidth: true
                     Layout.preferredHeight: root.wallpaperPreviewHeight
                     visible: root.wallpaperChoices.length === 0
                     radius: NexusStyle.rounding.medium

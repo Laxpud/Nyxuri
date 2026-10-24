@@ -126,6 +126,19 @@ class TestAccountPageRebuild(unittest.TestCase):
         self.assertIn("AccountProfileHeader", source, "the hero stays a shared asset")
         self.assertIn("wallpaperChoices", source, "the wallpaper quick grid survives")
 
+    def test_wallpaper_quick_pick_fills_the_row(self):
+        source = _read("AccountPage.qml")
+        # Adaptive full-row tiling: 6 columns wide / 2 rows of 3 narrow —
+        # six choices always divide exactly. The pre-Nexus 152px cap (tuned
+        # for a ~450px card, broke apart inside the 800px column) is dead.
+        self.assertIn("wallpaperColumns", source)
+        self.assertIn(">= 640 ? 6 : 3", source)
+        self.assertNotIn("wallpaperPreviewMaximumWidth", source,
+                         "the old tile-width cap must not come back")
+        self.assertIn("Layout.columnSpan", source, "the empty placeholder spans the row")
+        self.assertIn("WallpaperService.currentWallpaper === wallpaperChoice.modelData", source,
+                      "the current wallpaper carries a selection ring")
+
     def test_legacy_chrome_stays_out(self):
         source = _read("AccountPage.qml")
         for token in LEGACY_VOCABULARY:

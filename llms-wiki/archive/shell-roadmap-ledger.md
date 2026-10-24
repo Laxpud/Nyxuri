@@ -840,3 +840,11 @@ qmlformat 全量通过；lifecycle-audit clean。
 区域、滑杆拖拽/滚轮、Gamma 动态分组几何、DisplayConfig 事务流与新行
 的交互、深链搜索锚滚动定位）；深链回归（Spotlight→displays.gamma
 深两级路径）。M4（全页面覆盖与废弃代码清算）待开始。
+
+**修订（2026-10-25，作者 M3 验收反馈）**：Account 壁纸快选格子仍按旧
+~450px MaterialCard 调参（152px 上限），进 800px Nexus 列后被
+GridLayout 拉伸、比例失真且两侧空洞。改自适应满宽条：列数 ≥640px 取
+6 否则 3（6 项恒整除铺满，无尾格无死区），格宽=(行宽-缝)/列数、5:4
+恒定，`wallpaperPreviewMaximumWidth` 处决；当前壁纸叠 2px primary 内缩
+描边选中态；空态占位 `columnSpan` 跨全列。列数公式与 152 上限死刑钉
+进 test_settings_pages（207 绿）。
