@@ -41,6 +41,16 @@ ANCHOR_IDS = {
         "wallpaper.section.parallax-effects",
         "wallpaper.section.overview-background",
     ),
+    "GammaControlPage.qml": (
+        "displays.gamma.section.color",
+        "displays.gamma.section.schedule",
+        "displays.gamma.section.current-status",
+    ),
+    "DisplayConfigurationPage.qml": (
+        "displays.configuration.section.layout",
+        "displays.configuration.section.output-settings",
+        "displays.configuration.section.hot-corners",
+    ),
 }
 
 # Pre-M3 card chrome and legacy row vocabulary: none of it may come back
@@ -279,6 +289,63 @@ class TestWallpaperPageRebuild(unittest.TestCase):
         source = _read("WallpaperPage.qml")
         for token in LEGACY_VOCABULARY:
             self.assertNotIn(token, source, f"legacy token re-entered WallpaperPage: {token}")
+
+
+class TestDisplaysPagesRebuild(unittest.TestCase):
+    """Displays shell + both subpages: row-level atoms, machinery kept."""
+
+    def test_shell_claims_title_and_keeps_routing(self):
+        source = _read("DisplaysPage.qml")
+        self.assertIn("readonly property bool rendersPageTitle: true", source,
+                      "subpages render titles; the window shim must yield")
+        for token in ("function openSearchPath(", "searchLeaf", "closeChildWindows",
+                      "DisplayConfigService.clearCompletionNotice()",
+                      'SpotlightCatalog.route("displays." + root.section)'):
+            self.assertIn(token, source, f"DisplaysPage lost routing token: {token}")
+
+    def test_subpages_are_nexus_scaffolded(self):
+        for name, title_route in (("DisplayConfigurationPage.qml", "displays.configuration"),
+                                  ("GammaControlPage.qml", "displays.gamma")):
+            source = _read(name)
+            self.assertIn("NexusPageBase {", source, name)
+            self.assertIn(f'title: SpotlightCatalog.title("{title_route}")', source, name)
+            self.assertIn("property Item searchLeaf", source, name)
+
+    def test_search_anchor_ids_are_stable(self):
+        for name in ("GammaControlPage.qml", "DisplayConfigurationPage.qml"):
+            source = _read(name)
+            for anchor_id in ANCHOR_IDS[name]:
+                self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+                              f"{name}: anchor missing or rewritten: {anchor_id}")
+
+    def test_gamma_form_is_fully_atomized(self):
+        source = _read("GammaControlPage.qml")
+        for atom in ("PreferenceHeader", "PreferenceToggle", "PreferenceSlider", "PreferenceSelect",
+                     "PreferenceInput", "PreferenceInfo", "PreferenceAction"):
+            self.assertIn(atom, source, f"GammaControlPage must use the atom: {atom}")
+        for owner in ("DisplayColor.setPreference", "DisplayColor.setDimming", "DisplayColor.locate()",
+                      "DisplayColor.useWeatherLocation()"):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+        for dead in ("SidebarFlickable", "SettingsSection", "SettingsRow", "GeneralSliderSetting",
+                     "DisplayChoice", "OutlinedTextField", "StyledSwitch"):
+            self.assertNotIn(dead, source, f"pre-M3 vocabulary survived in GammaControlPage: {dead}")
+        for token in LEGACY_VOCABULARY:
+            self.assertNotIn(token, source, f"legacy token re-entered GammaControlPage: {token}")
+
+    def test_display_configuration_keeps_machinery_and_atomizes_rows(self):
+        source = _read("DisplayConfigurationPage.qml")
+        for atom in ("PreferenceToggle", "PreferenceSelect", "PreferenceInput", "PreferenceAction",
+                     "PreferenceHeader"):
+            self.assertIn(atom, source, f"DisplayConfigurationPage must use the atom: {atom}")
+        # The transaction flow and custom editors survive.
+        for kept in ("DisplayConfigService.apply()", "DisplayConfigService.reload()",
+                     "DisplayConfigService.forget(", "DisplayLayoutCanvas", "DisplayAdvancedSettings",
+                     "DisplayHotCornerSettings", "FloatingWindow", "CompositorBlurRegion"):
+            self.assertIn(kept, source, f"machinery dropped: {kept}")
+        # Mechanical rows left the old vocabulary (the kept-custom scale
+        # dialog still hosts one OutlinedTextField of its own).
+        for dead in ("DisplayChoice", "SettingsRow", "SettingsActionRow", "GridLayout"):
+            self.assertNotIn(dead, source, f"pre-M3 row survived: {dead}")
 
 
 if __name__ == "__main__":
