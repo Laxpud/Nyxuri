@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.shared.theme
 import qs.shared.controls
+import qs.units.settings
 
 // Full-row toggle (Caelestia Nexus ToggleRow). Double-line text on the left,
 // MD3 pill switch on the right; the press state layer covers the whole row —
@@ -23,14 +24,14 @@ ConnectedRect {
     }
 
     Layout.fillWidth: true
-    implicitHeight: Math.max(column.implicitHeight, toggleItem.implicitHeight) + Appearance.spacing.medium * 2
+    implicitHeight: Math.max(column.implicitHeight, toggleItem.implicitHeight) + NexusStyle.padding.medium * 2
 
     StateLayer {
         id: stateLayer
 
         anchors.fill: parent
-        layerRadius: (root.first || root.last) ? Appearance.rounding.extraLarge :
-                                                 Appearance.rounding.extraSmall
+        layerRadius: (root.first || root.last) ? NexusStyle.rounding.extraLarge :
+                                                 NexusStyle.rounding.extraSmall
 
         color: Appearance.m3colors.m3onSurface
         hovered: rowPress.containsMouse || toggleItem.hovered
@@ -53,9 +54,9 @@ ConnectedRect {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        anchors.leftMargin: Appearance.spacing.panelPadding
-        anchors.rightMargin: Appearance.spacing.panelPadding
-        spacing: Appearance.spacing.small
+        anchors.leftMargin: NexusStyle.padding.largeIncreased
+        anchors.rightMargin: NexusStyle.padding.largeIncreased
+        spacing: NexusStyle.padding.small
 
         ColumnLayout {
             id: column
@@ -67,7 +68,7 @@ ConnectedRect {
                 Layout.fillWidth: true
                 text: root.text
                 color: Appearance.m3colors.m3onSurface
-                font.pixelSize: Typography.bodyMedium.pixelSize
+                font.pixelSize: NexusStyle.font.bodyMedium
                 elide: Text.ElideRight
             }
 
@@ -76,7 +77,7 @@ ConnectedRect {
                 visible: root.subtext.length > 0
                 text: root.subtext
                 color: Appearance.m3colors.m3outline
-                font.pixelSize: Typography.labelSmall.pixelSize
+                font.pixelSize: NexusStyle.font.labelSmall
                 elide: Text.ElideRight
             }
         }

@@ -38,6 +38,10 @@ Singleton {
         const currentLanguage = root.language;
         return Catalog.title(id);
     }
+    function description(id) {
+        const currentLanguage = root.language;
+        return Catalog.description(id);
+    }
     function route(id) {
         return routes.find(entry => entry.id === id || (entry.aliases && entry.aliases.includes(id))) || null;
     }

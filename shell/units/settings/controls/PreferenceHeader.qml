@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.shared.theme
 import qs.shared.controls
+import qs.units.settings
 
 // Section label above a connected card group (Caelestia Nexus SectionHeader).
 // `first` removes the top margin for the leading section of a page; the
@@ -11,12 +12,12 @@ StyledText {
     property bool first: false
 
     Layout.fillWidth: true
-    Layout.topMargin: first ? 0 : Appearance.spacing.medium - ((parent as ColumnLayout).spacing ?? 0)
-    Layout.bottomMargin: Appearance.spacing.xSmall
-    Layout.leftMargin: Appearance.spacing.xSmall
+    Layout.topMargin: first ? 0 : NexusStyle.padding.medium - ((parent as ColumnLayout).spacing ?? 0)
+    Layout.bottomMargin: NexusStyle.padding.extraSmall
+    Layout.leftMargin: NexusStyle.padding.extraSmall
 
     color: Appearance.m3colors.m3onSurfaceVariant
-    font.pixelSize: Typography.labelMedium.pixelSize
-    font.weight: Typography.labelMedium.weight
+    font.pixelSize: NexusStyle.font.labelMedium
+    font.weight: NexusStyle.font.labelMediumWeight
     elide: Text.ElideRight
 }

@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Templates
 import qs.shared.theme
 import qs.shared.controls
+import qs.units.settings
 
 // Slider row (Caelestia Nexus SliderRow): leading icon, label plus current
 // value on the first line, one delicate full-width slider below. The slim
@@ -24,21 +25,21 @@ ConnectedRect {
     signal moved(real value)
 
     Layout.fillWidth: true
-    implicitHeight: column.implicitHeight + Appearance.spacing.medium * 2
+    implicitHeight: column.implicitHeight + NexusStyle.padding.medium * 2
 
     RowLayout {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        anchors.leftMargin: Appearance.spacing.panelPadding
-        anchors.rightMargin: Appearance.spacing.panelPadding
-        spacing: Appearance.spacing.small
+        anchors.leftMargin: NexusStyle.padding.largeIncreased
+        anchors.rightMargin: NexusStyle.padding.largeIncreased
+        spacing: NexusStyle.padding.small
 
         MaterialSymbol {
             visible: root.icon.length > 0
             Layout.preferredWidth: root.icon.length > 0 ? implicitWidth : 0
             text: root.icon
-            iconSize: Metrics.iconM
+            iconSize: NexusStyle.icon.medium
             fill: 1
             color: Appearance.m3colors.m3onSurfaceVariant
         }
@@ -47,18 +48,18 @@ ConnectedRect {
             id: column
 
             Layout.fillWidth: true
-            spacing: Appearance.spacing.xSmall
+            spacing: NexusStyle.padding.extraSmall
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: Appearance.spacing.small
+                spacing: NexusStyle.padding.small
 
                 StyledText {
                     id: titleLabel
 
                     Layout.fillWidth: true
                     color: Appearance.m3colors.m3onSurface
-                    font.pixelSize: Typography.bodyMedium.pixelSize
+                    font.pixelSize: NexusStyle.font.bodyMedium
                     elide: Text.ElideRight
                 }
 
@@ -66,7 +67,7 @@ ConnectedRect {
                     id: valueLabel
 
                     color: Appearance.m3colors.m3outline
-                    font.pixelSize: Typography.bodyMedium.pixelSize
+                    font.pixelSize: NexusStyle.font.bodyMedium
                 }
             }
 
@@ -76,7 +77,7 @@ ConnectedRect {
                 id: wheelStrip
 
                 Layout.fillWidth: true
-                Layout.preferredHeight: Metrics.controlHeightS
+                Layout.preferredHeight: NexusStyle.padding.large + NexusStyle.padding.medium
 
                 function onWheel(event: WheelEvent): void {
                     if (event.angleDelta.y > 0)
@@ -98,7 +99,7 @@ ConnectedRect {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    implicitHeight: Metrics.spacingM
+                    implicitHeight: NexusStyle.padding.medium
 
                     from: root.from
                     to: root.to
@@ -123,7 +124,7 @@ ConnectedRect {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        height: Metrics.controlHeightS
+                        height: NexusStyle.padding.large + NexusStyle.padding.medium
                         preventStealing: true
 
                         onPressed: event => {
@@ -156,11 +157,11 @@ ConnectedRect {
                             anchors.left: handle.right
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            anchors.leftMargin: Appearance.spacing.xSmall
+                            anchors.leftMargin: NexusStyle.padding.extraSmall
                             height: slider.height * (slider.height <= 12 ? fade : Math.min(fade * 2, 1))
-                            radius: Appearance.rounding.extraSmall / 2
-                            topLeftRadius: Appearance.rounding.extraSmall / 2
-                            bottomLeftRadius: Appearance.rounding.extraSmall / 2
+                            radius: NexusStyle.rounding.extraSmall / 2
+                            topLeftRadius: NexusStyle.rounding.extraSmall / 2
+                            bottomLeftRadius: NexusStyle.rounding.extraSmall / 2
                             color: slider.enabled ? Appearance.m3colors.m3secondaryContainer :
                                                     Appearance.applyAlpha(Appearance.m3colors.m3onSurface,
                                                                           0.1)
@@ -172,7 +173,7 @@ ConnectedRect {
                             anchors.rightMargin: 4 * remaining.fade
                             width: 4 * remaining.fade
                             height: width
-                            radius: Appearance.rounding.full
+                            radius: NexusStyle.rounding.full
                             color: filled.color
                         }
 
@@ -181,11 +182,11 @@ ConnectedRect {
 
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
-                            width: (parent.width - handle.width - Appearance.spacing.xSmall) * slider.pos
+                            width: (parent.width - handle.width - NexusStyle.padding.extraSmall) * slider.pos
                             height: slider.height
-                            radius: Appearance.rounding.extraSmall / 2
-                            topRightRadius: Appearance.rounding.extraSmall / 2
-                            bottomRightRadius: Appearance.rounding.extraSmall / 2
+                            radius: NexusStyle.rounding.extraSmall / 2
+                            topRightRadius: NexusStyle.rounding.extraSmall / 2
+                            bottomRightRadius: NexusStyle.rounding.extraSmall / 2
                             color: slider.enabled ? Appearance.m3colors.m3primary : Appearance.applyAlpha(
                                                         Appearance.m3colors.m3onSurface, 0.38)
 
@@ -204,10 +205,10 @@ ConnectedRect {
 
                             anchors.left: filled.right
                             anchors.verticalCenter: parent.verticalCenter
-                            anchors.leftMargin: Appearance.spacing.xSmall
+                            anchors.leftMargin: NexusStyle.padding.extraSmall
                             width: 4
                             height: slider.height * (dragArea.pressed ? 1.6 : 1.25)
-                            radius: Appearance.rounding.full
+                            radius: NexusStyle.rounding.full
                             color: filled.color
 
                             Behavior on height {

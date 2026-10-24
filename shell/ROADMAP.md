@@ -92,26 +92,47 @@ hooks 的实机行为证据与视觉验收待作者确认。镜像色板是否�
 - **`PreferenceAction` 操作/跳转行**：左侧图标 + 双行文本 + 右侧 `chevron_right` 箭头，用于进入二级子页或执行动作。
 - **`PreferenceInfo` 属性信息行**：左侧图标 + 属性名 + 右侧居右对齐的只读属性值。
 - **`PreferenceHeader` 小节标**：轻量辅助色标题，位于卡片组上方。
-- **`NexusSearchBar` 药丸搜索框**：全圆角胶囊搜索栏 `[ 🔍 Search settings ]`，带清除按钮与全局检索直通。
-- **`NexusPageBase` 详情页脚手架**：大标题（28px Bold）、子页面返回箭头（`arrow_back`）与切页平滑微动。
+- **`NexusSearchBar` 药丸搜索框**：全圆角胶囊搜索栏 `[ 🔍 Search settings ]`，无边框、
+  带清除按钮（`clear` 图标）；与原版一致为**视觉占位**，设置内搜索（过滤+深层直通）后续单独立项。
+- **`NexusPageBase` 详情页脚手架**：大标题（titleLarge）、子页面返回箭头（`arrow_back`）与滚动列封顶。
 
-### 3. 视窗与主从框架规范
+### 3. 视窗与主从框架规范（对齐 Caelestia 实测值，NexusStyle 1:1）
 
-- **无边框浮动视窗**：退役旧 titlebar 框，采用无边框 `radius: 24-28px` 现代浮动视窗 + `CompositorBlurRegion` +
-  右上角极简内嵌关闭按钮。
+- **token 真相**：`units/settings/NexusStyle.qml` 为设置界面唯一几何/字号源——
+  tokens.hpp 值 1:1 移植（rounding 4/8/12/16/20/28/32/48、padding/spacing 同梯、
+  字号 11–28 + Medium 权重表、图标 24/20、比例常量 0.7 / 16:9 / 600 / 800 / 800×500），
+  **脱离全局 0.85 缩放**，契约测试逐值钉死；颜色仍归 `Appearance`。
+- **无边框双色分区视窗**（Nexus.qml 复刻）：左区导航面板（导航宽+32px、左角
+  `large(16)` 圆角）与 12px 框带、右上角关闭钮同用 `surfaceContainerLow` 系填充
+  （同色融合，无需 blob）；中部透明承载页面；`CompositorBlurRegion` 保留。
+  窗口尺寸 = 屏高×0.7、宽=高×16:9、下限 800×500 由 `Math.max` 承担——
+  **禁止赋值显式 size minimums**（Quickshell 0.3.2 会把窗口钉死在下限）。
+- **关闭钮**（windowBtn 复刻）：贴右上角零边距、36×32、`medium(12)` 圆角、24px
+  图标、hover 变 `m3error`、按压仅图标 scale 0.8、无 StateLayer。
 - **左侧 NavPane（安卓 Master 列表）**：
-  - 顶部嵌入 `NexusSearchBar`；
-  - 竖向分类列表使用 `ConnectedRect` 连通卡片组；
-  - 双行图文排布：圆形强调色图标徽章 + 主标题（粗体） + 副标题描述（来自 `settings-routes.json` 顶层 `description`）；
-  - 激活项：全行填充 `secondaryContainer` 胶囊高亮与平滑形变动效；
-  - 底部保留「配置文件编辑 / 路径复制」快捷动作。
-- **右侧 Detail 承载区**：
-  - 由 `NexusPageBase` 承载 `SettingsPageHost`，大标题随当前路由响应，切页带轻微淡入位移微动（`switchAnim`）。
+  - 顶部嵌入 `NexusSearchBar`（占位）；
+  - 单列扁平列表，分类**纯几何表达**（组间 +12px 间隙 + `ConnectedRect` 首尾连通圆角），
+    无分组文字标签——对齐原版 NavLocations；
+  - 双行图文排布：圆形强调色图标徽章（激活 primary / 常态 secondaryContainer，24px
+    grade 25 图标）+ 主标 bodyMedium(14) + 副标 labelSmall(11)（路由 `description`
+    经 catalog 翻译桥）；
+  - 激活项：整行 `secondaryContainer` 填充 + `extraLargeIncreased(32)` 胶囊形变，按压收缩
+    `medium(12)`；文字恒定静止色（不加粗不变色，同原版）；
+  - 列表上下渐隐遮罩（`VerticalFadeFlickable`），无滚动条；
+  - 底部保留「配置文件编辑 / 路径复制」快捷动作（Nyxuri 扩展）。
+- **右侧 Detail 承载区**：内容距框带 16px（窗边 28px）、距左区 28px（Pages.qml 锚位）；
+  路由大标题（titleLarge 22 Medium）；切页为**容器级**方向感知动画（淡出 200ms →
+  上下 28px 滑入 300ms，导航方向决定进出轴向），页面宿主层动画关闭。
 - **轴二值收敛与向后兼容**：
   - `PersonalizationConfig.qml` 中 `settingsPanelStyles` 收敛为 `default` 与 `dashboard`；
   - 历史配置中的 `"minimal"` 自动折叠为 `"default"`；
   - `SettingsPanelStyleCard` 与 `DashboardStyleCard` 选项收缩；
   - 处决零消费者的旧 `NavigationRailButton.qml`、`NavigationRailExpandButton.qml`、`NavigationRailTabArray.qml`。
+- **About 页**（对齐 Caelestia AboutPage）：路由 `about`（导航底部独立分组），hero 连通卡 +
+  System 段（Hostname/Device/Distro/Kernel/Firmware ← `SystemIdentityService`）+
+  Software 段（Quickshell/Qt/合成器；版本探针按需归服务层）；首个纯 M1 原子页面，M3 打样。
+- **不移植声明**：blob C++ 形状系统（含果冻物理回弹）与 transparency layer 调色系统不进
+  Nyxuri（纯 QML 红线），以同色矩形融合 + blur/实色近似——这是与原版仅剩的刻意差异。
 
 ### 4. 分期台账（M0–M4）
 
@@ -119,12 +140,16 @@ hooks 的实机行为证据与视觉验收待作者确认。镜像色板是否�
 | --- | --- | --- |
 | M0 | 配置轴 3 ➔ 2 收敛与向后兼容；路由元数据补充顶层 `description`；单测守住基线 | 待验收 |
 | M1 | 偏好原子套件纯 QML 拷入与重构（`ConnectedRect`、`PreferenceToggle` 等 11 个原件落地并过原子单测） | 待验收 |
-| M2 | 视窗外壳与 NavPane 双行导航骨架落地，接入药丸搜索与胶囊高亮，处决旧 `NavigationRail*` | 待开始 |
+| M2 | 视窗外壳与 NavPane 双行导航骨架落地，接入药丸搜索（原版占位形态）与胶囊高亮，处决旧 `NavigationRail*`；fidelity 修订对齐 Caelestia 实测值并新增 About 页 | 待验收 |
 | M3 | 核心页面首批积木化翻新（`AccountPage`、`ThemePage`、`WallpaperPage`、`DisplaysPage`） | 待开始 |
 | M4 | 全页面覆盖、废弃代码清算与全量测试冒烟验收 | 待开始 |
 
 ## 后续阶段
 
+- **设置内搜索（过滤 + 深层直通）单独立项**（2026-10-25 定案）：M2 fidelity 修订查明原版 Nexus
+  设置搜索框为纯视觉占位（`searchOpen` 全树零消费者），已对齐为占位形态；过滤+深层条目
+  建议弹层作为 Nyxuri 原创扩展暂缓，待独立设计（含结果呈现、键盘导航与深链语义）后实施，
+  深链机器（`SettingsBackend.openSearch`）保留由 Spotlight 通达。
 - **原 P5 完整宿主、部署与双轨生态 → 已吸收为主线 KM4，已交付**（2026-10-17，
   明细见 [roadmap-history](../llms-wiki/archive/roadmap-history.md) KM 存档与本台账追加节）：P5 验收标准原样
   平移——六动作经 `nyxuri-shell --action` 通路保持零改动（单元 off 时 IPC 目标

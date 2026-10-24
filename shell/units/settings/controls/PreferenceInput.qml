@@ -4,6 +4,7 @@ import QtQuick.Controls
 import qs.shared.theme
 import qs.shared.controls
 import qs.shared.i18n
+import qs.units.settings
 
 // Text input row (Caelestia Nexus TextFieldRow): double-line label on the
 // left, one compact rounded field on the right. The field border "breathes"
@@ -40,7 +41,7 @@ ConnectedRect {
     }
 
     Layout.fillWidth: true
-    implicitHeight: column.implicitHeight + Appearance.spacing.medium * 2
+    implicitHeight: column.implicitHeight + NexusStyle.padding.medium * 2
 
     Component.onDestruction: {
         if (value !== input.text)
@@ -51,9 +52,9 @@ ConnectedRect {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        anchors.leftMargin: Appearance.spacing.panelPadding
-        anchors.rightMargin: Appearance.spacing.panelPadding
-        spacing: Appearance.spacing.small
+        anchors.leftMargin: NexusStyle.padding.largeIncreased
+        anchors.rightMargin: NexusStyle.padding.largeIncreased
+        spacing: NexusStyle.padding.small
 
         ColumnLayout {
             id: column
@@ -66,7 +67,7 @@ ConnectedRect {
 
                 Layout.fillWidth: true
                 color: Appearance.m3colors.m3onSurface
-                font.pixelSize: Typography.bodyMedium.pixelSize
+                font.pixelSize: NexusStyle.font.bodyMedium
                 elide: Text.ElideRight
             }
 
@@ -76,7 +77,7 @@ ConnectedRect {
                 text: root.isError && root.errorText.length > 0 ? root.errorText : root.subtext
                 color: root.isError && root.errorText.length > 0 ? Appearance.m3colors.m3error :
                                                                    Appearance.m3colors.m3outline
-                font.pixelSize: Typography.labelSmall.pixelSize
+                font.pixelSize: NexusStyle.font.labelSmall
                 elide: Text.ElideRight
             }
         }
@@ -87,7 +88,8 @@ ConnectedRect {
             Layout.preferredWidth: root.smallField ? root.smallFieldWidth : root.fieldWidth
             Layout.maximumWidth: root.width / 2
             Layout.alignment: Qt.AlignVCenter
-            implicitHeight: Metrics.controlHeightL
+            implicitHeight: NexusStyle.font.bodyMedium + NexusStyle.padding.small * 2
+                            + NexusStyle.padding.extraSmall
 
             text: root.value
             color: Appearance.m3colors.m3onSurface
@@ -97,9 +99,9 @@ ConnectedRect {
             verticalAlignment: TextInput.AlignVCenter
             selectByMouse: true
             font.family: Fonts.ui
-            font.pixelSize: Typography.bodyMedium.pixelSize
-            leftPadding: Appearance.spacing.small
-            rightPadding: Appearance.spacing.small + (clearButton.visible ? clearButton.width : 0)
+            font.pixelSize: NexusStyle.font.bodyMedium
+            leftPadding: NexusStyle.padding.small
+            rightPadding: NexusStyle.padding.small + (clearButton.visible ? clearButton.width : 0)
 
             onTextEdited: {
                 if (root.isError)
@@ -113,7 +115,7 @@ ConnectedRect {
             }
 
             background: Rectangle {
-                radius: Appearance.rounding.small
+                radius: NexusStyle.rounding.small
                 color: Appearance.m3colors.m3surfaceContainerHigh
                 border.width: input.activeFocus ? 2 : 1
                 border.color: root.isError ? Appearance.m3colors.m3error : input.activeFocus
@@ -143,13 +145,13 @@ ConnectedRect {
 
                 z: 1
                 anchors.right: parent.right
-                anchors.rightMargin: Appearance.spacing.xSmall
+                anchors.rightMargin: NexusStyle.padding.extraSmall
                 anchors.verticalCenter: parent.verticalCenter
-                width: Metrics.controlHeightM
-                height: Metrics.controlHeightM
-                controlSize: Metrics.controlHeightM
-                iconSize: Metrics.iconS + 2
-                iconName: "close"
+                width: NexusStyle.icon.small + NexusStyle.padding.small * 2
+                height: NexusStyle.icon.small + NexusStyle.padding.small * 2
+                controlSize: NexusStyle.icon.small + NexusStyle.padding.small * 2
+                iconSize: NexusStyle.icon.small
+                iconName: "clear"
                 accessibleName: I18n.tr("Clear")
                 showTooltip: false
                 visible: input.text.length > 0 && input.enabled

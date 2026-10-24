@@ -121,6 +121,11 @@ def render(catalog):
     for entry in catalog['settings'] + catalog['actions']:
         lines.append('    case '+json.dumps(entry['id'])+': return I18n.tr('+json.dumps(entry['title'])+', '+json.dumps(entry['context'])+');')
     lines += ['    default: return "";', '    }', '}', '', 'function description(id) {', '    switch (id) {']
+    # Route descriptions ride the same I18n bridge as titles so the NavPane
+    # subtitle stays translated; section anchors have no description field.
+    for entry in catalog['settings']:
+        if 'description' in entry:
+            lines.append('    case '+json.dumps(entry['id'])+': return I18n.tr('+json.dumps(entry['description'])+', '+json.dumps(entry['context'])+');')
     for entry in catalog['actions']:
         lines.append('    case '+json.dumps(entry['id'])+': return I18n.tr('+json.dumps(entry['description'])+', '+json.dumps(entry['context'])+');')
     lines += ['    default: return "";', '    }', '}', '']

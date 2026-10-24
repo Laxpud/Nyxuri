@@ -288,6 +288,18 @@
       "aliases": [
         "general.bluetooth-pairing"
       ]
+    },
+    {
+      "id": "about",
+      "title": "About",
+      "description": "System information and versions",
+      "context": "ControlCenterWindow",
+      "icon": "info",
+      "source": "AboutPage.qml",
+      "path": [
+        "about"
+      ],
+      "aliases": []
     }
   ]
 }

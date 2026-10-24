@@ -668,6 +668,18 @@ var catalog = {
       ],
       "source": "BluetoothPairingPage.qml",
       "title": "Pair new device"
+    },
+    {
+      "aliases": [],
+      "context": "ControlCenterWindow",
+      "description": "System information and versions",
+      "icon": "info",
+      "id": "about",
+      "path": [
+        "about"
+      ],
+      "source": "AboutPage.qml",
+      "title": "About"
     }
   ],
   "schemaVersion": 1,
@@ -999,6 +1011,20 @@ var catalog = {
       "route": "connected-devices.bluetooth-pairing",
       "source": "BluetoothPairingPage.qml",
       "title": "Pair new device"
+    },
+    {
+      "aliases": [],
+      "anchor": false,
+      "context": "ControlCenterWindow",
+      "description": "System information and versions",
+      "icon": "info",
+      "id": "about",
+      "path": [
+        "about"
+      ],
+      "route": "about",
+      "source": "AboutPage.qml",
+      "title": "About"
     },
     {
       "aliases": [],
@@ -2001,6 +2027,7 @@ function title(id) {
     case "displays.gamma": return I18n.tr("Gamma Control", "DisplaysPage");
     case "keystone.horizontal-clock": return I18n.tr("Horizontal clock style", "KeystonePage");
     case "connected-devices.bluetooth-pairing": return I18n.tr("Pair new device", "ConnectedDevicesPage");
+    case "about": return I18n.tr("About", "ControlCenterWindow");
     case "account.section.language": return I18n.tr("Language", "AccountPage");
     case "account.section.bluetooth-devices": return I18n.tr("Bluetooth devices", "AccountPage");
     case "account.section.keyboard-shortcuts": return I18n.tr("Keyboard shortcuts", "AccountPage");
@@ -2094,6 +2121,27 @@ function title(id) {
 
 function description(id) {
     switch (id) {
+    case "account": return I18n.tr("Profile name, avatar, and banner", "ControlCenterWindow");
+    case "theme": return I18n.tr("Colors, effects, and palettes", "ControlCenterWindow");
+    case "wallpaper": return I18n.tr("Sources, auto-cycle, and switching", "ControlCenterWindow");
+    case "bar": return I18n.tr("Position, modules, and indicators", "ControlCenterWindow");
+    case "dock": return I18n.tr("Position, size, and behavior", "ControlCenterWindow");
+    case "sidebar": return I18n.tr("Sides, cards, and monitoring", "ControlCenterWindow");
+    case "displays": return I18n.tr("Monitor layout and night light", "ControlCenterWindow");
+    case "keystone": return I18n.tr("Style, clock, and media controls", "ControlCenterWindow");
+    case "shortcuts": return I18n.tr("Global shortcuts and actions", "ControlCenterWindow");
+    case "spotlight": return I18n.tr("Search modes, layout, and order", "ControlCenterWindow");
+    case "network": return I18n.tr("Wi-Fi and wired connections", "ControlCenterWindow");
+    case "connected-devices": return I18n.tr("Bluetooth devices and pairing", "ControlCenterWindow");
+    case "autostart": return I18n.tr("Session startup applications", "ControlCenterWindow");
+    case "default-apps": return I18n.tr("Browser, terminal, and other defaults", "ControlCenterWindow");
+    case "language-region": return I18n.tr("Language, temperature, and clock", "ControlCenterWindow");
+    case "shell": return I18n.tr("Unit toggles and diagnostics", "ControlCenterWindow");
+    case "displays.configuration": return I18n.tr("Resolution, refresh, and layout", "DisplaysPage");
+    case "displays.gamma": return I18n.tr("Night light color temperature", "DisplaysPage");
+    case "keystone.horizontal-clock": return I18n.tr("Horizontal clock appearance", "KeystonePage");
+    case "connected-devices.bluetooth-pairing": return I18n.tr("Scan and pair nearby devices", "ConnectedDevicesPage");
+    case "about": return I18n.tr("System information and versions", "ControlCenterWindow");
     case "nyxuri:lock:open": return I18n.tr("Lock the current session", "SpotlightActions");
     case "nyxuri:spotlight:search": return I18n.tr("Open Spotlight Search", "SpotlightActions");
     case "nyxuri:spotlight:web": return I18n.tr("Enter Spotlight Web search", "SpotlightActions");

@@ -88,7 +88,7 @@ class CatalogTests(unittest.TestCase):
             'account', 'theme', 'wallpaper', 'bar', 'dock', 'sidebar',
             'displays', 'keystone', 'shortcuts', 'spotlight', 'network',
             'connected-devices', 'autostart', 'default-apps', 'language-region',
-            'shell'
+            'shell', 'about'
         })
         self.assertNotIn(str(ROOT), json.dumps(catalog))
         self.assertEqual(len({entry['id'] for entry in catalog['settings']}), len(catalog['settings']))

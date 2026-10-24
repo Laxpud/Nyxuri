@@ -121,6 +121,11 @@ qml_import_args=(
     -I "${repo_root}"
     -I "${tooling_build_dir}"
     -I "${qml_build_dir}"
+    # The tooling VFS maps the qs.* pools but not the Quickshell plugin
+    # itself; this path restores Quickshell type resolution (member checks
+    # on files that also import qs.* remain a qmllint limitation — see the
+    # 2026-10-25 mod+i incident note in shell/AGENTS.md §Quickshell ④).
+    -I "${qmllint_bin%/bin*}/qml"
 )
 IFS=':' read -r -a import_paths <<< "${import_paths_raw}"
 for path in "${import_paths[@]}"; do

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.shared.theme
 import qs.shared.controls
+import qs.units.settings
 
 // Dropdown select row (Caelestia Nexus SelectRow): label plus optional
 // subtext on the left, the current value shown in a tonal pill button on
@@ -20,7 +21,7 @@ ConnectedRect {
     signal selected(string value)
 
     Layout.fillWidth: true
-    implicitHeight: column.implicitHeight + Appearance.spacing.medium * 2
+    implicitHeight: column.implicitHeight + NexusStyle.padding.medium * 2
     clip: false
     z: 0
 
@@ -28,9 +29,9 @@ ConnectedRect {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        anchors.leftMargin: Appearance.spacing.panelPadding
-        anchors.rightMargin: Appearance.spacing.panelPadding
-        spacing: Appearance.spacing.small
+        anchors.leftMargin: NexusStyle.padding.largeIncreased
+        anchors.rightMargin: NexusStyle.padding.largeIncreased
+        spacing: NexusStyle.padding.small
 
         ColumnLayout {
             id: column
@@ -43,7 +44,7 @@ ConnectedRect {
 
                 Layout.fillWidth: true
                 color: Appearance.m3colors.m3onSurface
-                font.pixelSize: Typography.bodyMedium.pixelSize
+                font.pixelSize: NexusStyle.font.bodyMedium
                 elide: Text.ElideRight
             }
 
@@ -52,7 +53,7 @@ ConnectedRect {
                 visible: root.subtext.length > 0
                 text: root.subtext
                 color: Appearance.m3colors.m3outline
-                font.pixelSize: Typography.labelSmall.pixelSize
+                font.pixelSize: NexusStyle.font.labelSmall
                 elide: Text.ElideRight
             }
         }

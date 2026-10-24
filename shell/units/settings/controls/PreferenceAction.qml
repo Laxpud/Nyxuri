@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.shared.theme
 import qs.shared.controls
+import qs.units.settings
 
 // Action/navigation row (Caelestia Nexus RowButton + NavRow): leading icon,
 // double-line text, trailing chevron by default. Used both for entering
@@ -19,7 +20,7 @@ ConnectedRect {
     signal clicked
 
     Layout.fillWidth: true
-    implicitHeight: column.implicitHeight + Appearance.spacing.medium * 2
+    implicitHeight: column.implicitHeight + NexusStyle.padding.medium * 2
     opacity: enabled ? 1 : 0.5
 
     Behavior on opacity {
@@ -34,8 +35,8 @@ ConnectedRect {
         id: stateLayer
 
         anchors.fill: parent
-        layerRadius: (root.first || root.last) ? Appearance.rounding.extraLarge :
-                                                 Appearance.rounding.extraSmall
+        layerRadius: (root.first || root.last) ? NexusStyle.rounding.extraLarge :
+                                                 NexusStyle.rounding.extraSmall
 
         color: Appearance.m3colors.m3onSurface
         hovered: rowPress.containsMouse
@@ -56,16 +57,16 @@ ConnectedRect {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        anchors.leftMargin: Appearance.spacing.panelPadding
-        anchors.rightMargin: Appearance.spacing.panelPadding
-        spacing: Appearance.spacing.small
+        anchors.leftMargin: NexusStyle.padding.largeIncreased
+        anchors.rightMargin: NexusStyle.padding.largeIncreased
+        spacing: NexusStyle.padding.small
 
         MaterialSymbol {
             id: iconLabel
 
             visible: text.length > 0
             Layout.preferredWidth: text.length > 0 ? implicitWidth : 0
-            iconSize: Metrics.iconM
+            iconSize: NexusStyle.icon.medium
             fill: 1
             color: Appearance.m3colors.m3onSurfaceVariant
         }
@@ -81,7 +82,7 @@ ConnectedRect {
 
                 Layout.fillWidth: true
                 color: Appearance.m3colors.m3onSurface
-                font.pixelSize: Typography.bodyMedium.pixelSize
+                font.pixelSize: NexusStyle.font.bodyMedium
                 elide: Text.ElideRight
             }
 
@@ -91,7 +92,7 @@ ConnectedRect {
                 Layout.fillWidth: true
                 visible: text.length > 0
                 color: Appearance.m3colors.m3outline
-                font.pixelSize: Typography.labelSmall.pixelSize
+                font.pixelSize: NexusStyle.font.labelSmall
                 elide: Text.ElideRight
                 animateChange: true
             }
@@ -101,7 +102,7 @@ ConnectedRect {
             visible: root.trailingIcon.length > 0
             Layout.preferredWidth: root.trailingIcon.length > 0 ? implicitWidth : 0
             text: root.trailingIcon
-            iconSize: Metrics.iconM
+            iconSize: NexusStyle.icon.medium
             color: Appearance.m3colors.m3onSurfaceVariant
         }
     }
