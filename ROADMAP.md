@@ -18,7 +18,7 @@
 | --- | --- | --- |
 | T0 | 终端体验修复：复制粘贴终审 + 终端程序启动失败可见 | 进行中 |
 | T1 | 上架 AUR：单包全量 nyxuri-git | 进行中 |
-| T2 | TUI 重做：正经 TUI 库重写市场界面 | 待开始 |
+| T2 | TUI 重做：Textual 全量迁移 | 待开始（已定案） |
 | T3 | 设置界面替换：Caelestia 式默认 + Dashboard 双轨 | 待开始 |
 | T4 | Shell 可控性与透明化 | 待开始 |
 | T5 | 多合成器 (Multi-WM) 架构解耦（门禁触发） | 待开始 |
@@ -63,15 +63,28 @@
   namcap E 清零（假阳性定性见 [packaging/README](packaging/README.md)）。
   遗留：humans-wiki Home 顶部 AUR 安装块回填（见 packaging/README 步骤 4）。
 
-### T2 TUI 重做（正经 TUI 库）
+### T2 TUI 重做（已定案：Textual，一次全搬）
 
-- 用正经 TUI 库重写市场界面（单元浏览 / 开关 / doctor 报告 / 预设管理）；
-  库选型开工时定（候选：Textual 首推、urwid 备选）。
-- 契约修订（无论选型）：invariant「纯标库零依赖」收窄为「引擎核心零依赖，
-  TUI 层为唯一声明依赖」，AGENTS 与对应 wiki 同步。
-- CLI 四动词不动：TUI 是同一张开关真相的投影，不新增第二条事务路径。
-- 吸收原储备项「TUI 视觉风格化」：Alternate Screen 保护终端历史、
-  DEC 2025 协议消除高刷频闪、单行微动 Zen Spinner 就地收拢滚屏日志。
+- **定案（2026-10-24）**：选型 Textual，迁移范围一次全搬——市场三屏
+  （工坊 / 预设 / doctor）与全部过渡交互屏（组件清单 / deps / 快照回滚 /
+  卸载 / clean）进同一个 App；tui.py 手搓组件层（~1500 行）全数退役。
+  开工首日先做 spike：kitty 下跑 pacman 的终端交接、中文对齐、退出后
+  终端干净、测试可用性，有硬伤才回退 urwid。
+- **终态分层**：`nyxuri/ux.py` 零依赖基座（确认提示 / 步骤报告 / 宽度
+  工具）+ `nyxuri/market/` 唯一声明依赖层（全库唯一 `import textual`）。
+  CLI 四动词与非交互路径零依赖不变，装不装 textual 都完整可用。
+- **投影而非状态**：界面只读账本，开关照走 `transaction` 同一条事务
+  路径；pacman 等交互式子进程暂时交出终端、跑完收回；直达动词
+  （clean / uninstall / deps）复用同一 App。
+- **依赖策略**：否决 vendor（拖 6 个传递包，塞进仓库就是无主文件）；
+  python-textual 入 PKGBUILD `optdepends` + install.sh 引导装齐；缺席时
+  交互入口提示 `pacman -S python-textual`，不留旧界面兜底。
+- **契约修订**：AGENTS 不变量 3 收窄为「引擎核心零依赖，TUI 层为唯一
+  声明依赖」，vision §3、tui-charter、overview、operation-map、
+  testing 一并同步。
+- **分期**：M0 spike → M1 骨架+契约 → M2 工坊+首页（无参入口切 App）→
+  M3 预设+doctor → M4 过渡屏全迁 → M5 删旧收口。每期过全量单测、
+  沙箱部署与 kitty 实机冒烟。
 
 ### T3 设置界面替换（Caelestia 式）
 
