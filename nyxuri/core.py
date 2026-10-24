@@ -693,6 +693,34 @@ def clear_nyxuri_cli_symlink_marker() -> None:
             pass
 
 
+def launcher_path(env: "Environment") -> Optional[Path]:
+    """The one permanent CLI entry, repo tree first. None if no tree ships one.
+
+    launcher.sh is the only thing that puts the engine package on sys.path for
+    repo/standalone runs, so every restart has to go through it.
+    """
+    for base in (env.repo_dir, env.cache_dir):
+        candidate = base / "nyxuri" / "launcher.sh"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def exec_cli(env: "Environment", **extra_env: str) -> bool:
+    """Replace this process with the engine on disk; False if exec failed.
+
+    Never spawn `python -m nyxuri` on its own: that only resolves the package
+    when the cwd happens to be the repo root (#138).
+    """
+    target = launcher_path(env)
+    argv = [str(target)] if target else [sys.executable, "-m", CLI_CMD]
+    try:
+        os.execve(argv[0], argv, {**os.environ, **extra_env})
+    except OSError as e:
+        log_msg("ERROR", f"Re-exec failed: {e}")
+        print(msg("update_restart_needed"), file=sys.stderr)
+        return False
+    return True
 
 
 def ensure_nyxuri_symlink() -> None:
@@ -720,12 +748,9 @@ def ensure_nyxuri_symlink() -> None:
     if legacy_bin != target_bin and legacy_bin.is_symlink() and is_nyxuri_cli_symlink(legacy_bin):
         legacy_bin.unlink(missing_ok=True)
 
-    root_launcher = env.repo_dir / "nyxuri" / "launcher.sh"
-    if not root_launcher.is_file():
-        if (env.cache_dir / "nyxuri" / "launcher.sh").is_file():
-            root_launcher = env.cache_dir / "nyxuri" / "launcher.sh"
-        else:
-            return
+    root_launcher = launcher_path(env)
+    if root_launcher is None:
+        return
 
     try:
         if target_bin.is_symlink():

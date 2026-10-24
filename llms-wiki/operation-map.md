@@ -37,6 +37,10 @@
 | `test` | 开发者沙箱部署测试（`HOME=$(mktemp -d) python3 -m nyxuri test` 的落点；install.sh 已不透传参数） |
 | `help` | 用法 |
 
+`update` 的重启（命令行与控制面板两条路径都算）一律 `os.execve` 回常驻启动器
+`nyxuri/launcher.sh`（`core.exec_cli`）——repo / standalone 模式下只有 launcher 会把
+引擎塞进 `sys.path`，自己拼 `python -m nyxuri` 离开仓库根目录就必炸（#138）。
+
 ## 已处决（KM3.5 + KM5，调用即 unknown command）
 
 KM3.5：`deploy` `backup` `restore` `remove` `purge` `recommended` `apps` `wp` `wallpapers`

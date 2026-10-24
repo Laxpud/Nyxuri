@@ -16,9 +16,9 @@ from nyxuri.core import (
     acquire_lock,
     check_path_occlusion,
     ensure_nyxuri_symlink,
+    exec_cli,
     get_env,
     init_logger,
-    log_msg,
 )
 
 from nyxuri.deploy import test_deploy
@@ -491,12 +491,7 @@ def _cmd_update(sub_args: List[str]) -> int:
         # only truth and the nyxniri-era tombstones are years past their sweep.
         # Hand the deploy over to a fresh process so it runs on the updated
         # engine code instead of the modules loaded before the pull.
-        try:
-            os.execve(sys.executable, [sys.executable, "-m", CLI_CMD],
-                      {**os.environ, PENDING_UPGRADE_ENV: flag})
-        except Exception as e:
-            log_msg("ERROR", f"Re-exec failed: {e}")
-            print(msg("update_restart_needed"), file=sys.stderr)
+        if not exec_cli(env, **{PENDING_UPGRADE_ENV: flag}):
             return 1
     if update_result is False:
         print(msg("updating_failed"), file=sys.stderr)

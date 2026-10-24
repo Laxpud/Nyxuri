@@ -7,6 +7,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- 从仓库或缓存副本运行时，`nyxuri update` 重启后报 `No module named nyxuri`、更新后的部署被跳过：重启现在回到常驻入口 `launcher.sh`，不再自己拼 `python -m nyxuri`
+
 ### Added
 - AUR 上架 `nyxuri-git`：`paru -S nyxuri-git` 一条命令安装完整 Nyxuri（管理引擎、全部配置单元与 Nyxuri Shell），此后更新交给 pacman
 

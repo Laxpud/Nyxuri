@@ -3,15 +3,24 @@
 A missing nyxuri.* module (engine tree mixed/partial, e.g. an update
 interrupted mid-checkout) must fail with one clear line instead of a raw
 traceback; foreign ModuleNotFoundError must propagate untouched.
+
+The launcher entry is also pinned here: update re-execs through it (#138), so
+it has to resolve the engine package from any working directory.
 """
 
 import io
+import os
+import subprocess
 import sys
+import tempfile
 import types
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
+import nyxuri
 from nyxuri.__main__ import _run
+from tests.utils import TempEnv
 
 
 class TestEntrypointGuard(unittest.TestCase):
@@ -51,6 +60,25 @@ class TestEntrypointGuard(unittest.TestCase):
         with patch.dict(sys.modules, {"nyxuri.cli": fake_cli}):
             rc = _run()
         self.assertEqual(rc, 0)
+
+
+class TestLauncherEntry(unittest.TestCase):
+    """launcher.sh must resolve the engine from any cwd without PYTHON* help —
+    update's re-exec hands the process over to it (#138)."""
+
+    def test_runs_from_foreign_cwd(self):
+        launcher = Path(nyxuri.__file__).resolve().parent / "launcher.sh"
+        if not launcher.is_file():
+            self.skipTest("this tree ships no launcher.sh")
+        with TempEnv():
+            env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
+            with tempfile.TemporaryDirectory() as cwd:
+                result = subprocess.run(
+                    [str(launcher), "help"], cwd=cwd, env=env,
+                    capture_output=True, text=True, timeout=60,
+                )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("nyxuri", result.stdout)
 
 
 if __name__ == "__main__":
