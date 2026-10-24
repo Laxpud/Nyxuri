@@ -43,12 +43,9 @@
 
 ## 门禁
 
-```bash
-# 文档契约（链接闭合 + 索引双向闭包 + AGENTS 行数 + CLI 命令映射）
-python3 -m unittest tests/test_ai_specs.py
-
-# 全量（含上述）
-python3 -m unittest discover -s tests -q
-```
-
-改动文档时：改完跑上面第一条；改动架构契约、命令或 manifest 时，同步对应 wiki 页与 ROADMAP 台账（见根 AGENTS.md 路由表）。
+- **纯文档修改严禁跑全量测试或沙箱部署**（零价值且极度浪费时间）；文本改动与方案讨论通常无需测试。
+- 仅当修改涉及活区相对链接、索引闭包或 AGENTS 规则时，按需运行秒级文档契约门禁：
+  ```bash
+  python3 -m unittest tests/test_ai_specs.py
+  ```
+- 改动架构契约、命令或 manifest 时，同步对应 wiki 页与 ROADMAP 台账（见根 AGENTS.md 路由表）。

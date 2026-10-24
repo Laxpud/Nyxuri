@@ -12,7 +12,7 @@
 
 - Shell 冷启动路径小而可解释；可选功能按需加载，停用后释放实例及其 Timer、Process、请求、连接、监听和回调。
 - 模块按功能域自治；UI 通过 Action Gateway 表达桌面意图，领域服务拥有对应 I/O；全局 singleton 仅用于确有跨域共享状态的能力。
-- 设置 UI 的 Default、Minimal、Dashboard 均是正式可选呈现，支持热切换；它们共享设置模型、路由、搜索、动作和持久化逻辑，不复制业务。
+- 设置 UI 的 Default（Caelestia 式）与 Dashboard 均是正式可选呈现，支持热切换；它们共享设置模型、路由、搜索、动作和持久化逻辑，不复制业务。
 - 清理和重构不得降低视觉品质、动效、可读性、几何精度或对齐。
 - 以原版 Niri 为基础兼容目标；外部能力缺失时局部降级，不让可选依赖阻断核心 Shell。
 - Wiki 只保留能指导实现、审查、验证或排障的现行契约；历史资料归档，不冒充当前事实。
@@ -65,6 +65,63 @@ matugen 降格为纯取色位；深浅模式系统级写入收敛为 `nyxuri the
 宿主 550 测试、分类 111 测试、check.sh 全绿）；壁纸切换/深浅代调链路/模板
 hooks 的实机行为证据与视觉验收待作者确认。镜像色板是否长期作为 Noctalia
 对齐策略（`source = custom`）留验收拍板。
+
+## T3 设置界面替换：Caelestia 安卓风味（当前进行中）
+
+> 对应主线跨域活跃路线 T3 站。本阶段彻底替换旧 Default + Minimal 设置中心外壳，以 Caelestia Nexus
+> 视觉范式重塑为完全安卓风味（Material Design 3 Master-Detail 连通卡片与双行导航）的现代化设置视窗；
+> 保持与 Dashboard（端景网格）双轨并存，坚守“换皮不换骨、只换呈现不碰业务”底线。
+
+### 1. 核心策略：全套抽象再改，拒绝东拼西凑（No picking）
+
+绝不在各页面打散装补丁。先从本地参考树 `shell/references/caelestia/modules/nexus/` 将经过实战检验、
+比例协调的偏好输入原件全套抽象并拷入至 `shell/units/settings/controls/`；彻底斩断外部 C++ / 插件依赖
+（100% 纯 QML/JS），全面桥接 Nyxuri 真相（`Appearance.m3colors`、`rounding`、`spacing`、`Fonts`、
+`I18n`），形成一套自洽、有单元测试保障的偏好设置标准库，再自顶向下积木式翻新。
+
+### 2. 偏好原子套件解构（落盘至 `shell/units/settings/controls/`）
+
+- **`ConnectedRect` 连通基座**：首项 `first: true`（顶部大圆角）、末项 `last: true`（底部大圆角）、
+  中间平直衔接。驱动所有偏好卡片的分组连通形态（`Appearance.m3colors.m3surfaceContainer`）。
+- **`PreferenceToggle` 开关行**：双行文本（主标题 + 副标描述）+ 右侧 Material 3 药丸式平滑滑动开关（`StyledSwitch`），
+  整行支持按压涟漪。
+- **`PreferenceSlider` 滑块行**：左侧图标 + 主标签 + 当前数值 + 下方全宽精致滑块，集成滚轮微调。
+- **`PreferenceInput` 文本框行**：双行标签 + 右侧内嵌圆角输入框（带焦点呼吸边框与清除按钮）。
+- **`PreferenceSelect` 下拉选择行**：主标题 + 当前选定值的药丸按钮，点击展开 MD3 菜单或对话框。
+- **`PreferenceStepper` 步进数值行**：紧凑数值微调控件（包含 `-`、数值文本、`+`）。
+- **`PreferenceAction` 操作/跳转行**：左侧图标 + 双行文本 + 右侧 `chevron_right` 箭头，用于进入二级子页或执行动作。
+- **`PreferenceInfo` 属性信息行**：左侧图标 + 属性名 + 右侧居右对齐的只读属性值。
+- **`PreferenceHeader` 小节标**：轻量辅助色标题，位于卡片组上方。
+- **`NexusSearchBar` 药丸搜索框**：全圆角胶囊搜索栏 `[ 🔍 Search settings ]`，带清除按钮与全局检索直通。
+- **`NexusPageBase` 详情页脚手架**：大标题（28px Bold）、子页面返回箭头（`arrow_back`）与切页平滑微动。
+
+### 3. 视窗与主从框架规范
+
+- **无边框浮动视窗**：退役旧 titlebar 框，采用无边框 `radius: 24-28px` 现代浮动视窗 + `CompositorBlurRegion` +
+  右上角极简内嵌关闭按钮。
+- **左侧 NavPane（安卓 Master 列表）**：
+  - 顶部嵌入 `NexusSearchBar`；
+  - 竖向分类列表使用 `ConnectedRect` 连通卡片组；
+  - 双行图文排布：圆形强调色图标徽章 + 主标题（粗体） + 副标题描述（来自 `settings-routes.json` 顶层 `description`）；
+  - 激活项：全行填充 `secondaryContainer` 胶囊高亮与平滑形变动效；
+  - 底部保留「配置文件编辑 / 路径复制」快捷动作。
+- **右侧 Detail 承载区**：
+  - 由 `NexusPageBase` 承载 `SettingsPageHost`，大标题随当前路由响应，切页带轻微淡入位移微动（`switchAnim`）。
+- **轴二值收敛与向后兼容**：
+  - `PersonalizationConfig.qml` 中 `settingsPanelStyles` 收敛为 `default` 与 `dashboard`；
+  - 历史配置中的 `"minimal"` 自动折叠为 `"default"`；
+  - `SettingsPanelStyleCard` 与 `DashboardStyleCard` 选项收缩；
+  - 处决零消费者的旧 `NavigationRailButton.qml`、`NavigationRailExpandButton.qml`、`NavigationRailTabArray.qml`。
+
+### 4. 分期台账（M0–M4）
+
+| 阶段 | 交付目标 | 状态 |
+| --- | --- | --- |
+| M0 | 配置轴 3 ➔ 2 收敛与向后兼容；路由元数据补充顶层 `description`；单测守住基线 | 进行中 |
+| M1 | 偏好原子套件纯 QML 拷入与重构（`ConnectedRect`、`PreferenceToggle` 等 11 个原件落地并过原子单测） | 待开始 |
+| M2 | 视窗外壳与 NavPane 双行导航骨架落地，接入药丸搜索与胶囊高亮，处决旧 `NavigationRail*` | 待开始 |
+| M3 | 核心页面首批积木化翻新（`AccountPage`、`ThemePage`、`WallpaperPage`、`DisplaysPage`） | 待开始 |
+| M4 | 全页面覆盖、废弃代码清算与全量测试冒烟验收 | 待开始 |
 
 ## 后续阶段
 

@@ -18,8 +18,8 @@
 | --- | --- | --- |
 | T0 | 终端体验修复：复制粘贴终审 + 终端程序启动失败可见 | 进行中 |
 | T1 | 上架 AUR：单包全量 nyxuri-git | 进行中 |
-| T2 | TUI 重做：Textual 全量迁移 | 待开始（已定案） |
-| T3 | 设置界面替换：Caelestia 式默认 + Dashboard 双轨 | 待开始 |
+| T2 | TUI 重做：Textual 全量迁移（暂缓，分支已有雏形） | 待开始 |
+| T3 | 设置界面替换：Caelestia 安卓风味默认 + Dashboard 双轨 | 进行中 |
 | T4 | Shell 可控性与透明化 | 待开始 |
 | T5 | 多合成器 (Multi-WM) 架构解耦（门禁触发） | 待开始 |
 
@@ -65,6 +65,10 @@
 
 ### T2 TUI 重做（已定案：Textual，一次全搬）
 
+- **暂缓说明（2026-10-24）**：选型 Textual 与一次全搬定案不变。原型雏形已在分支
+  `archive/t2-textual-market` 落地（已完成无参入口全量切入 Textual 市场 App 的验证）。
+  因当前阶段工作重心转向自研 Shell 桌面端核心交互演进（T3 设置界面替换），决定暂缓
+  该分支主线合并与后续分期，将精力集中于桌面端。分支归档备用，后续择机重启。
 - **定案（2026-10-24）**：选型 Textual，迁移范围一次全搬——市场三屏
   （工坊 / 预设 / doctor）与全部过渡交互屏（组件清单 / deps / 快照回滚 /
   卸载 / clean）进同一个 App；tui.py 手搓组件层（~1500 行）全数退役。
@@ -86,13 +90,16 @@
   M3 预设+doctor → M4 过渡屏全迁 → M5 删旧收口。每期过全量单测、
   沙箱部署与 kitty 实机冒烟。
 
-### T3 设置界面替换（Caelestia 式）
+### T3 设置界面替换（Caelestia 安卓风味）
 
-- 以 Caelestia Shell（https://github.com/caelestia-dots/shell）的设置界面形态
-  替换现 Default + Minimal 两个面板样式并成为默认；Dashboard 保留——
-  `settingsPanelStyle` 轴三值收敛两值（已定案）。
-- 只换皮：settings 模型、路由、搜索、动作与持久化
-  （SettingsBackend / settings-routes.json）不动，不复制业务。
+- **形态重构与双轨定案**：以 Caelestia Shell（https://github.com/caelestia-dots/shell）的
+  Nexus 设置界面形态，替换现 Default + Minimal 两个旧面板样式并成为默认；Dashboard（卡片网格）
+  保留为双轨之二——`settingsPanelStyle` 轴三值（default, minimal, dashboard）收敛为两值
+  （default, dashboard）。历史配置中的 `minimal` 自动平滑折叠为 `default`，消灭 0.75 缩放瑕疵。
+- **策略与单一事实**：先抽象原子控件全套拷入重构为纯 QML 标准库，拒绝散装拼凑（No picking）；
+  settings 模型、路由、搜索、动作与持久化（SettingsBackend / settings-routes.json）完全不动。
+- **详细台账**：偏好原子套件解构、NavPane 双行安卓卡片规范与 M0–M4 分期台账唯一见
+  [shell/ROADMAP.md](shell/ROADMAP.md#t3-设置界面替换caelestia-安卓风味当前进行中)。
 
 ### T4 Shell 可控性与透明化
 
