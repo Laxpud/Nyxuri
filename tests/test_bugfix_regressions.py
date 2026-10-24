@@ -1641,5 +1641,39 @@ class TestMouseEventsDoNotBreakTextPrompts(unittest.TestCase):
         self.assertNotIn("elif len(k) == 1 and k.isprintable():", source)
 
 
+
+class TestIssue140NoctaliaTemplatesDoNotCauseUnitDrift(unittest.TestCase):
+    """Issue #140: Noctalia template rendering must not mutate kitty/niri/starship
+
+    Enabling noctalia triggers render-gtk and templates-apply. The template
+    products must not overwrite managed blueprint files or cause kitty, niri,
+    or starship to report Drifted in doctor audit.
+    """
+
+    def test_units_remain_synced_after_noctalia_template_rendering(self):
+        from nyxuri.kernel import transaction
+        with TempEnv() as ctx:
+            for uid in ("kitty", "starship", "niri", "noctalia"):
+                steps = transaction.unit_on(uid)
+                self.assertTrue(steps[0].ok, f"failed to enable {uid}: {steps}")
+
+            # Simulate template outputs landing from Noctalia:
+            # 1. Kitty: themes/noctalia.conf rendered
+            theme_file = ctx.home / ".config/kitty/themes/noctalia.conf"
+            theme_file.parent.mkdir(parents=True, exist_ok=True)
+            theme_file.write_text("color0 #000000\n", encoding="utf-8")
+
+            # 2. Niri: noctalia.kdl rendered
+            niri_tpl = ctx.home / ".config/niri/noctalia.kdl"
+            niri_tpl.write_text("layout { focus-ring { active-color \"#ffffff\" } }\n", encoding="utf-8")
+
+            # Reconcile all units
+            report = transaction.audit_units()
+            self.assertEqual(report.get("kitty"), "Synced")
+            self.assertEqual(report.get("starship"), "Synced")
+            self.assertEqual(report.get("niri"), "Synced")
+            self.assertEqual(report.get("noctalia"), "Synced")
+
+
 if __name__ == "__main__":
     unittest.main()
