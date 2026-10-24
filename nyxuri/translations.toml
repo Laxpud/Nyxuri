@@ -1137,6 +1137,14 @@ en = "{Colors.BOLD}Unit audit (declared vs living):{Colors.RESET}"
 zh = "{Colors.BOLD_GREEN}[✓]{Colors.RESET} 对账干净：无漂移、无幽灵。"
 en = "{Colors.BOLD_GREEN}[✓]{Colors.RESET} Audit clean: no drift, no ghosts."
 
+[cli_audit_drifted_hint]
+zh = "{Colors.BOLD_YELLOW}[!]{Colors.RESET} Drifted = 存在你的改动，更新会原样保留；`nyxuri update --force` 可采纳模板版"
+en = "{Colors.BOLD_YELLOW}[!]{Colors.RESET} Drifted = your changes are present; updates keep them — `nyxuri update --force` adopts the template side"
+
+[cli_audit_ghost_hint]
+zh = "{Colors.BOLD_RED}[✗]{Colors.RESET} Ghost = 目录存在但未登记：更新不会覆盖它；`nyxuri on <unit>` 收编并开始追踪"
+en = "{Colors.BOLD_RED}[✗]{Colors.RESET} Ghost = living files without a ledger record: updates never clobber them — `nyxuri on <unit>` adopts and starts tracking"
+
 [preflight_express_summary]
 zh = """\n{Colors.BOLD_BLUE}:: 即将执行以下更改:{Colors.RESET}"""
 en = """\n{Colors.BOLD_BLUE}:: Changes to apply:{Colors.RESET}"""
@@ -1240,6 +1248,38 @@ en = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} Preserved custom dir: ~/.config/{
 [log_keep_preserved_file]
 zh = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} 保留受保护文件: ~/.config/{0}/{1}"
 en = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} Preserved file: ~/.config/{0}/{1}"
+
+[log_keep_modified_file]
+zh = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} 保留你的改动: ~/.config/{0}（模板已有新版本）"
+en = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} Kept your changes: ~/.config/{0} (newer template available)"
+
+[log_keep_user_file]
+zh = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} 保留用户文件: ~/.config/{0}"
+en = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} Kept your file: ~/.config/{0}"
+
+[log_keep_unresolved_file]
+zh = "  {Colors.BOLD_YELLOW}[?]{Colors.RESET} 保留现有内容: ~/.config/{0}（单元未登记，来源不明；`nyxuri on` 后恢复模板更新）"
+en = "  {Colors.BOLD_YELLOW}[?]{Colors.RESET} Kept as-is: ~/.config/{0} (unregistered unit, origin unknown; `nyxuri on` restores template updates)"
+
+[update_ghost_hint]
+zh = "{0} 未登记：更新已原样保留现有内容；`nyxuri on {0}` 采纳模板并启用改动追踪"
+en = "{0} is not registered: the update kept existing content as-is; run `nyxuri on {0}` to adopt the template and enable change tracking"
+
+[summary_section_notice]
+zh = "提示"
+en = "Notices"
+
+[summary_section_modified]
+zh = "你的改动（模板已有新版本，`nyxuri update --force` 可采纳）"
+en = "Your changes (a newer template version exists — `nyxuri update --force` adopts it)"
+
+[summary_section_user_files]
+zh = "用户文件"
+en = "Your files"
+
+[summary_section_unknown]
+zh = "来源不明（单元未登记；`nyxuri on <unit>` 收编后恢复模板更新）"
+en = "Unresolved origin (unit not registered; `nyxuri on <unit>` restores template updates)"
 
 [log_deploy_config_item]
 zh = "  {Colors.BOLD_GREEN}[✓]{Colors.RESET} 安装配置: ~/.config/{0}"

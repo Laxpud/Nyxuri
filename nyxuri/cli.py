@@ -243,6 +243,12 @@ def _print_audit(report: dict) -> None:
     for uid in sorted(report):
         color, mark = marks.get(report[uid], (Colors.DIM, "[•]"))
         print(f"  {color}{mark}{Colors.RESET} {uid:<24}{report[uid]}")
+    # The three states are verdicts with an action now (#139): drift is a
+    # protected user change, a ghost is an adoptable unit — say so.
+    if transaction.STATE_DRIFTED in report.values():
+        print(msg("cli_audit_drifted_hint"))
+    if transaction.STATE_GHOST in report.values():
+        print(msg("cli_audit_ghost_hint"))
 
 
 def _cmd_doctor(sub_args: List[str]) -> int:
