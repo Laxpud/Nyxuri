@@ -117,7 +117,7 @@ hooks 的实机行为证据与视觉验收待作者确认。镜像色板是否�
 
 | 阶段 | 交付目标 | 状态 |
 | --- | --- | --- |
-| M0 | 配置轴 3 ➔ 2 收敛与向后兼容；路由元数据补充顶层 `description`；单测守住基线 | 进行中 |
+| M0 | 配置轴 3 ➔ 2 收敛与向后兼容；路由元数据补充顶层 `description`；单测守住基线 | 待验收 |
 | M1 | 偏好原子套件纯 QML 拷入与重构（`ConnectedRect`、`PreferenceToggle` 等 11 个原件落地并过原子单测） | 待开始 |
 | M2 | 视窗外壳与 NavPane 双行导航骨架落地，接入药丸搜索与胶囊高亮，处决旧 `NavigationRail*` | 待开始 |
 | M3 | 核心页面首批积木化翻新（`AccountPage`、`ThemePage`、`WallpaperPage`、`DisplaysPage`） | 待开始 |

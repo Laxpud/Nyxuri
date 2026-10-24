@@ -14,7 +14,7 @@ spec.loader.exec_module(compiler)
 
 class CatalogTests(unittest.TestCase):
     def setUp(self):
-        self.routes = {'schemaVersion': 1, 'routes': [dict(id='bar', title='Bar', context='ControlCenterWindow', icon='dock_to_bottom', source='GeneralBarPage.qml', path=['bar'], aliases=[])]}
+        self.routes = {'schemaVersion': 1, 'routes': [dict(id='bar', title='Bar', description='Position, modules, and indicators', context='ControlCenterWindow', icon='dock_to_bottom', source='GeneralBarPage.qml', path=['bar'], aliases=[])]}
         self.section = dict(id='bar.section.position', route='bar', title='Position', context='GeneralBarPage', icon='dock_to_bottom', aliases=[])
         self.action = dict(id='nyxuri:spotlight:openMode:clipboard', category='nyxuri', name='Clipboard', target='spotlight', method='openMode', parameters=False,
             expression='spawn "nyxuri-shell" "--ipc" "spotlight" "openMode" "clipboard"',
@@ -44,11 +44,22 @@ class CatalogTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.compile()
 
     def test_routes_need_a_declared_navigation_host(self):
-        self.routes['routes'].append(dict(id='displays', title='Displays', context='ControlCenterWindow', icon='monitor', source='DisplaysPage.qml', path=['displays'], aliases=[]))
-        self.routes['routes'].append(dict(id='displays.child', title='Child', context='DisplaysPage', icon='settings', source='Child.qml', path=['displays', 'child'], aliases=[]))
+        self.routes['routes'].append(dict(id='displays', title='Displays', description='Monitor layout', context='ControlCenterWindow', icon='monitor', source='DisplaysPage.qml', path=['displays'], aliases=[]))
+        self.routes['routes'].append(dict(id='displays.child', title='Child', description='Nested page', context='DisplaysPage', icon='settings', source='Child.qml', path=['displays', 'child'], aliases=[]))
         self.compile()
-        self.routes['routes'].append(dict(id='displays.child.leaf', title='Leaf', context='DisplaysPage', icon='settings', source='Leaf.qml', path=['displays', 'child', 'leaf'], aliases=[]))
+        self.routes['routes'].append(dict(id='displays.child.leaf', title='Leaf', description='Deeper page', context='DisplaysPage', icon='settings', source='Leaf.qml', path=['displays', 'child', 'leaf'], aliases=[]))
         with self.assertRaises(ValueError): self.compile()
+
+    def test_routes_without_a_description_are_rejected(self):
+        route = dict(id='bar', title='Bar', description='Position, modules, and indicators', context='ControlCenterWindow', icon='dock_to_bottom', source='GeneralBarPage.qml', path=['bar'], aliases=[])
+        for mutate in ('del', 'blank'):
+            bad = dict(route)
+            if mutate == 'del':
+                del bad['description']
+            else:
+                bad['description'] = '   '
+            with self.subTest(mutate=mutate), self.assertRaises(ValueError):
+                compiler.compile_catalog({'schemaVersion': 1, 'routes': [bad]}, [], [])
 
     def test_incomplete_unknown_and_unsafe_execution_rejected(self):
         for change in [{'parameters': True}, {'method': 'eval'}, {'expression': 'spawn-sh "evil"'}]:

@@ -53,7 +53,7 @@ def compile_catalog(route_document, declarations, actions):
     routes = route_document['routes']
     by_id = {}
     for route in routes:
-        required(route, ['id', 'title', 'context', 'icon', 'source'])
+        required(route, ['id', 'title', 'description', 'context', 'icon', 'source'])
         if route['id'] in by_id or route['path'] != route['id'].split('.'):
             raise ValueError(f'Duplicate ID or invalid route path: {route["id"]}')
         if '/' in route['source'] or not route['source'].endswith('.qml'):

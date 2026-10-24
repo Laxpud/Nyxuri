@@ -26,7 +26,7 @@ QtObject {
                     "key": "interface:Settings panel style",
                     "title": I18n.tr("Settings panel style"),
                     "icon": "dashboard_customize",
-                    "kw": "settings panel style default minimal dashboard window overlay"
+                    "kw": "settings panel style default dashboard window overlay"
                 },
                 {
                     "type": "select",

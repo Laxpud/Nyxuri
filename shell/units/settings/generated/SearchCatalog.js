@@ -384,6 +384,7 @@ var catalog = {
     {
       "aliases": [],
       "context": "ControlCenterWindow",
+      "description": "Profile name, avatar, and banner",
       "icon": "account_circle",
       "id": "account",
       "path": [
@@ -402,6 +403,7 @@ var catalog = {
         "blur"
       ],
       "context": "ControlCenterWindow",
+      "description": "Colors, effects, and palettes",
       "icon": "palette",
       "id": "theme",
       "path": [
@@ -413,6 +415,7 @@ var catalog = {
     {
       "aliases": [],
       "context": "ControlCenterWindow",
+      "description": "Sources, auto-cycle, and switching",
       "icon": "wallpaper",
       "id": "wallpaper",
       "path": [
@@ -426,6 +429,7 @@ var catalog = {
         "general.bar"
       ],
       "context": "ControlCenterWindow",
+      "description": "Position, modules, and indicators",
       "icon": "dock_to_bottom",
       "id": "bar",
       "path": [
@@ -441,6 +445,7 @@ var catalog = {
         "launcher"
       ],
       "context": "ControlCenterWindow",
+      "description": "Position, size, and behavior",
       "icon": "dock_to_bottom",
       "id": "dock",
       "path": [
@@ -455,6 +460,7 @@ var catalog = {
         "sidebars"
       ],
       "context": "ControlCenterWindow",
+      "description": "Sides, cards, and monitoring",
       "icon": "side_navigation",
       "id": "sidebar",
       "path": [
@@ -468,6 +474,7 @@ var catalog = {
         "general.displays"
       ],
       "context": "ControlCenterWindow",
+      "description": "Monitor layout and night light",
       "icon": "monitor",
       "id": "displays",
       "path": [
@@ -479,6 +486,7 @@ var catalog = {
     {
       "aliases": [],
       "context": "ControlCenterWindow",
+      "description": "Style, clock, and media controls",
       "icon": "toggle_off",
       "id": "keystone",
       "path": [
@@ -492,6 +500,7 @@ var catalog = {
         "general.shortcuts"
       ],
       "context": "ControlCenterWindow",
+      "description": "Global shortcuts and actions",
       "icon": "keyboard",
       "id": "shortcuts",
       "path": [
@@ -505,6 +514,7 @@ var catalog = {
         "general.spotlight"
       ],
       "context": "ControlCenterWindow",
+      "description": "Search modes, layout, and order",
       "icon": "search",
       "id": "spotlight",
       "path": [
@@ -518,6 +528,7 @@ var catalog = {
         "general.network"
       ],
       "context": "ControlCenterWindow",
+      "description": "Wi-Fi and wired connections",
       "icon": "wifi",
       "id": "network",
       "path": [
@@ -532,6 +543,7 @@ var catalog = {
         "bluetooth"
       ],
       "context": "ControlCenterWindow",
+      "description": "Bluetooth devices and pairing",
       "icon": "devices_other",
       "id": "connected-devices",
       "path": [
@@ -545,6 +557,7 @@ var catalog = {
         "general.autostart"
       ],
       "context": "ControlCenterWindow",
+      "description": "Session startup applications",
       "icon": "rocket_launch",
       "id": "autostart",
       "path": [
@@ -558,6 +571,7 @@ var catalog = {
         "general.default-apps"
       ],
       "context": "ControlCenterWindow",
+      "description": "Browser, terminal, and other defaults",
       "icon": "apps",
       "id": "default-apps",
       "path": [
@@ -571,6 +585,7 @@ var catalog = {
         "general.language-region"
       ],
       "context": "ControlCenterWindow",
+      "description": "Language, temperature, and clock",
       "icon": "language",
       "id": "language-region",
       "path": [
@@ -585,6 +600,7 @@ var catalog = {
         "diagnostics"
       ],
       "context": "ControlCenterWindow",
+      "description": "Unit toggles and diagnostics",
       "icon": "monitor_heart",
       "id": "shell",
       "path": [
@@ -598,6 +614,7 @@ var catalog = {
         "general.displays.configuration"
       ],
       "context": "DisplaysPage",
+      "description": "Resolution, refresh, and layout",
       "icon": "monitor",
       "id": "displays.configuration",
       "path": [
@@ -614,6 +631,7 @@ var catalog = {
         "temperature"
       ],
       "context": "DisplaysPage",
+      "description": "Night light color temperature",
       "icon": "brightness_6",
       "id": "displays.gamma",
       "path": [
@@ -626,6 +644,7 @@ var catalog = {
     {
       "aliases": [],
       "context": "KeystonePage",
+      "description": "Horizontal clock appearance",
       "icon": "schedule",
       "id": "keystone.horizontal-clock",
       "path": [
@@ -640,6 +659,7 @@ var catalog = {
         "general.bluetooth-pairing"
       ],
       "context": "ConnectedDevicesPage",
+      "description": "Scan and pair nearby devices",
       "icon": "bluetooth_searching",
       "id": "connected-devices.bluetooth-pairing",
       "path": [
@@ -656,6 +676,7 @@ var catalog = {
       "aliases": [],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Profile name, avatar, and banner",
       "icon": "account_circle",
       "id": "account",
       "path": [
@@ -676,6 +697,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Colors, effects, and palettes",
       "icon": "palette",
       "id": "theme",
       "path": [
@@ -689,6 +711,7 @@ var catalog = {
       "aliases": [],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Sources, auto-cycle, and switching",
       "icon": "wallpaper",
       "id": "wallpaper",
       "path": [
@@ -704,6 +727,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Position, modules, and indicators",
       "icon": "dock_to_bottom",
       "id": "bar",
       "path": [
@@ -721,6 +745,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Position, size, and behavior",
       "icon": "dock_to_bottom",
       "id": "dock",
       "path": [
@@ -737,6 +762,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Sides, cards, and monitoring",
       "icon": "side_navigation",
       "id": "sidebar",
       "path": [
@@ -752,6 +778,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Monitor layout and night light",
       "icon": "monitor",
       "id": "displays",
       "path": [
@@ -765,6 +792,7 @@ var catalog = {
       "aliases": [],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Style, clock, and media controls",
       "icon": "toggle_off",
       "id": "keystone",
       "path": [
@@ -780,6 +808,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Global shortcuts and actions",
       "icon": "keyboard",
       "id": "shortcuts",
       "path": [
@@ -795,6 +824,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Search modes, layout, and order",
       "icon": "search",
       "id": "spotlight",
       "path": [
@@ -810,6 +840,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Wi-Fi and wired connections",
       "icon": "wifi",
       "id": "network",
       "path": [
@@ -826,6 +857,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Bluetooth devices and pairing",
       "icon": "devices_other",
       "id": "connected-devices",
       "path": [
@@ -841,6 +873,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Session startup applications",
       "icon": "rocket_launch",
       "id": "autostart",
       "path": [
@@ -856,6 +889,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Browser, terminal, and other defaults",
       "icon": "apps",
       "id": "default-apps",
       "path": [
@@ -871,6 +905,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Language, temperature, and clock",
       "icon": "language",
       "id": "language-region",
       "path": [
@@ -887,6 +922,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ControlCenterWindow",
+      "description": "Unit toggles and diagnostics",
       "icon": "monitor_heart",
       "id": "shell",
       "path": [
@@ -902,6 +938,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "DisplaysPage",
+      "description": "Resolution, refresh, and layout",
       "icon": "monitor",
       "id": "displays.configuration",
       "path": [
@@ -920,6 +957,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "DisplaysPage",
+      "description": "Night light color temperature",
       "icon": "brightness_6",
       "id": "displays.gamma",
       "path": [
@@ -934,6 +972,7 @@ var catalog = {
       "aliases": [],
       "anchor": false,
       "context": "KeystonePage",
+      "description": "Horizontal clock appearance",
       "icon": "schedule",
       "id": "keystone.horizontal-clock",
       "path": [
@@ -950,6 +989,7 @@ var catalog = {
       ],
       "anchor": false,
       "context": "ConnectedDevicesPage",
+      "description": "Scan and pair nearby devices",
       "icon": "bluetooth_searching",
       "id": "connected-devices.bluetooth-pairing",
       "path": [

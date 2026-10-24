@@ -511,3 +511,29 @@ state/logs/shell.log）后，日志点失踪暴露出第三个根因（缓存陈
    双 Shell 主题渲染正常，旧 `~/.config/noctalia/templates/` 随 noctalia 重部署
    自然消失；
 6. Noctalia + Wallpaper Picker 双轨互不干扰、各自纯白（P5 平移验收项）。
+
+## T3 实施记录（追加式，2026-10-24）
+
+### M0 配置轴 3 ➔ 2 收敛与路由元数据（待验收）
+
+**实现**：
+- `PersonalizationConfig.settingsPanelStyles` 收敛为 `default` + `dashboard` 两值；
+  历史配置中的 `"minimal"` 经既有 `normalizedOption(..., "default")` 在 load 与
+  setValue 两条通路上自动折叠为 `default`，无特判分支，不主动写回文件。
+- 消费面收缩：`ControlCenterWindow` 剥离 `isMinimal`/`styleScale` 及 7 处三元
+  分支（尺寸全落 default 档）；`SettingsPanelStyleCard` 删硬编码 minimal 选项；
+  `DashboardStyleCard` 删 `decoration.minimal`；`DashboardSettingsCatalog` 关键词
+  去 minimal；`zh_CN.toml` 清 3 个死键（Minimal / Compact rail / Compact overlay）。
+- 路由元数据：`settings-routes.json` 全部 20 条路由补顶层 `description`（英文
+  源串，M2 NavPane 双行导航副标消费；数据随 catalog 透传，`render()` 不改）。
+  compiler `required` 增补 `description` 必填——缺描述在生成时即失败。
+- 基线测试：新增 `tests/shell/test_settings_shell.py`（轴恰两值、折叠通路保持、
+  `"minimal"` 零存活消费者、路由描述非空）；
+  `shell/tests/test_search_catalog.py` fixtures 同步并新增缺描述拒绝用例。
+
+**验证**：`tests/shell` 130 绿（11 跳过 = 基线）；`shell.tests.test_search_catalog`
++ `test_i18n_catalog` 10 绿；`check.sh` changed scope 全绿（104 advisory 为既有
+基线）；lifecycle-audit clean。`SearchCatalog.js` 已重新生成（+40 行，纯数据）。
+
+**待验收**：行为保持性无视觉变化（minimal 本就非默认档），作者复核后 M0 转
+已完成；M1（偏好原子套件纯 QML 拷入 `units/settings/controls/`）待开始。

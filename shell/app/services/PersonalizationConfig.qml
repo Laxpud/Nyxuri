@@ -230,10 +230,6 @@ Singleton {
             "label": I18n.tr("Default")
         },
         {
-            "value": "minimal",
-            "label": I18n.tr("Minimal")
-        },
-        {
             "value": "dashboard",
             "label": I18n.tr("Dashboard")
         }

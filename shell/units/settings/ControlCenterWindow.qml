@@ -15,11 +15,9 @@ FloatingWindow {
     id: root
 
     property bool _wasShown: false
-    readonly property bool isMinimal: PersonalizationConfig.settingsPanelStyle === "minimal"
-    readonly property real styleScale: root.isMinimal ? 0.75 : 1
-    property real contentPadding: root.isMinimal ? 4 : 8
+    property real contentPadding: 8
     property int currentPage: 0
-    property bool navExpanded: !root.isMinimal && width > 900
+    property bool navExpanded: width > 900
     property string pendingPageSection: ""
     readonly property var pages: SpotlightCatalog.routes.filter(entry => entry.path.length === 1).map(entry
                                                                                                       => Object.assign(
@@ -162,8 +160,8 @@ FloatingWindow {
 
     visible: false
     title: "nyxuri-settings"
-    implicitWidth: 980 * root.styleScale
-    implicitHeight: 665 * root.styleScale
+    implicitWidth: 980
+    implicitHeight: 665
     color: "transparent"
     Material.theme: PersonalizationConfig.themeMode === "light" ? Material.Light : Material.Dark
     Material.accent: Appearance.colors.colPrimary
@@ -327,7 +325,7 @@ FloatingWindow {
 
                     Layout.fillHeight: true
                     Layout.margins: 5
-                    implicitWidth: root.navExpanded ? (root.isMinimal ? 180 : 220) : configButton.baseSize
+                    implicitWidth: root.navExpanded ? 220 : configButton.baseSize
 
                     ColumnLayout {
                         id: navRail
@@ -345,7 +343,7 @@ FloatingWindow {
 
                             property bool justCopied: copiedTimer.running
 
-                            baseSize: root.isMinimal ? 36 : 56
+                            baseSize: 56
                             iconText: justCopied ? "check" : "edit"
                             buttonText: justCopied ? I18n.tr("Path copied") : I18n.tr("config file")
                             expanded: root.navExpanded
@@ -382,8 +380,8 @@ FloatingWindow {
                                         required property var modelData
 
                                         width: navTabArray.width
-                                        baseSize: root.isMinimal ? 36 : 56
-                                        baseHighlightHeight: root.isMinimal ? 28 : 32
+                                        baseSize: 56
+                                        baseHighlightHeight: 32
                                         active: root.currentPage === index
                                         expanded: root.navExpanded
                                         buttonIcon: modelData.icon

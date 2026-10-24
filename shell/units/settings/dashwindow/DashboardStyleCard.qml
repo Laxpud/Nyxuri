@@ -32,11 +32,6 @@ DashboardCard {
                                                "icon": "settings_panorama",
                                                "shape": MaterialShapeCanvas.Shape.Cookie9Sided
                                            },
-                                           "minimal": {
-                                               "detail": I18n.tr("Compact overlay panel"),
-                                               "icon": "settings_heart",
-                                               "shape": MaterialShapeCanvas.Shape.Clover4Leaf
-                                           },
                                            "dashboard": {
                                                "detail": I18n.tr("Floating window with cards"),
                                                "icon": "dashboard",
