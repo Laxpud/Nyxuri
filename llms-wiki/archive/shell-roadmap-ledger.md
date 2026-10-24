@@ -537,3 +537,61 @@ state/logs/shell.log）后，日志点失踪暴露出第三个根因（缓存陈
 
 **待验收**：行为保持性无视觉变化（minimal 本就非默认档），作者复核后 M0 转
 已完成；M1（偏好原子套件纯 QML 拷入 `units/settings/controls/`）待开始。
+
+### M1 偏好原子套件纯 QML 拷入与重构（待验收，2026-10-24）
+
+**实现**（11 原件全落 `shell/units/settings/controls/`，100% 纯 QML/JS，
+零 Caelestia/Quickshell-native 依赖）：
+- `ConnectedRect`：first/last 大圆角、中间 extraSmall 平接的连通基座，
+  驱动全部行卡分组形态（`m3surfaceContainer`）。
+- `PreferenceToggle`：ConnectedRect 行 + 双行文本 + `StyledSwitch` 药丸；
+  整行 MouseArea 互补命中区（开关保有自己的 hit area，点文本同样切换），
+  全行 StateLayer 按压反馈。
+- `PreferenceSlider`：图标 + 主标 + 当前值 + 全宽纤细滑块。滑块按
+  Caelestia StyledSlider 原件重构为无样式 `QtQuick.Templates` Slider
+  （视觉全在 contentItem：渐隐剩余轨、端点圆点、按压生长细柄、拖拽
+  Binding 覆写 pos 实现指跟手）；外包滚轮条带以 `wheelStep` 微调，
+  滚轮不再滚动页面。
+- `PreferenceInput`：双行标签 + 内嵌圆角输入框（焦点呼吸边框 1→2px
+  primary、错误态翻转 error 色）+ 清除按钮 + validate（RegExp/函数）/
+  errorText/`Component.onDestruction` 未提交编辑 flush——关页不丢输入。
+- `PreferenceSelect`：`SplitMenuButton` 药丸桥接（model/currentValue/
+  selected），合成器 input region 由页面注入（默认 null，原子不读
+  app 服务）。
+- `PreferenceStepper`：`MaterialStepper` 桥接（- 数值 +，按住重复），
+  moved(int) 语义与底层 valueModified 一致。
+- `PreferenceAction`：图标 + 双行文本 + 默认 chevron_right 尾箭头；
+  副标 `animateChange` 滚动换值；禁用态 0.5 透明度动画。
+- `PreferenceInfo`：纯只读属性行（图标 + 属性名 + 右对齐值），
+  契约测试钉死无 MouseArea/StateLayer/clicked。
+- `PreferenceHeader`：卡片组上方小节标（labelMedium 辅助色，
+  `first` 免顶距并按父列 spacing 补偿）。
+- `NexusSearchBar`：全圆角胶囊搜索框（search/clear 图标、聚焦呼吸
+  边框、清除按钮随文本淡入）；root 即 TextField，消费方直绑
+  text/accepted。
+- `NexusPageBase`：详情页脚手架——大标题（titleLarge）+ isSubPage
+  返回箭头（`backRequested` 信号，导航状态留在宿主，M2 接线）+
+  maxContentWidth 封顶的滚动列（`StyledFlickable`，default property
+  contentChild 注入 contentItem）。
+- 桥接真相：全部走 `Appearance.m3colors/rounding/spacing`、
+  `Typography`、`Metrics`、`Fonts`、`I18n`；零硬编码色值/字体。
+  行节奏：panelPadding(20) 横距、spacing.medium(16) 纵距、
+  spacing.small(8) 内距（对位 Caelestia 20/16/12 节奏，Nyxuri 值域）。
+- KM4.6 预热规则落实：新合成池 `qs.units.settings.controls` 进
+  SlotHost 预热名单（无顶层消费者的 qs.* 池首次解析不得落在
+  Loader 内）。
+- i18n：新增 `"Go back" = "返回"`；清除/搜索复用既有键。
+
+**验证**：新增 `tests/shell/test_preference_atoms.py` 17 测试（池形状
+恰 11 文件、无上游/副作用导入、零硬编码色、连通圆角契约、各原子 API
+面钉死、搜索胶囊/页面脚手架契约、SlotHost 预热与 i18n 键）；
+`tests/shell` 全量 147 绿（11 跳过 = 基线）；`test_i18n_catalog` +
+`test_search_catalog` 10 绿；`check.sh` changed scope 全绿
+（qml-lint 161 advisory 全为既有 missing-property 类——动态 QtObject
+token 的已知限制，全库 --all 同类 3902 条为基线；unqualified 与
+id-shadows（MouseArea.drag 遮蔽）已修零）；lifecycle-audit clean；
+qmlformat 全量格式化通过。
+
+**待验收**：原子尚无页面消费者（M3 积木化翻新时接入）；实机视觉
+验收（比例、动画手感、StateLayer 反馈）与 M0 一并在作者实机复核后
+转已完成。M2（视窗外壳与 NavPane 双行导航骨架）待开始。
