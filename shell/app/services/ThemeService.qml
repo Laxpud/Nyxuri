@@ -175,14 +175,20 @@ Singleton {
             TemplateService.renderTemplate(id);
     }
 
-    function setThemeMode(value) {
+    function setThemeMode(value, syncExternal) {
+        if (syncExternal === undefined)
+            syncExternal = true;
         // Same-value no-op: the CLI delegates back over IPC after we spawn
         // it, and without this guard that round trip would loop forever.
         if (PersonalizationConfig.themeMode === value)
             return;
         PersonalizationConfig.setThemeMode(value);
         root.applyConfigToAppearance();
-        UiPreferences.setDarkMode(PersonalizationConfig.themeMode === "dark");
+        if (syncExternal) {
+            UiPreferences.setDarkMode(PersonalizationConfig.themeMode === "dark");
+        } else {
+            UiPreferences.darkMode = PersonalizationConfig.themeMode === "dark";
+        }
         root.regenerateFromCurrentWallpaper();
     }
 
@@ -465,7 +471,7 @@ Singleton {
 
         function onSystemThemeModeObserved(mode) {
             if (PersonalizationConfig.themeMode !== mode)
-                root.setThemeMode(mode);
+                root.setThemeMode(mode, false);
         }
     }
 

@@ -410,7 +410,8 @@ class TestPreflightSudo(unittest.TestCase):
             return self._result(command)
 
         with patch("sys.stdin.isatty", return_value=True), \
-             patch("nyxuri.cli.subprocess.run", side_effect=fake_run), \
+             patch("nyxuri.installer.workflows.subprocess.run", side_effect=fake_run), \
+             patch("sys.stdout"), \
              patch("builtins.print"):
             self._preflight()
 
@@ -426,7 +427,8 @@ class TestPreflightSudo(unittest.TestCase):
                     return self._result(command, 1 if len(calls) == 1 else 0)
 
                 with patch("sys.stdin.isatty", return_value=isatty), \
-                     patch("nyxuri.cli.subprocess.run", side_effect=fake_run), \
+                     patch("nyxuri.installer.workflows.subprocess.run", side_effect=fake_run), \
+                     patch("sys.stdout"), \
                      patch("builtins.print"):
                     self._preflight()
 
@@ -442,7 +444,8 @@ class TestPreflightSudo(unittest.TestCase):
                     return self._result(command, 1)
 
                 with patch("sys.stdin.isatty", return_value=isatty), \
-                     patch("nyxuri.cli.subprocess.run", side_effect=fake_run), \
+                     patch("nyxuri.installer.workflows.subprocess.run", side_effect=fake_run), \
+                     patch("sys.stdout"), \
                      patch("builtins.print"), \
                      self.assertRaises(SystemExit) as ctx:
                     self._preflight()

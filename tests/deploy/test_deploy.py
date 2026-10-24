@@ -380,7 +380,8 @@ class TestNiriRequiredIncludes(unittest.TestCase):
     def test_required_includes_survive_fresh_deploy(self):
         from nyxuri.deploy.deploy import deploy_selected_configs
 
-        with patch("builtins.print"):
+        with patch("nyxuri.deploy.deploy._phase_post_install_services"), \
+             patch("builtins.print"):
             deploy_selected_configs(do_backup=False, items_to_deploy=["niri"])
 
         dest = self.env.config_dir / "niri"
