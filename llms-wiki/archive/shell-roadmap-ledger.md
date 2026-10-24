@@ -780,3 +780,63 @@ changed scope 全绿；qmlformat 通过；实机 `--ipc settings open about`
 QML 全局无任何 Qt 版本属性（`Qt.version`/`qtVersion`/`qmlVersion` 三者
 皆 undefined，首次"干净"系旧实例未重载假象）——Software 段删 Qt 行
 （Quickshell + 合成器），注释钉因。实机两轮开合日志零警告。
+
+### M3 核心页面首批积木化翻新（待验收，2026-10-25）
+
+> 范围拍板（作者裁决）：Gamma 全量 + DisplayConfiguration 行级归原子
+> （画布/事务流/高级区/缩放对话框保留，深度重设计留 M4）；M0–M2 同日
+> 作者实机过目转已完成。
+
+**实现**（四页一页一 commit，About 页模式推广）：
+- **通用模式**：`NexusPageBase` 脚手架（自绘大标题 → 窗口垫片退位）+
+  `PreferenceHeader` 小节标 + 连通组原子行（接缝 `extraSmall/2`=2px，
+  无组容器）；`searchLeaf`/`parentModal`/`presentationActive`/
+  `navigateRequested`/`closeChildWindows` 窗口契约面逐页保命；
+  `SettingsSearchAnchor` 声明字节级不变（catalog 零重生成）；非视觉
+  子项（Timer/弹窗/Binding/Connections）一律挂内容列（About 事故定则）；
+  几何只用 `NexusStyle`，颜色只用 m3 系。
+- **AccountPage**（618→837 行重构）：hero 保留 `AccountProfileHeader`；
+  语言/蓝牙/快捷键/个性化四组归原子（select×2 注入 PopupInputRegion、
+  toggle、action）；设备行（图标+双行+连接钮+溢出菜单）与壁纸 6 格
+  快选为原子无形状的 sanctioned 自定义行；MaterialCard 双列布局退役
+  （Nexus 单列）。
+- **ThemePage**（1007→约 900 行）：透明度/模糊/锁屏/光标（主题选择器
+  包 ConnectedRect、尺寸滑杆、双隐藏）/图标主题/四字体归原子（滑杆
+  值显示含 Off/毫秒语义）；页内私有 Section/ToggleSettingRow/
+  SliderSettingRow/SearchSelectSettingRow 四件套处决；预览卡对、
+  面板样式卡、matugen 色板按钮组、Super 键键帽、模板列表（SettingsRow
+  平行清单入单卡）保留；requestTemplateDeletion 对外 API 不动。
+- **WallpaperPage**（1010→约 950 行）：预览 hero×2、循环/填充/转场
+  按钮组、Bézier 编辑器+坐标对话框、文件浏览器/取色器×2 保留；
+  Per-monitor/Overview 开关、输出选择×2、视差四开关、缩放/行程、
+  图像效果四滑杆归原子；chartSide 下限 360→240 适配 800 封顶列宽。
+- **Displays**：壳声明 `rendersPageTitle: true` 令窗口垫片退位，子页
+  各自渲染大标题（SpotlightCatalog title 桥）；GammaControlPage 全量
+  原子化（`SidebarFlickable`/gapFor/pullExpansion 机制随页退役；时间
+  输入正则校验、经纬度范围函数校验、只读状态行归 `PreferenceInfo`；
+  first/last 随可见性动态绑定保连通几何）；DisplayConfigurationPage
+  行级归原子（DisplayChoice×5→PreferenceSelect、Enabled 行→Toggle、
+  逻辑坐标→Input(smallField)、高级展开→Action；画布+事务栏+高级/
+  热角区块+缩放对话框保留，对话框 token 换 NexusStyle；滚轮让位 Binding
+  `flickable.interactive`）。
+- i18n：新增 Color scheme 键；死键三批清除（Choose language/Choose
+  color mode/Choose icon theme/Select * font×4/Hide the cursor after
+  inactivity…/Select output/Desktop|Overview wallpaper output/Enable
+  vertical parallax first/The current transition does not use */过渡
+  tooltip 等 16 键）。
+- 旧组件生态核查：SidebarFlickable（sidebars 仍在用）、
+  GeneralSliderSetting（Dock/Keystone 仍在用）、DisplayChoice（高级/
+  热角区块仍在用）、SettingsSection（未翻新页面仍在用）全部保留，
+  零消费者文件为零——M4 全页面化时再清算。
+
+**验证**：新增 `tests/shell/test_settings_pages.py` 28 测试（四页+壳：
+脚手架/标题、窗口契约面、锚 id 钉死、原子在场、业务 owner 钉死、
+sanctioned 自定义件在场、页内私有行组件与旧词汇死刑、壳路由保命）；
+`tests/shell` 206 绿（11 跳过 = 基线）；`shell.tests` 10 绿；
+check.sh changed scope 全绿（27 advisory = 既有 missing-property 基线）；
+qmlformat 全量通过；lifecycle-audit clean。
+
+**待验收**：实机视觉/交互（四页连通组形态、select 药丸菜单越界输入
+区域、滑杆拖拽/滚轮、Gamma 动态分组几何、DisplayConfig 事务流与新行
+的交互、深链搜索锚滚动定位）；深链回归（Spotlight→displays.gamma
+深两级路径）。M4（全页面覆盖与废弃代码清算）待开始。
