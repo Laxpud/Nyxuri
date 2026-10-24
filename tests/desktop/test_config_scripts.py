@@ -504,11 +504,38 @@ class TestCleanCache(unittest.TestCase):
         for marker in self.markers:
             self.assertTrue(marker.exists(), f"-y run deleted {marker}")
 
-    def test_default_off_excludes_trim(self):
-        """勾选默认态：TRIM 默认不勾，其余默认勾。"""
+    def test_default_off_excludes_trim_and_nv(self):
+        """勾选默认态：TRIM 与 nv 默认不勾，其余默认勾。"""
         src = _CLEAN_CACHE.read_text(encoding="utf-8")
-        self.assertIn('DEFAULT_OFF = ("trim",)', src)
+        self.assertIn('DEFAULT_OFF = ("trim", "nv")', src)
         self.assertIn('"trim"', src)
+        self.assertIn('"nv"', src)
+
+    def test_clean_cache_skips_nv_and_nv_task_cleans_it(self):
+        """nv 着色器独立任务：--only cache 保留 nv，--only nv 清空其内容且保留目录壳。"""
+        nv_dir = self.home / ".cache" / "nv"
+        gl_cache = nv_dir / "GLCache"
+        gl_cache.mkdir(parents=True, exist_ok=True)
+        shader_file = gl_cache / "shader.bin"
+        shader_file.write_text("bin", encoding="utf-8")
+
+        other_cache = self.home / ".cache" / "other"
+        other_cache.mkdir(parents=True, exist_ok=True)
+        other_file = other_cache / "file.txt"
+        other_file.write_text("txt", encoding="utf-8")
+
+        # 1. 仅执行 cache：普通缓存删除，nv 目录及其内部文件被完整跳过保留
+        proc = self._run("--only", "cache")
+        self.assertEqual(proc.returncode, 0, proc.stderr[-400:])
+        self.assertFalse(other_file.exists())
+        self.assertTrue(shader_file.exists())
+        self.assertTrue(nv_dir.is_dir())
+
+        # 2. 显式执行 nv：清空内部着色器，但 nv 目录壳本身依然保留
+        proc2 = self._run("--only", "nv")
+        self.assertEqual(proc2.returncode, 0, proc2.stderr[-400:])
+        self.assertFalse(shader_file.exists())
+        self.assertTrue(nv_dir.is_dir())
 
     def test_failed_task_marks_warning_not_success(self):
         """act 非零退出：任务标 ! 不标 ✓，退出码可读。"""
