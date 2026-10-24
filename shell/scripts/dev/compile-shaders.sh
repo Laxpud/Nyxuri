@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
+# Compile every unit fragment shader (units/*/shaders/frag/*.frag) into its
+# committed .qsb next to the source. Run after editing any .frag; the shell
+# loads precompiled qsb at runtime (see development.md).
 
 set -euo pipefail
 
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-project_dir=$(cd -- "${script_dir}/../.." && pwd)
-source_file="${project_dir}/units/launcher/shaders/frag/spotlight_mode_field.frag"
-output_dir="${project_dir}/units/launcher/shaders/qsb"
-output_file="${output_dir}/spotlight_mode_field.frag.qsb"
+project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 
 if command -v qsb >/dev/null 2>&1; then
     qsb_command=$(command -v qsb)
@@ -40,6 +39,19 @@ else
     fi
 fi
 
-mkdir -p -- "${output_dir}"
-"${qsb_command}" --qt6 -o "${output_file}" "${source_file}"
-echo "Built ${output_file}"
+built=0
+while IFS= read -r -d '' frag; do
+    frag_dir=$(dirname -- "$frag")
+    output_dir="$frag_dir/../qsb"
+    output_file="$output_dir/$(basename -- "$frag").qsb"
+    mkdir -p -- "$output_dir"
+    "${qsb_command}" --qt6 -o "${output_file}" "${frag}"
+    echo "Built ${output_file#"${project_dir}/"}"
+    built=$((built + 1))
+done < <(find "${project_dir}/units" -path '*/shaders/frag/*.frag' -print0 | sort -z)
+
+if [[ "$built" -eq 0 ]]; then
+    echo "No fragment shaders found under units/*/shaders/frag" >&2
+    exit 1
+fi
+echo "Compiled ${built} shader(s)"

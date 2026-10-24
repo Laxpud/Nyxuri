@@ -58,11 +58,10 @@
   `--stop` 干净退出不扰原会话。
   key-cli 暂缓：Clavis 上游独立后端，登记 [shell/KNOWN-ISSUES](shell/KNOWN-ISSUES.md)，
   待收回仓库内化后再落依赖。
-- 阻断（2026-10-18）：AUR 注册官方暂停（arch 论坛账号 ≠ AUR 账号），上架搁置。
-  代码与验证已全数收口：makepkg 实测、干净 chroot 构建、namcap E 清零
-  （假阳性定性见 [packaging/README](packaging/README.md)）。注册恢复后按
-  [packaging/README](packaging/README.md) 三步上架，再回填 README/humans-wiki
-  安装段——CHANGELOG 的 AUR 条目已相应移回 Unreleased，发布不挂空招牌。
+- 上架完成（2026-10-18）：AUR `nyxuri-git` 已上架（2026-10-20 更新），
+  README 安装段已回填。代码与验证全数收口：makepkg 实测、干净 chroot 构建、
+  namcap E 清零（假阳性定性见 [packaging/README](packaging/README.md)）。
+  遗留：humans-wiki Home 顶部 AUR 安装块回填（见 packaging/README 步骤 4）。
 
 ### T2 TUI 重做（正经 TUI 库）
 

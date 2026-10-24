@@ -14,6 +14,11 @@ from unittest import mock
 
 from nyxuri.kernel import ledger, transaction
 from tests.utils import TempEnv
+# Imports consolidated from the dissolved bugfix ledger.
+import os
+import re
+from unittest.mock import patch
+
 
 
 def _stage(ctx, spec):
@@ -717,3 +722,37 @@ class TestUnitHooks(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLedgerResilience(unittest.TestCase):
+
+    def test_unhashable_active_shell_falls_back_to_default(self):
+        from nyxuri.kernel import ledger
+        with TempEnv():
+            for bad in ([], {}, ["a"], 5, None, "weird"):
+                ledger.update_ledger(active_shell=bad)
+                self.assertEqual(ledger.active_shell(), "noctalia")
+
+    def test_concurrent_updates_do_not_lose_keys(self):
+        from nyxuri.kernel import ledger
+        with TempEnv():
+            ledger.update_ledger(seed="x")
+            read_fd, write_fd = os.pipe()
+            pids = []
+            for index in range(6):
+                pid = os.fork()
+                if pid == 0:
+                    try:
+                        os.read(read_fd, 1)
+                        ledger.update_ledger(**{f"k{index}": index})
+                    finally:
+                        os._exit(0)
+                pids.append(pid)
+            os.close(read_fd)
+            for _ in range(6):
+                os.write(write_fd, b"g")
+            os.close(write_fd)
+            for pid in pids:
+                os.waitpid(pid, 0)
+            data = ledger.read_ledger()
+            self.assertEqual([data.get(f"k{i}") for i in range(6)], list(range(6)))

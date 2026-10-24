@@ -345,7 +345,7 @@ StyledFlickable {
         property string inputText: ""
         readonly property bool acceptable: percentInput.fieldItem.acceptableInput
         parentWindow: root.parentModal
-        title: "clavis-control-center-display-scale"
+        title: "nyxuri-control-center-display-scale"
         visible: false
         color: "transparent"
         implicitWidth: 380

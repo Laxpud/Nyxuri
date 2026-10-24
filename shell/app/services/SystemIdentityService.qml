@@ -2,16 +2,14 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.app
 import qs.shared.i18n
 
 Singleton {
     id: root
 
     readonly property int supportedSchemaVersion: 1
-    property string commandName: {
-        const configured = String(Quickshell.env("CLAVIS_KEY") || "").trim();
-        return configured !== "" ? configured : "key";
-    }
+    property string commandName: Paths.stableKey
     property var system: ({})
     property bool ready: false
     property bool _initializationStarted: false

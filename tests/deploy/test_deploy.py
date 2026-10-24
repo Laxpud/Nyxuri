@@ -13,6 +13,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests.utils import TempEnv
+# Imports consolidated from the dissolved bugfix ledger.
+import contextlib
+import io
+import json
+import time
+
 
 
 class TestAtomicReplaceFileRollback(unittest.TestCase):
@@ -776,3 +782,97 @@ class TestOwnershipCarry(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _quiet(fn, *args, **kwargs):
+    with contextlib.redirect_stdout(io.StringIO()):
+        return fn(*args, **kwargs)
+
+
+class TestWallpaperPackProbe(unittest.TestCase):
+    """wallpapers_pack_present: video-validated pack probe (user-domain)."""
+
+    def test_pack_requires_a_real_video(self):
+        from nyxuri.deploy.deploy import WALLPAPER_VIDEO_SUFFIXES, wallpapers_pack_present
+        with TempEnv() as ctx:
+            video_dir = ctx.home / "Pictures" / "Wallpapers" / "video"
+            self.assertFalse(wallpapers_pack_present())
+            video_dir.mkdir(parents=True)
+            (video_dir / "README.md").write_text("docs", encoding="utf-8")
+            self.assertFalse(wallpapers_pack_present())
+            clip = video_dir / "clip.mp4"
+            clip.write_text("v", encoding="utf-8")
+            self.assertTrue(clip.suffix in WALLPAPER_VIDEO_SUFFIXES)
+            self.assertTrue(wallpapers_pack_present())
+
+    def test_existing_user_wallpaper_is_never_clobbered_or_tracked(self):
+        from nyxuri.kernel import ledger, transaction
+        with TempEnv() as ctx:
+            wp = ctx.home / "Pictures" / "Wallpapers"
+            wp.mkdir(parents=True)
+            user_file = wp / "lawson_fuji.webp"
+            user_file.write_text("USER", encoding="utf-8")
+            _quiet(transaction.unit_on, "wallpapers")
+            # No tracking marker exists at all — the pack era is over.
+            self.assertFalse((wp / ".nyxuri-managed.json").exists())
+            self.assertEqual(user_file.read_text(encoding="utf-8"), "USER")
+            # The user's same-named file blocked the layout: not ours.
+            self.assertNotIn("lawson_fuji.webp", ledger.get_unit("wallpapers")["files"])
+
+class TestDeployRobustness(unittest.TestCase):
+
+    def _sandbox(self, ctx):
+        ctx.env.units_src = Path(tempfile.mkdtemp())
+        import nyxuri.deploy.manifest as manifest
+        import nyxuri.deploy.deploy as deploy
+        manifest._MANIFEST_CACHE = None
+        deploy._CONFIG_ITEMS_CACHE = []
+        return ctx.env.units_src
+
+    def _app(self, src, name, manifest_toml, files):
+        root = src / name
+        for rel, content in files.items():
+            path = root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+        (root / "manifest.toml").write_text(manifest_toml, encoding="utf-8")
+        return root
+
+    def test_unrealizable_part_variant_is_reported(self):
+        import nyxuri.deploy.deploy as deploy
+        from nyxuri.kernel.ledger import update_ledger
+        with TempEnv() as ctx:
+            src = self._sandbox(ctx)
+            root = self._app(
+                src, "demo",
+                'preserve = ["part.kdl"]\n\n[parts.effects]\ntarget = "part.kdl"\n'
+                'source_dir = "effects"\ndefault = "default"\n',
+                {"part.kdl": "// default-part\n"},
+            )
+            slot = root / "__presets__" / "effects"
+            slot.mkdir(parents=True)
+            (slot / "default.kdl").write_text("// default-part\n", encoding="utf-8")
+            update_ledger(parts={"demo:effects": "ghost"})
+            with patch.object(deploy, "_phase_post_install_services"):
+                failed = _quiet(deploy.deploy_selected_configs, items_to_deploy=["demo"], preserved_log=[])
+            self.assertEqual(failed, ["demo"])
+
+    def test_absolute_or_empty_chmod_pattern_does_not_abort(self):
+        import nyxuri.deploy.deploy as deploy
+        with TempEnv() as ctx:
+            src = self._sandbox(ctx)
+            self._app(src, "demo", 'chmod = ["/etc/*", ""]\n', {"config.kdl": "// c\n"})
+            with patch.object(deploy, "_phase_post_install_services"):
+                failed = _quiet(deploy.deploy_selected_configs, items_to_deploy=["demo"], preserved_log=[])
+            self.assertEqual(failed, [])
+            self.assertTrue((ctx.env.config_dir / "demo" / "config.kdl").is_file())
+
+    def test_scalar_items_to_deploy_is_treated_as_one_item(self):
+        import nyxuri.deploy.deploy as deploy
+        with TempEnv() as ctx:
+            src = self._sandbox(ctx)
+            self._app(src, "demo", "", {"config.kdl": "// c\n"})
+            with patch.object(deploy, "_phase_post_install_services"):
+                failed = _quiet(deploy.deploy_selected_configs, items_to_deploy="demo", preserved_log=[])
+            self.assertEqual(failed, [])
+            self.assertTrue((ctx.env.config_dir / "demo" / "config.kdl").is_file())

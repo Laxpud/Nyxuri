@@ -95,7 +95,9 @@ Shell 是极致精简的**微内核宿主**：宿主只保留装配（`SlotHost`
 - **单元自有 IPC**：单元的 IPC surface 属单元（lock/spotlight/power-menu/
   control-center/settings/keystone），随单元装载生死；宿主只保留通用面
   （unit/shell/theme/shortcut-map/wallpaper）。单元 off 时其 IPC 目标消失，
-  六动作经 `nyxuri-shell --action` 得到真实失败而非假成功。
+  六动作经 `nyxuri-shell --action` 得到真实失败而非假成功；任意单元 IPC 面
+  （`niri-actions.json` 目录 207 条）经 `nyxuri-shell --ipc <target> <method>
+  [args…]` PATH 稳定网关分发，合成器 binds 不再引用 quickshell 配置名。
 - **Quickshell 0.3.2 运行时约束**（KM4 实测，quickshell 升级后重估）：
   ① Loader 动态装载的组件首次解析 qs.* import 图不可靠——单元以「module not
   installed / X is not a type」不确定地整单元暴毙（与 QML 磁盘缓存无关）。

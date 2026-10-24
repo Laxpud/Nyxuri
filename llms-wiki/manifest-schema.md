@@ -110,8 +110,9 @@ fastfetch **不写 manifest**（目录名 = 包名 = 二进制名 = 无例外）
 
 可选不再住 sidecar 登记簿——真单元在自己的 `manifest.toml` 里声明 `optional = true`；
 「装但不部署」的软件（无配置可 ship）住**根 `catalog.toml`**（KM3.5 正名：包目录清单
-不是单元，17 个零文件假目录已处决）。两源同汇进 `deps apps` 菜单与 gen-deps
-`optdepends`。**zed / mango / greeter / fcitx5-rime 双轴共存**：既有配置目录又声明可选，
+不是单元，17 个零文件假目录已处决）。两源同汇进 `deps apps` 菜单（T1 依赖按需化后
+gen-deps `optdepends` 有意与 catalog 脱钩，见 PKGBUILD 头注释）。
+**zed / mango / greeter / fcitx5-rime 双轴共存**：既有配置目录又声明可选，
 两个事实同时为真。例外字段照旧只写差异：
 
 ```toml

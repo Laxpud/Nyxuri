@@ -32,7 +32,7 @@ DISPATCH = {
     ('shortcut-map', 'open'): [[]],
     ('power-menu', 'open'): [[]],
 }
-AVAILABILITY = {'always', 'awww', 'clavis-wallpaper', 'wallpaper-idle', 'keystone', 'keyboard-lock', 'dock-previews'}
+AVAILABILITY = {'always', 'awww', 'nyxuri-wallpaper', 'wallpaper-idle', 'keystone', 'keyboard-lock', 'dock-previews'}
 
 
 def required(entry, fields):
@@ -79,7 +79,7 @@ def compile_catalog(route_document, declarations, actions):
     selected = []
     action_ids = set()
     for action in actions:
-        if action['category'] not in ('clavis', 'nyxuri'):
+        if action['category'] != 'nyxuri':
             continue
         if action['id'] in action_ids:
             raise ValueError('Duplicate action ID')
@@ -99,9 +99,8 @@ def compile_catalog(route_document, declarations, actions):
         if entry['target'] == 'power-menu' and entry['confirmation'] != 'power-menu':
             raise ValueError('Power actions must open the existing confirmation UI')
         # Check fixed argv against the existing shortcut declaration, never run it.
-        expected_clavis = 'spawn ' + ' '.join(json.dumps(v) for v in ['qs', '-c', 'clavis', 'ipc', 'call', entry['target'], entry['method'], *args])
-        expected_nyxuri = 'spawn ' + ' '.join(json.dumps(v) for v in ['qs', '-c', 'nyxuri', 'ipc', 'call', entry['target'], entry['method'], *args])
-        if action['expression'] not in (expected_clavis, expected_nyxuri):
+        expected = 'spawn ' + ' '.join(json.dumps(v) for v in ['nyxuri-shell', '--ipc', entry['target'], entry['method'], *args])
+        if action['expression'] != expected:
             raise ValueError(f'Fixed arguments disagree with shortcut: {entry["id"]}')
         selected.append(entry)
     return {'schemaVersion': 1, 'routes': routes, 'settings': settings, 'actions': selected}

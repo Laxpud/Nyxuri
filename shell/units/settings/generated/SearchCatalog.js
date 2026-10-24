@@ -15,7 +15,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Lock the current session",
       "icon": "lock",
-      "id": "clavis:lock:open",
+      "id": "nyxuri:lock:open",
       "method": "open",
       "policy": "include",
       "target": "lock",
@@ -31,7 +31,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Open Spotlight Search",
       "icon": "search",
-      "id": "clavis:spotlight:search",
+      "id": "nyxuri:spotlight:search",
       "method": "search",
       "policy": "include",
       "target": "spotlight",
@@ -48,7 +48,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Enter Spotlight Web search",
       "icon": "language",
-      "id": "clavis:spotlight:web",
+      "id": "nyxuri:spotlight:web",
       "method": "web",
       "policy": "include",
       "target": "spotlight",
@@ -64,7 +64,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Open Spotlight Files",
       "icon": "draft",
-      "id": "clavis:spotlight:files",
+      "id": "nyxuri:spotlight:files",
       "method": "files",
       "policy": "include",
       "target": "spotlight",
@@ -83,7 +83,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Open the application launcher",
       "icon": "grid_view",
-      "id": "clavis:spotlight:openMode:apps",
+      "id": "nyxuri:spotlight:openMode:apps",
       "method": "openMode",
       "policy": "include",
       "target": "spotlight",
@@ -101,7 +101,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Open clipboard history",
       "icon": "content_paste",
-      "id": "clavis:spotlight:openMode:clipboard",
+      "id": "nyxuri:spotlight:openMode:clipboard",
       "method": "openMode",
       "policy": "include",
       "target": "spotlight",
@@ -119,7 +119,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Browse and apply wallpapers",
       "icon": "image",
-      "id": "clavis:spotlight:openMode:wallpapers",
+      "id": "nyxuri:spotlight:openMode:wallpapers",
       "method": "openMode",
       "policy": "include",
       "target": "spotlight",
@@ -135,7 +135,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Clear the global wallpaper selection",
       "icon": "hide_image",
-      "id": "clavis:wallpaper:clear",
+      "id": "nyxuri:wallpaper:clear",
       "method": "clear",
       "policy": "include",
       "target": "wallpaper",
@@ -151,7 +151,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Apply the previous wallpaper",
       "icon": "skip_previous",
-      "id": "clavis:wallpaper:previous",
+      "id": "nyxuri:wallpaper:previous",
       "method": "previous",
       "policy": "include",
       "target": "wallpaper",
@@ -167,7 +167,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Apply the next wallpaper",
       "icon": "skip_next",
-      "id": "clavis:wallpaper:next",
+      "id": "nyxuri:wallpaper:next",
       "method": "next",
       "policy": "include",
       "target": "wallpaper",
@@ -183,7 +183,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Apply a random wallpaper",
       "icon": "shuffle",
-      "id": "clavis:wallpaper:random",
+      "id": "nyxuri:wallpaper:random",
       "method": "random",
       "policy": "include",
       "target": "wallpaper",
@@ -199,7 +199,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Dismiss open Keystone panels",
       "icon": "close",
-      "id": "clavis:keystone:closeAllOthers",
+      "id": "nyxuri:keystone:closeAllOthers",
       "method": "closeAllOthers",
       "policy": "include",
       "target": "keystone",
@@ -215,7 +215,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Toggle the Keystone dashboard",
       "icon": "dashboard",
-      "id": "clavis:keystone:dashboard",
+      "id": "nyxuri:keystone:dashboard",
       "method": "dashboard",
       "policy": "include",
       "target": "keystone",
@@ -231,7 +231,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Toggle the Keystone hub",
       "icon": "hub",
-      "id": "clavis:keystone:hub",
+      "id": "nyxuri:keystone:hub",
       "method": "hub",
       "policy": "include",
       "target": "keystone",
@@ -247,7 +247,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Toggle Keystone lyrics",
       "icon": "lyrics",
-      "id": "clavis:keystone:lyrics",
+      "id": "nyxuri:keystone:lyrics",
       "method": "lyrics",
       "policy": "include",
       "target": "keystone",
@@ -264,7 +264,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Toggle the Keystone tools panel",
       "icon": "handyman",
-      "id": "clavis:keystone:tools",
+      "id": "nyxuri:keystone:tools",
       "method": "tools",
       "policy": "include",
       "target": "keystone",
@@ -282,7 +282,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Open the notifications sidebar",
       "icon": "notifications",
-      "id": "clavis:sidebar:open:dashboard",
+      "id": "nyxuri:sidebar:open:dashboard",
       "method": "open",
       "policy": "include",
       "target": "sidebar",
@@ -300,7 +300,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Open the Quick settings sidebar",
       "icon": "tune",
-      "id": "clavis:sidebar:open:quicksettings",
+      "id": "nyxuri:sidebar:open:quicksettings",
       "method": "open",
       "policy": "include",
       "target": "sidebar",
@@ -319,7 +319,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Toggle the weather sidebar",
       "icon": "partly_cloudy_day",
-      "id": "clavis:sidebar:toggle:weather",
+      "id": "nyxuri:sidebar:toggle:weather",
       "method": "toggle",
       "policy": "include",
       "target": "sidebar",
@@ -338,7 +338,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Toggle the sidebar drawer",
       "icon": "widgets",
-      "id": "clavis:sidebar:toggle:drawer",
+      "id": "nyxuri:sidebar:toggle:drawer",
       "method": "toggle",
       "policy": "include",
       "target": "sidebar",
@@ -354,7 +354,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Show keyboard shortcuts",
       "icon": "keyboard",
-      "id": "clavis:shortcut-map:open",
+      "id": "nyxuri:shortcut-map:open",
       "method": "open",
       "policy": "include",
       "target": "shortcut-map",
@@ -373,7 +373,7 @@ var catalog = {
       "context": "SpotlightActions",
       "description": "Choose a session or power action",
       "icon": "power_settings_new",
-      "id": "clavis:power-menu:open",
+      "id": "nyxuri:power-menu:open",
       "method": "open",
       "policy": "include",
       "target": "power-menu",
@@ -2026,56 +2026,56 @@ function title(id) {
     case "wallpaper.section.transition": return I18n.tr("Transition", "WallpaperPage");
     case "wallpaper.section.parallax-effects": return I18n.tr("Parallax effects", "WallpaperPage");
     case "wallpaper.section.overview-background": return I18n.tr("Overview background", "WallpaperPage");
-    case "clavis:lock:open": return I18n.tr("Lock screen", "SpotlightActions");
-    case "clavis:spotlight:search": return I18n.tr("Search", "SpotlightActions");
-    case "clavis:spotlight:web": return I18n.tr("Web search", "SpotlightActions");
-    case "clavis:spotlight:files": return I18n.tr("Find files", "SpotlightActions");
-    case "clavis:spotlight:openMode:apps": return I18n.tr("Applications", "SpotlightActions");
-    case "clavis:spotlight:openMode:clipboard": return I18n.tr("Clipboard history", "SpotlightActions");
-    case "clavis:spotlight:openMode:wallpapers": return I18n.tr("Wallpaper picker", "SpotlightActions");
-    case "clavis:wallpaper:clear": return I18n.tr("Reset wallpaper", "SpotlightActions");
-    case "clavis:wallpaper:previous": return I18n.tr("Previous wallpaper", "SpotlightActions");
-    case "clavis:wallpaper:next": return I18n.tr("Next wallpaper", "SpotlightActions");
-    case "clavis:wallpaper:random": return I18n.tr("Random wallpaper", "SpotlightActions");
-    case "clavis:keystone:closeAllOthers": return I18n.tr("Close Keystone panels", "SpotlightActions");
-    case "clavis:keystone:dashboard": return I18n.tr("Keystone dashboard", "SpotlightActions");
-    case "clavis:keystone:hub": return I18n.tr("Keystone hub", "SpotlightActions");
-    case "clavis:keystone:lyrics": return I18n.tr("Lyrics", "SpotlightActions");
-    case "clavis:keystone:tools": return I18n.tr("Keystone tools", "SpotlightActions");
-    case "clavis:sidebar:open:dashboard": return I18n.tr("Notifications", "SpotlightActions");
-    case "clavis:sidebar:open:quicksettings": return I18n.tr("Quick settings", "SpotlightActions");
-    case "clavis:sidebar:toggle:weather": return I18n.tr("Weather sidebar", "SpotlightActions");
-    case "clavis:sidebar:toggle:drawer": return I18n.tr("Sidebar drawer", "SpotlightActions");
-    case "clavis:shortcut-map:open": return I18n.tr("Shortcut map", "SpotlightActions");
-    case "clavis:power-menu:open": return I18n.tr("Power menu", "SpotlightActions");
+    case "nyxuri:lock:open": return I18n.tr("Lock screen", "SpotlightActions");
+    case "nyxuri:spotlight:search": return I18n.tr("Search", "SpotlightActions");
+    case "nyxuri:spotlight:web": return I18n.tr("Web search", "SpotlightActions");
+    case "nyxuri:spotlight:files": return I18n.tr("Find files", "SpotlightActions");
+    case "nyxuri:spotlight:openMode:apps": return I18n.tr("Applications", "SpotlightActions");
+    case "nyxuri:spotlight:openMode:clipboard": return I18n.tr("Clipboard history", "SpotlightActions");
+    case "nyxuri:spotlight:openMode:wallpapers": return I18n.tr("Wallpaper picker", "SpotlightActions");
+    case "nyxuri:wallpaper:clear": return I18n.tr("Reset wallpaper", "SpotlightActions");
+    case "nyxuri:wallpaper:previous": return I18n.tr("Previous wallpaper", "SpotlightActions");
+    case "nyxuri:wallpaper:next": return I18n.tr("Next wallpaper", "SpotlightActions");
+    case "nyxuri:wallpaper:random": return I18n.tr("Random wallpaper", "SpotlightActions");
+    case "nyxuri:keystone:closeAllOthers": return I18n.tr("Close Keystone panels", "SpotlightActions");
+    case "nyxuri:keystone:dashboard": return I18n.tr("Keystone dashboard", "SpotlightActions");
+    case "nyxuri:keystone:hub": return I18n.tr("Keystone hub", "SpotlightActions");
+    case "nyxuri:keystone:lyrics": return I18n.tr("Lyrics", "SpotlightActions");
+    case "nyxuri:keystone:tools": return I18n.tr("Keystone tools", "SpotlightActions");
+    case "nyxuri:sidebar:open:dashboard": return I18n.tr("Notifications", "SpotlightActions");
+    case "nyxuri:sidebar:open:quicksettings": return I18n.tr("Quick settings", "SpotlightActions");
+    case "nyxuri:sidebar:toggle:weather": return I18n.tr("Weather sidebar", "SpotlightActions");
+    case "nyxuri:sidebar:toggle:drawer": return I18n.tr("Sidebar drawer", "SpotlightActions");
+    case "nyxuri:shortcut-map:open": return I18n.tr("Shortcut map", "SpotlightActions");
+    case "nyxuri:power-menu:open": return I18n.tr("Power menu", "SpotlightActions");
     default: return "";
     }
 }
 
 function description(id) {
     switch (id) {
-    case "clavis:lock:open": return I18n.tr("Lock the current session", "SpotlightActions");
-    case "clavis:spotlight:search": return I18n.tr("Open Spotlight Search", "SpotlightActions");
-    case "clavis:spotlight:web": return I18n.tr("Enter Spotlight Web search", "SpotlightActions");
-    case "clavis:spotlight:files": return I18n.tr("Open Spotlight Files", "SpotlightActions");
-    case "clavis:spotlight:openMode:apps": return I18n.tr("Open the application launcher", "SpotlightActions");
-    case "clavis:spotlight:openMode:clipboard": return I18n.tr("Open clipboard history", "SpotlightActions");
-    case "clavis:spotlight:openMode:wallpapers": return I18n.tr("Browse and apply wallpapers", "SpotlightActions");
-    case "clavis:wallpaper:clear": return I18n.tr("Clear the global wallpaper selection", "SpotlightActions");
-    case "clavis:wallpaper:previous": return I18n.tr("Apply the previous wallpaper", "SpotlightActions");
-    case "clavis:wallpaper:next": return I18n.tr("Apply the next wallpaper", "SpotlightActions");
-    case "clavis:wallpaper:random": return I18n.tr("Apply a random wallpaper", "SpotlightActions");
-    case "clavis:keystone:closeAllOthers": return I18n.tr("Dismiss open Keystone panels", "SpotlightActions");
-    case "clavis:keystone:dashboard": return I18n.tr("Toggle the Keystone dashboard", "SpotlightActions");
-    case "clavis:keystone:hub": return I18n.tr("Toggle the Keystone hub", "SpotlightActions");
-    case "clavis:keystone:lyrics": return I18n.tr("Toggle Keystone lyrics", "SpotlightActions");
-    case "clavis:keystone:tools": return I18n.tr("Toggle the Keystone tools panel", "SpotlightActions");
-    case "clavis:sidebar:open:dashboard": return I18n.tr("Open the notifications sidebar", "SpotlightActions");
-    case "clavis:sidebar:open:quicksettings": return I18n.tr("Open the Quick settings sidebar", "SpotlightActions");
-    case "clavis:sidebar:toggle:weather": return I18n.tr("Toggle the weather sidebar", "SpotlightActions");
-    case "clavis:sidebar:toggle:drawer": return I18n.tr("Toggle the sidebar drawer", "SpotlightActions");
-    case "clavis:shortcut-map:open": return I18n.tr("Show keyboard shortcuts", "SpotlightActions");
-    case "clavis:power-menu:open": return I18n.tr("Choose a session or power action", "SpotlightActions");
+    case "nyxuri:lock:open": return I18n.tr("Lock the current session", "SpotlightActions");
+    case "nyxuri:spotlight:search": return I18n.tr("Open Spotlight Search", "SpotlightActions");
+    case "nyxuri:spotlight:web": return I18n.tr("Enter Spotlight Web search", "SpotlightActions");
+    case "nyxuri:spotlight:files": return I18n.tr("Open Spotlight Files", "SpotlightActions");
+    case "nyxuri:spotlight:openMode:apps": return I18n.tr("Open the application launcher", "SpotlightActions");
+    case "nyxuri:spotlight:openMode:clipboard": return I18n.tr("Open clipboard history", "SpotlightActions");
+    case "nyxuri:spotlight:openMode:wallpapers": return I18n.tr("Browse and apply wallpapers", "SpotlightActions");
+    case "nyxuri:wallpaper:clear": return I18n.tr("Clear the global wallpaper selection", "SpotlightActions");
+    case "nyxuri:wallpaper:previous": return I18n.tr("Apply the previous wallpaper", "SpotlightActions");
+    case "nyxuri:wallpaper:next": return I18n.tr("Apply the next wallpaper", "SpotlightActions");
+    case "nyxuri:wallpaper:random": return I18n.tr("Apply a random wallpaper", "SpotlightActions");
+    case "nyxuri:keystone:closeAllOthers": return I18n.tr("Dismiss open Keystone panels", "SpotlightActions");
+    case "nyxuri:keystone:dashboard": return I18n.tr("Toggle the Keystone dashboard", "SpotlightActions");
+    case "nyxuri:keystone:hub": return I18n.tr("Toggle the Keystone hub", "SpotlightActions");
+    case "nyxuri:keystone:lyrics": return I18n.tr("Toggle Keystone lyrics", "SpotlightActions");
+    case "nyxuri:keystone:tools": return I18n.tr("Toggle the Keystone tools panel", "SpotlightActions");
+    case "nyxuri:sidebar:open:dashboard": return I18n.tr("Open the notifications sidebar", "SpotlightActions");
+    case "nyxuri:sidebar:open:quicksettings": return I18n.tr("Open the Quick settings sidebar", "SpotlightActions");
+    case "nyxuri:sidebar:toggle:weather": return I18n.tr("Toggle the weather sidebar", "SpotlightActions");
+    case "nyxuri:sidebar:toggle:drawer": return I18n.tr("Toggle the sidebar drawer", "SpotlightActions");
+    case "nyxuri:shortcut-map:open": return I18n.tr("Show keyboard shortcuts", "SpotlightActions");
+    case "nyxuri:power-menu:open": return I18n.tr("Choose a session or power action", "SpotlightActions");
     default: return "";
     }
 }

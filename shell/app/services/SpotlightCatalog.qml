@@ -74,7 +74,7 @@ Singleton {
             return true;
         case "awww":
             return PersonalizationConfig.desktopWallpaperBackend === "awww";
-        case "clavis-wallpaper":
+        case "nyxuri-wallpaper":
             return PersonalizationConfig.desktopWallpaperBackend !== "awww";
         case "wallpaper-idle":
             return !WallpaperService.busy;

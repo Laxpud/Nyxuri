@@ -21,6 +21,9 @@ from unittest.mock import patch
 import nyxuri
 from nyxuri.__main__ import _run
 from tests.utils import TempEnv
+# Imports consolidated from the dissolved bugfix ledger.
+import re
+
 
 
 class TestEntrypointGuard(unittest.TestCase):
@@ -83,3 +86,24 @@ class TestLauncherEntry(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestEntryPointImportGuard(unittest.TestCase):
+
+    def test_partial_tree_import_error_is_reported_without_traceback(self):
+        import shutil
+        root = Path(tempfile.mkdtemp()) / "tree"
+        shutil.copytree(Path(__file__).resolve().parents[2] / "nyxuri", root / "nyxuri")
+        cli = root / "nyxuri" / "cli.py"
+        cli.write_text("from nyxuri.core import NYXURI_MISSING_SYMBOL\n" + cli.read_text(encoding="utf-8"),
+                       encoding="utf-8")
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "nyxuri", "help"],
+                cwd=str(root), capture_output=True, text=True,
+                env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(root)},
+            )
+        finally:
+            shutil.rmtree(root.parent, ignore_errors=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("Traceback", result.stderr)
