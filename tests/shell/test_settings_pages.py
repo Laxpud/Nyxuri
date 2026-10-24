@@ -35,6 +35,12 @@ ANCHOR_IDS = {
         "theme.section.fonts",
         "theme.section.matugen-template-generation",
     ),
+    "WallpaperPage.qml": (
+        "wallpaper.section.current-wallpaper",
+        "wallpaper.section.transition",
+        "wallpaper.section.parallax-effects",
+        "wallpaper.section.overview-background",
+    ),
 }
 
 # Pre-M3 card chrome and legacy row vocabulary: none of it may come back
@@ -193,6 +199,86 @@ class TestThemePageRebuild(unittest.TestCase):
         source = _read("ThemePage.qml")
         for token in LEGACY_VOCABULARY:
             self.assertNotIn(token, source, f"legacy token re-entered ThemePage: {token}")
+
+
+class TestWallpaperPageRebuild(unittest.TestCase):
+    """WallpaperPage: preview/easing/button-group heroes stay, rows are atoms."""
+
+    def test_nexus_scaffold_with_self_rendered_title(self):
+        source = _read("WallpaperPage.qml")
+        self.assertIn("NexusPageBase {", source)
+        self.assertIn('title: I18n.tr("Wallpaper")', source)
+
+    def test_window_contract_surface_survives(self):
+        source = _read("WallpaperPage.qml")
+        for token in (
+            "property var parentModal: null",
+            "function closeChildWindows()",
+            "function chooseWallpaperFile()",
+            "function chooseOverviewFile()",
+            "property Item searchLeaf",
+        ):
+            self.assertIn(token, source, f"WallpaperPage lost window contract token: {token}")
+
+    def test_search_anchor_ids_are_stable(self):
+        source = _read("WallpaperPage.qml")
+        for anchor_id in ANCHOR_IDS["WallpaperPage.qml"]:
+            self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+                          f"anchor missing or rewritten: {anchor_id}")
+
+    def test_atom_groups_present(self):
+        source = _read("WallpaperPage.qml")
+        for atom in ("PreferenceHeader", "PreferenceToggle", "PreferenceSlider", "PreferenceSelect"):
+            self.assertIn(atom, source, f"WallpaperPage must use the atom: {atom}")
+        # Both output selectors register the compositor input region.
+        self.assertEqual(source.count("inputRegionService: PopupInputRegionService"), 3)
+
+    def test_business_owners_unchanged(self):
+        source = _read("WallpaperPage.qml")
+        for owner in (
+            "WallpaperService.setWallpaperFromFile",
+            "WallpaperService.setWallpaperFolder",
+            "WallpaperService.setWallpaperFillModeForScreen",
+            "WallpaperService.setWallpaperTransitionType",
+            "WallpaperService.setTransitionDurationMs",
+            "WallpaperService.setTransitionBezierCurve",
+            "WallpaperService.setTransitionEasingMode",
+            "WallpaperService.setOverviewFillModeForScreen",
+            "WallpaperService.setOverviewWallpaper",
+            "WallpaperService.refreshOverviewBackdropRule()",
+            "PersonalizationConfig.setPerMonitorWallpaper",
+            "PersonalizationConfig.setParallaxPreferredScale",
+            "PersonalizationConfig.setParallaxTiledColumnSpan",
+            "PersonalizationConfig.setOverviewTransitionType",
+            "PersonalizationConfig.setOverviewBlurRadius",
+            "PersonalizationConfig.setOverviewDim",
+            "PersonalizationConfig.setOverviewSaturation",
+            "PersonalizationConfig.setOverviewContrast",
+        ):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+
+    def test_visual_assets_survive_as_custom_shapes(self):
+        source = _read("WallpaperPage.qml")
+        for shape in (
+            "component WallpaperPreview:",
+            "component EasingActionGroup:",
+            "BezierCurveEditor",
+            "BezierCurveLayerEditor",
+            "WallpaperFileBrowser",
+            "WallpaperColorPicker",
+            "NiriSetupPrompt",
+        ):
+            self.assertIn(shape, source, f"sanctioned custom shape dropped: {shape}")
+
+    def test_inline_pre_m3_row_components_are_dead(self):
+        source = _read("WallpaperPage.qml")
+        for token in ("component Section:", "FlatSettingsSection", "SettingsRow", "MaterialSlider"):
+            self.assertNotIn(token, source, f"pre-M3 inline row component survived: {token}")
+
+    def test_legacy_chrome_stays_out(self):
+        source = _read("WallpaperPage.qml")
+        for token in LEGACY_VOCABULARY:
+            self.assertNotIn(token, source, f"legacy token re-entered WallpaperPage: {token}")
 
 
 if __name__ == "__main__":
