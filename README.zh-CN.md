@@ -68,10 +68,6 @@
 
 ## 安装
 
-Ubuntu 26.04 的适配、软件源要求和剩余桌面验收见 [Ubuntu 兼容指南](llms-wiki/ubuntu-compatibility.md)。
-使用本 fork 的 Ubuntu 源码时，从该检出目录运行 `bash nyxuri/launcher.sh`；
-下方上游在线引导不会自动选择 fork 的 `ubuntu` 分支。
-
 ### 从 Git 仓库安装（推荐）
 
 ```bash
@@ -87,7 +83,7 @@ curl -fsSL --connect-timeout 10 https://raw.githubusercontent.com/ech678/Nyxuri/
 ```
 
 > [!TIP]
-> Arch 自动探测 Shelly、paru、yay；缺少助手时尝试从已配置的软件源安装。Ubuntu 使用 APT，不安装 AUR 助手。
+> Arch 自动探测 Shelly、paru、yay；缺少助手时尝试从已配置的软件源安装。
 
 <details>
 <summary>国内镜像加速（gh-proxy / CDN）</summary>
@@ -175,6 +171,10 @@ Nyxuri
 遇到启动卡死、双显卡渲染异常或样式白屏时，优先运行 `nyxuri doctor`。
 
 详细排障步骤与完整清单见 [故障排除指南 (Wiki)](https://github.com/ech678/Nyxuri/wiki/Troubleshooting-zh)。
+
+## 其他发行版
+
+**Ubuntu 26.04**：已完成 APT 适配与 Niri 核心功能验证。
 
 ## 致谢与社区
 
