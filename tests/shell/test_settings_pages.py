@@ -1238,5 +1238,43 @@ class TestBluetoothSubpagesRebuild(unittest.TestCase):
                 self.assertNotIn(token, source, f"legacy token re-entered {name}: {token}")
 
 
+class TestShortcutsPageRebuild(unittest.TestCase):
+    """Shortcuts: self-rendered title, atom editor rows, recorder machinery
+    and the category picker kept as the sanctioned segmented shape."""
+
+    def test_self_rendered_title(self):
+        source = _read("ShortcutsPage.qml")
+        self.assertIn("readonly property bool rendersPageTitle: true", source)
+        self.assertIn('text: SpotlightCatalog.title("shortcuts")', source)
+        self.assertIn("NexusStyle.font.titleLarge", source,
+                      "the fixed header must pixel-match the scaffold title")
+
+    def test_atom_rows_present(self):
+        source = _read("ShortcutsPage.qml")
+        self.assertIn("PreferenceToggle {", source, "advanced options ride the toggle atom")
+        self.assertIn("PreferenceAction {", source, "the advanced expander rides the action atom")
+
+    def test_recorder_machinery_survives(self):
+        source = _read("ShortcutsPage.qml")
+        for owner in (
+            "component ShortcutRecorder: QtObject",
+            "ShortcutInhibitor {",
+            "NiriConfigService.setup(\"binds\")",
+            'operation: "save"',
+            'operation: "delete"',
+            'operation: "delete-group"',
+            "root.rebuild()",
+            "component ShortcutChip: RippleButton",
+            "StyledButtonGroup {",
+        ):
+            self.assertIn(owner, source, f"shortcuts machinery dropped: {owner}")
+
+    def test_legacy_chrome_stays_out(self):
+        source = _read("ShortcutsPage.qml")
+        for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow", "SettingsActionRow",
+                                          "StyledSwitch"):
+            self.assertNotIn(token, source, f"legacy token re-entered ShortcutsPage: {token}")
+
+
 if __name__ == "__main__":
     unittest.main()
