@@ -11,7 +11,7 @@
 | 命令 | 干啥 |
 |---|---|
 | `list [unit]` | 单元全景（开关状态 × 当前预设），或单个单元详情（manifest 声明 × 账本记录 × 对账态） |
-| `on <unit> [--preset <name>]`（等价 `enable`） | 启用单元：依赖闭包披露 → 缺失包披露确认（repo/AUR/Flatpak 按 manifest 三方分流）→ 事务落账 + `unit-changed` 事件 |
+| `on <unit> [--preset <name>]`（等价 `enable`） | 启用单元：依赖闭包披露 → 当前平台包与手动资源预检 → 缺失包披露确认 → 事务落账 + `unit-changed` 事件 |
 | `off <unit> [--cascade]`（等价 `disable`） | 停用单元：反向依赖强阻断（显式 `--cascade` 才级联）→ 自定义入 Vault → 实机抹白；报告列明幸存外部文件与保留的包 |
 | `doctor [unit]` | 单元三态对账（`Synced` / `Drifted` / `Ghost`）；无参时在对账表后附加系统体检段（`sysdoctor`） |
 
@@ -23,12 +23,12 @@
 | 命令 | 干啥 |
 |---|---|
 | `install [full\|config]` | 旧世界整装流水线（配置 + 壁纸单元 + 钩子重放）；市场化后由 `on <unit>` 接管 |
-| `update [--force\|--no-deploy] [--to <tag\|commit>]` | 拉新版本 + 重新部署（KM5：线性迁移机制已清算，账本即真相）；`--to` 锁到指定版本（system 模式 → 提示 pacman） |
+| `update [--force\|--no-deploy] [--to <tag\|commit>]` | 拉新版本 + 重新部署（KM5：线性迁移机制已清算，账本即真相）；`--to` 锁到指定版本（system 模式 → 交还系统包管理器） |
 | `preset <app> [list\|apply <name>\|save <name>\|edit <name>\|delete <name>\|parts\|part <slot> <name>]` | 切/管理预设与零件插槽（状态接入 `state.json` 账本） |
 | `theme [toggle\|dark\|light\|sync\|status]` | 原生切换/同步深浅主题（纯 Python 调度 gsettings、GTK settings.ini、Noctalia IPC 与 Kitty 信号） |
 | `shell [get\|set <noctalia\|nyxuri-shell> [bin_path]\|switch [\|bin_path]\|status]` | 查看或切换桌面外壳运行插槽。**[EXPERIMENTAL]** nyxuri-shell 开发中，输出带实验性警告 |
 | `deps [core\|apps]` | 装软件包：core = 核心依赖勾选单，apps = catalog.toml + 可选单元同源菜单 |
-| `pkg <install\|upgrade\|remove\|search\|info\|installed>` | 包管理直通（Fish 与安装器共用）；搜索支持 `aur` / `pac` 前缀 |
+| `pkg <install\|upgrade\|remove\|search\|info\|installed>` | 包管理直通（Fish 与安装器共用）；`repo` / `pac` 搜索本机仓库，`aur` 仅 Arch 可用；Ubuntu 使用 APT/dpkg |
 | `clean [-n] [--only <任务>]` | 缓存清理；`-n` 只预览，Fish 的 `clean` 指向此入口 |
 | `snapshot [note\|list\|delete [index]]` | 存档当前配置 / 列出 / 删除快照 |
 | `rollback [index]` | 从存档恢复 |
@@ -36,6 +36,9 @@
 | `bug` | 导出诊断报告 |
 | `test` | 开发者沙箱部署测试（`HOME=$(mktemp -d) python3 -m nyxuri test` 的落点；install.sh 已不透传参数） |
 | `help` | 用法 |
+
+Ubuntu 的来源准备、`install full` 部分完成返回非零及手动依赖边界见
+[Ubuntu 兼容指南](ubuntu-compatibility.md)。
 
 ## 已处决（KM3.5 + KM5，调用即 unknown command）
 

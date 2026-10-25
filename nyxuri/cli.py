@@ -116,7 +116,19 @@ def _cmd_on(sub_args: List[str]) -> int:
         print(msg("cli_plan_on", " → ".join(incoming)))
     need_install: List[str] = []
     for uid in incoming:
-        missing = transaction.missing_packages(registry.load_unit(uid))
+        from nyxuri.pkg.requirements import resolve_requirements
+        manifest = registry.load_unit(uid)
+        requirements = resolve_requirements(manifest)
+        if not requirements.supported:
+            print(msg("pkg_unit_unsupported", uid, requirements.reason), file=sys.stderr)
+            return 1
+        missing = transaction.missing_packages(manifest)
+        manual = [name for name in missing if name in requirements.manual]
+        if manual:
+            print(msg("pkg_manual_missing", ", ".join(manual)), file=sys.stderr)
+            if requirements.reason:
+                print(msg("pkg_source_hint", uid, requirements.reason), file=sys.stderr)
+            return 1
         if missing:
             need_install.extend(missing)
             print(msg("cli_plan_packages", uid, ", ".join(missing)))
@@ -204,9 +216,18 @@ def _show_unit_detail(unit: str) -> int:
             print(f"  {msg('cli_detail_target')}: {get_env().config_dir / (m.target or unit)}")
         if m.dependencies:
             print(f"  {msg('cli_detail_dependencies')}: {', '.join(m.dependencies)}")
-        pkgs = (*m.packages_repo, *m.packages_aur, *m.packages_flatpak)
+        from nyxuri.pkg.requirements import resolve_requirements
+        requirements = resolve_requirements(m)
+        pkgs = (*requirements.packages_repo, *requirements.packages_aur,
+                *requirements.packages_flatpak)
         if pkgs:
             print(f"  {msg('cli_detail_packages')}: {', '.join(pkgs)}")
+        if requirements.manual:
+            print(f"  {msg('pkg_manual_label')}: {', '.join(requirements.manual)}")
+        if not requirements.supported:
+            print(f"  {msg('pkg_unsupported_label')}: {requirements.reason}")
+        elif requirements.reason:
+            print(msg("pkg_source_hint", unit, requirements.reason))
         if m.requires_root or m.system_paths:
             paths = f" ({', '.join(m.system_paths)})" if m.system_paths else ""
             print(f"  {msg('cli_detail_privilege')}: root{paths}")

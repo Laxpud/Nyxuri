@@ -1582,6 +1582,8 @@ def format_steps(steps) -> List[str]:
             key, color, mark = "cli_step_deploy_failed", Colors.BOLD_RED, "[✗]"
         elif head.startswith("missing-packages: "):
             key, arg = "cli_step_missing_packages", head.split(": ", 1)[1]
+        elif head.startswith("unsupported-platform: "):
+            key, arg = "pkg_unit_unsupported", head.split(": ", 1)[1]
         elif head.startswith("blocked-by-enabled-dependents: "):
             key, arg = "cli_step_blocked", head.split(": ", 1)[1]
         else:
@@ -1594,6 +1596,8 @@ def format_steps(steps) -> List[str]:
                 notes.append(msg("cli_step_foreign", part.split(": ", 1)[1]))
             elif part.startswith("packages-left: "):
                 notes.append(msg("cli_step_packages_left", part.split(": ", 1)[1]))
+            elif part.startswith("hook-failed: "):
+                notes.append(msg("cli_step_hook_failed", part.split(": ", 1)[1]))
         line = msg(key, step.unit, arg) if arg else msg(key, step.unit)
         if notes:
             line += " (" + "; ".join(notes) + ")"
@@ -1647,9 +1651,17 @@ class UnitWorkshop:
                 lines.append((msg("cli_detail_label"), truncate_display(m.label, width)))
             if m.category:
                 lines.append((msg("cli_detail_category"), m.category))
-            pkgs = (*m.packages_repo, *m.packages_aur, *m.packages_flatpak)
+            # 详情和启用事务读取同一份平台依赖，避免 Ubuntu 界面展示 AUR 名字。
+            from nyxuri.pkg.requirements import resolve_requirements
+            requirements = resolve_requirements(m)
+            pkgs = (*requirements.packages_repo, *requirements.packages_aur,
+                    *requirements.packages_flatpak)
             if pkgs:
                 lines.append((msg("cli_detail_packages"), truncate_display(", ".join(pkgs), width)))
+            if requirements.manual:
+                lines.append((msg("pkg_manual_label"), truncate_display(", ".join(requirements.manual), width)))
+            if not requirements.supported:
+                lines.append((msg("pkg_unsupported_label"), truncate_display(requirements.reason, width)))
             if m.dependencies:
                 lines.append((msg("cli_detail_dependencies"), truncate_display(", ".join(m.dependencies), width)))
             if m.requires_root or m.system_paths:

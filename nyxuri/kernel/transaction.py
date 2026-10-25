@@ -177,17 +177,22 @@ def snapshot_files(dest: Path, manifest: ModuleManifest) -> Dict[str, str]:
 
 
 def missing_packages(manifest: ModuleManifest) -> List[str]:
-    """Declared system packages absent from the machine (repo+AUR via the
-    pacman database, Flatpak via its app list). Empty = preflight green."""
-    from nyxuri.pkg.detection import DependencyProbe
+    """列出当前平台缺失的包和手动资源，不混入其他发行版包名。
 
+    平台支持状态由 unit_on 单独检查；空缺失列表不能替代支持声明。
+    包数据库与实际命令/资源探测共用 DependencyProbe。
+    """
+    from nyxuri.pkg.detection import DependencyProbe
+    from nyxuri.pkg.requirements import resolve_requirements
+
+    requirements = resolve_requirements(manifest)
     probe = DependencyProbe()
     missing = [
         name
-        for name in (*manifest.packages_repo, *manifest.packages_aur)
+        for name in (*requirements.packages_repo, *requirements.packages_aur, *requirements.manual)
         if not probe.installed(name)
     ]
-    missing.extend(app for app in manifest.packages_flatpak if app not in probe.flatpaks)
+    missing.extend(app for app in requirements.packages_flatpak if app not in probe.flatpaks)
     return missing
 
 
@@ -520,6 +525,13 @@ def unit_on(
         if uid in enabled and uid != unit_id:
             continue
         manifest = registry.load_unit(uid)
+        # 在进入 Vault、文件部署和安装回调前阻断未声明的平台；没有映射
+        # 不代表无需依赖，也不能把原始 Arch 包名拿去尝试 APT。
+        from nyxuri.pkg.requirements import resolve_requirements
+        requirements = resolve_requirements(manifest)
+        if not requirements.supported:
+            results.append(Step(uid, False, "unsupported-platform: " + requirements.reason))
+            return results
         missing = missing_packages(manifest)
         if missing:
             installed = False
@@ -618,11 +630,10 @@ def unit_off(unit_id: str, *, cascade: bool = False) -> List[Step]:
             detail += f"; archived: {len(archived)}"
         if foreign:
             detail += "; foreign-left: " + ", ".join(foreign)
-        pkgs = (
-            *manifest.packages_repo,
-            *manifest.packages_aur,
-            *manifest.packages_flatpak,
-        )
+        from nyxuri.pkg.requirements import resolve_requirements
+        requirements = resolve_requirements(manifest)
+        pkgs = (*requirements.packages_repo, *requirements.packages_aur,
+                *requirements.packages_flatpak)
         if pkgs:
             detail += "; packages-left: " + ", ".join(pkgs)
         ledger.set_unit(

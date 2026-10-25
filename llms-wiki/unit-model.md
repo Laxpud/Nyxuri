@@ -46,7 +46,7 @@
 | **manifest** | `Manifest` | 单元的自描述规格书。全库统称 `manifest.toml`。 | `units/<unit>/manifest.toml` | 纯声明式静态元数据，**全字段可选，无文件 = 全默认**。 |
 
 ### 严正排除项
-* **系统软件包（pacman / AUR / Flatpak 包）**：不是单元！它们只是单元声明书里写的 `dependencies`。
+* **系统软件包（Arch/AUR、Ubuntu APT、Flatpak 包）**：不是单元！它们由单元声明书的包字段声明，`dependencies` 只引用其他 Nyxuri 单元。
 * **预设与零件（Preset / Parts）**：不是单元！它们是单元内部的配置变体（Variants）。
 * **包目录清单（根 `catalog.toml`）**：不是单元！「装但不部署」的软件（brave-origin、
   missioncenter 这类无配置可 ship 的声明）住根 `catalog.toml`，供 `deps apps` 菜单与
@@ -93,7 +93,7 @@ transaction（编排：唯一可触碰副作用的模块）
 ### 迁移事务规则
 1. **启用动作 (`on` / `enable`)**：
    - 依赖解析器遍历依赖链：若下游依赖未启用，一同列入启用预检清单；
-   - 检查外部包：若缺少 pacman/AUR 包，调用 `nyxuri.pkg` 提示安装；
+   - 按 [平台依赖覆盖](manifest-schema.md#平台依赖覆盖) 检查外部包与手动资源：不支持的平台先阻断，可安装的缺失包由 `nyxuri.pkg` 供给，安装后再次检查；
    - 从 `vault/<unit>/` 捞回自定义文件与最新蓝图合并（捞回即消费：归档移入实机后
      Vault 清空，用户已删除的自定义不会被下次启用复活）；
    - 原子置换进 `~/.config/<target>` 并完成模板渲染；

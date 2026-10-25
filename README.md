@@ -68,6 +68,11 @@ We are committed to long-term support for dual desktop shells (the polished **No
 
 ## Install
 
+Ubuntu 26.04 adaptation, package sources, and remaining desktop acceptance are described in the
+[Ubuntu compatibility guide](llms-wiki/ubuntu-compatibility.md). For this fork's Ubuntu checkout,
+run `bash nyxuri/launcher.sh` from that checkout; the upstream bootstrap below does not select
+the fork's `ubuntu` branch automatically.
+
 ### From a git checkout (recommended)
 
 ```bash
@@ -83,7 +88,7 @@ curl -fsSL --connect-timeout 10 https://raw.githubusercontent.com/ech678/Nyxuri/
 ```
 
 > [!TIP]
-> Auto-detects Shelly, paru, and yay; if none are installed, `nyxuri install full` automatically bootstraps `paru`.
+> Arch auto-detects Shelly, paru, and yay, and can install a missing helper from configured repositories. Ubuntu uses APT without an AUR helper.
 
 <details>
 <summary>Mirrors for China (gh-proxy / CDN)</summary>

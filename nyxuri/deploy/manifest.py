@@ -87,6 +87,7 @@ class ModuleManifest:
     preset_exclude: List[str] = field(default_factory=list)
     preset_reload: List[str] = field(default_factory=list)
     parts: Dict[str, dict] = field(default_factory=dict)
+    platforms: Dict[str, dict] = field(default_factory=dict)
 
 
 def _is_deployable(app_src: Path) -> bool:
@@ -136,6 +137,17 @@ def _as_str_map(value) -> Dict[str, List[str]]:
             if names:
                 result[key] = names
     return result
+
+
+def _as_platforms_map(value) -> Dict[str, dict]:
+    """保留发行版覆盖表，供统一包需求解析器按目标平台解释。"""
+    if not isinstance(value, dict):
+        return {}
+    return {
+        name: details
+        for name, details in value.items()
+        if isinstance(name, str) and isinstance(details, dict)
+    }
 
 
 def living_path(m: ModuleManifest, config_dir: Path) -> Path:
@@ -203,6 +215,7 @@ def load_manifest(app_src: Path) -> ModuleManifest:
         preset_exclude=_as_str_list(presets.get("exclude")),
         preset_reload=_as_str_list(presets.get("reload")),
         parts=manifest_parts,
+        platforms=_as_platforms_map(data.get("platforms")),
     )
 
 

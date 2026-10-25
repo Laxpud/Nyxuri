@@ -112,6 +112,21 @@ AUR_DEPS = [
     "mpvpaper",
 ]
 
+# Ubuntu 会话工具链显式声明实际包名；CORE_DEPS/AUR_DEPS 保持 Arch 原始
+# 清单，供 PKGBUILD 生成器读取。manual 是运行能力或资源名，不能送入 APT；
+# 它们由依赖探测器识别，缺失时报告并跳过自动获取，不触发本机源码编译。
+CORE_DEP_PLATFORMS = {
+    "ubuntu": {
+        "packages": [
+            "wlsunset", "fish", "starship", "kitty", "fastfetch", "eza",
+            "ffmpeg", "jq", "tmux", "inotify-tools", "fzf",
+            "fonts-jetbrains-mono", "fonts-noto-cjk", "qt6-image-formats-plugins",
+            "cliphist",
+        ],
+        "manual": ["mpvpaper", "jetbrains-mono-nerd-font"],
+    },
+}
+
 # --- ANSI Styling Palette (Nyxuri Native) ---
 class Colors:
     RESET = "\033[0m"

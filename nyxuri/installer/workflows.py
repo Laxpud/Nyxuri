@@ -20,8 +20,14 @@ from nyxuri.deploy.deploy import (
     enable_wallpapers_unit as _enable_wallpapers,
     wallpapers_pack_present,
 )
-from nyxuri.pkg.deps import get_missing_deps, install_selected_deps
-from nyxuri.kernel import transaction
+from nyxuri.pkg.deps import (
+    core_requirements, get_missing_deps, install_selected_deps, unit_package_installer,
+    supply_installed,
+)
+from nyxuri.pkg.platform import backend_available, current_platform
+from nyxuri.pkg.requirements import resolve_requirements
+from nyxuri.pkg.detection import DependencyProbe
+from nyxuri.kernel import registry, transaction
 from nyxuri.core import msg
 from nyxuri.tui import MenuItem, Menu, prompt_confirm
 from nyxuri.installer.menus import run_master_component_menu
@@ -69,7 +75,7 @@ def _finish_successful_deploy(mode: str, **completion_args) -> None:
 
 def install_configs_workflow(mode: str = "full") -> bool:
     """Full execution pipeline for dotfiles, dependencies, wallpapers, and hooks."""
-    if mode == "full" and not shutil.which("pacman"):
+    if mode == "full" and not backend_available():
         print(msg("distro_unsupported"))
         print(msg("distro_unsupported_hint"))
         return False
@@ -96,6 +102,24 @@ def install_configs_workflow(mode: str = "full") -> bool:
         do_wallpapers = not wallpapers_pack_present()
         do_backup = False
 
+        # Ubuntu 的非交互整装与菜单默认项一致：不顺带安装未使用的可选
+        # 应用或 greeter。显式配置模式仍允许单纯取用蓝图，不检查依赖。
+        if mode == "full" and current_platform() == "ubuntu":
+            probe = DependencyProbe()
+            chosen_configs = [
+                item for item in chosen_configs
+                if not (manifest := registry.load_unit(item)).is_optional
+                or supply_installed(manifest, probe)
+            ]
+
+    # 在 sudo 认证和文件写入前确认所选单元有平台声明，失败时说明具体单元。
+    if mode == "full":
+        for item in chosen_configs:
+            requirements = resolve_requirements(registry.load_unit(item))
+            if not requirements.supported:
+                print(msg("pkg_unit_unsupported", item, requirements.reason), file=sys.stderr)
+                return False
+
     # Safety: ensure at most one WM is selected
     selected_wms = [c for c in chosen_configs if c in SUPPORTED_WMS]
     if len(selected_wms) > 1:
@@ -110,6 +134,7 @@ def install_configs_workflow(mode: str = "full") -> bool:
     if mode == "full":
         steps += 1  # deps
     cur_step = 0
+    incomplete_manual: List[str] = []
 
     # 1. Deps
     if mode == "full":
@@ -117,7 +142,24 @@ def install_configs_workflow(mode: str = "full") -> bool:
         print(msg("install_step_deps", f"{cur_step}/{steps}"))
         missing = get_missing_deps()
         if missing and not install_selected_deps(missing):
-            return False
+            # Ubuntu 上没有自动供应的资源不妨碍复制已选配置，但不能把这次
+            # 整装报告为完整成功。真正的包安装失败仍中止后续部署。
+            remaining = get_missing_deps()
+            manual = set(core_requirements().manual)
+            if current_platform() != "ubuntu" or not remaining or any(name not in manual for name in remaining):
+                return False
+            incomplete_manual = remaining
+
+        # 工具链不包含每个桌面单元的完整依赖；Ubuntu 还需按用户选择安装
+        # Niri、Noctalia、portal 后端等。此处只供给包，开关状态仍由 on 管理。
+        if current_platform() == "ubuntu":
+            for item in chosen_configs:
+                manifest = registry.load_unit(item)
+                missing = transaction.missing_packages(manifest)
+                if missing and not unit_package_installer(item, missing):
+                    return False
+                if transaction.missing_packages(manifest):
+                    return False
 
     # 2. Configs
     cur_step += 1
@@ -157,6 +199,10 @@ def install_configs_workflow(mode: str = "full") -> bool:
             log_msg("WARN", f"unit hook replay failed for {step.unit}: {step.detail}")
 
     # Completion
+    if incomplete_manual:
+        run_user_hooks()
+        print(msg("pkg_deploy_incomplete", ", ".join(incomplete_manual)), file=sys.stderr)
+        return False
     _finish_successful_deploy(
         mode=mode,
         chosen_items=chosen_configs,

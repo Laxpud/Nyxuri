@@ -26,7 +26,7 @@ from nyxuri.desktop.presets import (
     save_preset,
 )
 from nyxuri.deploy.deploy import wallpapers_pack_present
-from nyxuri.pkg.deps import is_dep_installed, run_dep_menu_loop, run_optional_apps_menu_loop
+from nyxuri.pkg.deps import is_dep_installed, run_dep_menu_loop, run_optional_apps_menu_loop, supply_installed
 from nyxuri.sysdoctor import generate_bug_report, run_doctor
 from nyxuri.state import (
     backup_configs,
@@ -52,6 +52,8 @@ def run_master_component_menu(is_update: bool = False, mode: str = "full") -> Op
     """Interactive checklist for choosing configs, wallpapers, and backup behavior."""
     items = discover_config_items()
     entries: List[CheckboxEntry] = []
+    from nyxuri.pkg.requirements import resolve_requirements
+    manifests = dict(discover_manifest_apps())
 
     wm_items = [i for i in items if i in SUPPORTED_WMS]
     app_items = [i for i in items if i not in SUPPORTED_WMS]
@@ -73,6 +75,9 @@ def run_master_component_menu(is_update: bool = False, mode: str = "full") -> Op
                 label = f"{label}  {msg('missing')}"
 
             is_checked = (wm == preferred_wm)
+            if mode == "full" and wm in manifests and not resolve_requirements(manifests[wm]).supported:
+                label = f"{label}  {msg('pkg_unsupported_label')}"
+                is_checked = False
             entries.append(CheckboxEntry(
                 key=f"config_{wm}",
                 label=label,
@@ -84,17 +89,23 @@ def run_master_component_menu(is_update: bool = False, mode: str = "full") -> Op
     if app_items:
         entries.append(CheckboxEntry(key="sep_apps", label=msg("master_item_apps_section"), is_separator=True))
         optional_set = set(discover_optional_apps())
-        manifests = dict(discover_manifest_apps())
         for item in app_items:
             label = msg("master_item_config", item)
             checked = True
             if item in optional_set:
                 m = manifests.get(item)
                 if m is not None:
-                    is_inst = is_dep_installed(m.detect)
+                    is_inst = supply_installed(m)
                     label = f"{label}  {msg('installed') if is_inst else msg('missing')}"
                     if not is_inst:
                         checked = False
+            if mode == "full" and item in manifests:
+                requirements = resolve_requirements(manifests[item])
+                if not requirements.supported:
+                    label = f"{label}  {msg('pkg_unsupported_label')}"
+                    checked = False
+                elif requirements.manual:
+                    label = f"{label}  {msg('pkg_manual_label')}"
             entries.append(CheckboxEntry(key=f"config_{item}", label=label, checked=checked))
 
     if mode == "full" or is_update:
@@ -164,7 +175,8 @@ def deps_menu_loop() -> bool:
     if not sys.stdin.isatty():
         print(msg("interactive_terminal_required"), file=sys.stderr)
         return False
-    if not shutil.which("pacman"):
+    from nyxuri.pkg.platform import backend_available
+    if not backend_available():
         print(msg("deps_menu_unsupported"))
         return False
 

@@ -8,11 +8,19 @@ label = "Brave Origin"
 category = "browser"
 packages_aur = ["brave-origin-bin"]
 
+[brave-origin.platforms.ubuntu]
+packages = ["brave-origin"]
+reason = "Requires the official Brave APT source to be configured already."
+
 [flclash]
 label = "FlClash"
 category = "proxy"
 detect = "flclash"
 packages_aur = ["flclash-bin"]
+
+[flclash.platforms.ubuntu]
+manual = ["flclash"]
+reason = "Official releases include a prebuilt Linux .deb package; install it manually."
 
 [quickshell]
 # Nyxuri Shell 的运行时底座：随 Noctalia AUR 传递引入，单独选用
@@ -22,9 +30,16 @@ category = "shell-runtime"
 detect = "quickshell"
 packages_aur = ["quickshell"]
 
+[quickshell.platforms.ubuntu]
+packages = ["quickshell"]
+reason = "Quickshell requires a separately configured APT source."
+
 [kdenlive]
 label = "Kdenlive"
 category = "video"
+packages = ["kdenlive"]
+
+[kdenlive.platforms.ubuntu]
 packages = ["kdenlive"]
 
 [libreoffice]
@@ -32,9 +47,15 @@ label = "LibreOffice"
 category = "office"
 packages = ["libreoffice-fresh"]
 
+[libreoffice.platforms.ubuntu]
+packages = ["libreoffice"]
+
 [lutris]
 label = "Lutris"
 category = "game"
+packages = ["lutris"]
+
+[lutris.platforms.ubuntu]
 packages = ["lutris"]
 
 [missioncenter]
@@ -43,14 +64,26 @@ category = "system"
 detect = "mission-center"
 packages = ["mission-center"]
 
+[missioncenter.platforms.ubuntu]
+packages = []
+packages_flatpak = ["io.missioncenter.MissionCenter"]
+
 [motrix]
 label = "Motrix"
 category = "download"
 packages_aur = ["motrix"]
+detect = "motrix"
+
+[motrix.platforms.ubuntu]
+manual = ["motrix"]
+reason = "Official releases include a prebuilt Linux .deb package; install it manually."
 
 [nautilus]
 label = "Nautilus"
 category = "system"
+packages = ["nautilus"]
+
+[nautilus.platforms.ubuntu]
 packages = ["nautilus"]
 
 [obs]
@@ -59,10 +92,17 @@ category = "video"
 detect = "obs"
 packages = ["obs-studio"]
 
+[obs.platforms.ubuntu]
+packages = ["obs-studio"]
+
 [protonplus]
 label = "ProtonPlus"
 category = "game"
 packages_aur = ["protonplus"]
+
+[protonplus.platforms.ubuntu]
+packages = []
+packages_flatpak = ["com.vysp3r.ProtonPlus"]
 
 [qq]
 label = "QQ"
@@ -85,16 +125,27 @@ label = "Steam"
 category = "game"
 packages = ["steam"]
 
+[steam.platforms.ubuntu]
+packages = ["steam"]
+
 [telegram]
 label = "Telegram"
 category = "social"
 packages = ["telegram-desktop"]
+
+[telegram.platforms.ubuntu]
+packages = []
+packages_flatpak = ["org.telegram.desktop"]
 
 [vscode]
 label = "Visual Studio Code"
 category = "dev"
 detect = "code"
 packages_aur = ["visual-studio-code-bin"]
+
+[vscode.platforms.ubuntu]
+packages = ["code"]
+reason = "Requires the Microsoft APT source to be configured already."
 
 [wechat]
 label = "微信 (WeChat)"

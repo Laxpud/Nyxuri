@@ -29,6 +29,44 @@
 | `[privilege]` | 无表 | 特权副作用声明：`requires_root = true` + `system_paths = [...]`（如 greeter 的 `/etc/greetd`）。只声明事实供展示与审计，不改变执行方式 |
 | `dependencies` | `[]` | 依赖的其他 Nyxuri 单元（内核 resolver 的输入） |
 
+### 平台依赖覆盖
+
+运行时依赖由 `nyxuri/pkg/requirements.py:resolve_requirements` 统一解析。
+顶层 `packages` / `packages_aur` / `packages_flatpak` 保持原有 Arch 声明；
+`ModuleManifest` 和 `CatalogEntry` 保存原始字段，不随宿主平台改写。
+因此 `packaging/gen-deps.py` 在 Ubuntu 上运行仍得到 Arch 的包名。
+
+Ubuntu 单元在同一个 manifest 中声明覆盖，包目录清单使用相同字段：
+
+```toml
+# units/noctalia/manifest.toml 的平台覆盖示例
+[platforms.ubuntu]
+packages = ["noctalia", "python3-gi", "gir1.2-gtklayershell-0.1", "wl-clipboard", "python3-cairo"]
+reason = "Noctalia requires its configured APT source."
+
+# catalog.toml 中的独立条目示例
+[vscode.platforms.ubuntu]
+packages = ["code"]
+```
+
+| 字段 | 作用 |
+| --- | --- |
+| `packages` | 当前平台的原生包名；Ubuntu 只送往 APT。需要显式无依赖时写 `[]` |
+| `packages_flatpak` | 覆盖 Flatpak app ID；缺省时沿用顶层的跨发行版 ID |
+| `manual` | 必须已由用户提供的命令或资源 ID；只探测，不送往 APT，不触发编译 |
+| `supported` | `false` 明确不支持该平台，不部署、不调用安装器 |
+| `reason` | 来源或不支持原因，供详情与安装失败说明使用 |
+
+Ubuntu 覆盖替换整个原生依赖集合，不与顶层 Arch/AUR 包名合并。缺少覆盖且存在
+原生/AUR 依赖时，解析为不支持；只有 Flatpak 或完全无包依赖的单元可以跨平台沿用。
+空平台表或只有 `reason` 的表不能表示依赖齐全；必须写明包/资源字段或 `supported=false`。
+手动资源缺失时单元启用失败；会话工具链的手动项与配置整装边界见
+[Ubuntu 兼容指南](ubuntu-compatibility.md)。
+
+CLI、工坊、单元事务、应用菜单和安装器均使用解析后的集合。`on` 在副作用前检查
+平台支持和依赖，安装后重新检查；`off` 报告当前平台保留的软件包。没有 Ubuntu
+供应声明不影响单纯取用配置的 `install config`。
+
 ### 单元生命周期钩子（KM3 契约）
 
 钩子是**单元自己的行为**，不是内核业务代码——落点固定为单元目录内
@@ -104,7 +142,7 @@ label = "XDG Portals"
 target = "starship.toml"
 ```
 
-fastfetch **不写 manifest**（目录名 = 包名 = 二进制名 = 无例外），全默认即对。
+fastfetch 的 Arch 包名与二进制名仍由目录名默认推导；其 manifest 只补 Ubuntu 覆盖。
 
 ## 可选供给（`optional = true` 与根 `catalog.toml`，两源同汇）
 

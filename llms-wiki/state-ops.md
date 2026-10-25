@@ -69,7 +69,7 @@ nyxuri rollback [index]         # 回滚到指定快照（回滚前自动生成�
 - `nyxuri uninstall`（无参）→ 交互勾选清单（默认 standard 范围）
 - `nyxuri purge` / `uninstall --all` → 跳过勾选、全选 + 确认（等价完全卸载但补全历史遗留）
 - 非交互式（管道，非 TTY）→ 默认全选 + 归档配置
-- 检测到 system 模式 → 清单末尾提示"源码包归 pacman 管，完全卸载请再跑 `sudo pacman -R nyxuri-git`"
+- 检测到 system 模式 → Arch 提示通过 pacman 卸载源码包，其他平台提示使用原安装包管理器；引擎不代为卸载系统包。
 
 ## 5 处历史 [gap]（已修复）
 

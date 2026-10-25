@@ -261,7 +261,8 @@ def uninstall_nyxuri(mode: str = "") -> bool:
                 _rm_report(legacy_cache)
 
     if env.run_mode == "system":
-        print(msg("uninstall_system_hint"))
+        from nyxuri.pkg.platform import current_platform
+        print(msg("uninstall_system_hint" if current_platform() == "arch" else "uninstall_system_package_generic"))
 
     print(msg("uninstall_done"))
     log_msg("INFO", f"Uninstall completed (selected: {sorted(selected)})")

@@ -225,15 +225,27 @@ def _check_portal_active(env) -> None:
         print(msg("doctor_warn", text("桌面门户: xdg-desktop-portal 未运行", "Desktop Portal: xdg-desktop-portal is not active")))
 
 def _check_portal_gtk(env) -> None:
-    if shutil.which("pacman"):
-        try:
-            res = subprocess.run(["pacman", "-Qq", "xdg-desktop-portal-gtk"], capture_output=True, check=False, timeout=10)
-            if res.returncode == 0:
-                print(msg("doctor_ok", text("桌面门户: xdg-desktop-portal-gtk 后端已安装", "Desktop Portal: xdg-desktop-portal-gtk backend is installed")))
-            else:
-                print(msg("doctor_warn", text("桌面门户: 缺少 xdg-desktop-portal-gtk", "Desktop Portal: xdg-desktop-portal-gtk is missing")))
-        except Exception:
-            pass
+    from nyxuri.pkg.platform import backend_available, current_platform, installed_package_names
+
+    distro = current_platform()
+    package = {"arch": "xdg-desktop-portal-gtk", "ubuntu": "xdg-desktop-portal-gtk"}.get(distro)
+    if package is None:
+        print(msg("doctor_warn", text(
+            "桌面门户: 无法识别系统包管理器，跳过 GTK 后端包检查",
+            "Desktop Portal: package backend is unknown; skipping GTK backend package check",
+        )))
+        return
+    if not backend_available():
+        print(msg("doctor_warn", text(
+            "桌面门户: 原生包数据库不可用，跳过 GTK 后端包检查",
+            "Desktop Portal: native package database is unavailable; skipping GTK backend package check",
+        )))
+        return
+    installed = installed_package_names()
+    if package in installed:
+        print(msg("doctor_ok", text(f"桌面门户: {package} 后端已安装", f"Desktop Portal: {package} backend is installed")))
+    else:
+        print(msg("doctor_warn", text(f"桌面门户: 缺少 {package}", f"Desktop Portal: {package} is missing")))
 
 def _check_portal_config(env) -> None:
     xdg_curr = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
@@ -501,17 +513,23 @@ def generate_bug_report() -> Optional[Path]:
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     report_file = env.state_dir / f"nyxuri-bug-report-{timestamp}.md"
 
-    # Parallel collection of all subprocess-based info
+    from nyxuri.pkg.platform import backend_available, current_platform, native_package_version
+
+    distro = current_platform()
+    # 按实际发行版查询包版本；命令行工具仍读取自身版本输出。
     version_cmds = {}
     for cmd in (MAIN_WM, THEME_ENGINE, "fish", "starship", "kitty", "mpvpaper", "wpctl", "ddcutil", "brightnessctl"):
         if not shutil.which(cmd):
             continue
-        if cmd == "wpctl":
-            version_cmds[cmd] = ["wireplumber", "--version"]
-        elif cmd == "mpvpaper":
-            version_cmds[cmd] = ["pacman", "-Q", "mpvpaper", "mpvpaper-git"]
-        else:
-            version_cmds[cmd] = [cmd, "--version"]
+        if cmd in ("mpvpaper", "wpctl"):
+            continue
+        version_cmds[cmd] = [cmd, "--version"]
+
+    package_version_queries = {
+        "mpvpaper": (("mpvpaper", "mpvpaper-git") if distro == "arch" else ("mpvpaper",)),
+        "wireplumber": ("wireplumber",),
+        "xdg-desktop-portal-gtk": ("xdg-desktop-portal-gtk",),
+    }
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         futures = {
@@ -521,11 +539,20 @@ def generate_bug_report() -> Optional[Path]:
             "noctalia_status": pool.submit(_run_cmd, [THEME_ENGINE, "msg", "status"]),
             "portal_status": pool.submit(_run_cmd, ["systemctl", "--user", "status", "xdg-desktop-portal"]),
             "df_home": pool.submit(_run_cmd, ["df", "-h", str(env.home)]),
-            "portal_gtk": pool.submit(_run_cmd, ["pacman", "-Qq", "xdg-desktop-portal-gtk"]),
+            "portal_gtk": pool.submit(native_package_version, "xdg-desktop-portal-gtk"),
         }
         version_futures = {cmd: pool.submit(_run_cmd, vc) for cmd, vc in version_cmds.items()}
+        package_version_futures = {
+            name: [pool.submit(native_package_version, package) for package in packages]
+            for name, packages in package_version_queries.items()
+        }
         results = {key: fut.result() for key, fut in futures.items()}
         version_results = {cmd: fut.result() for cmd, fut in version_futures.items()}
+        package_versions = {
+            name: next((version for future in futures_for_name
+                        if (version := future.result()) is not None), None)
+            for name, futures_for_name in package_version_futures.items()
+        }
 
     # OS Info
     os_name = "Linux"
@@ -564,18 +591,15 @@ def generate_bug_report() -> Optional[Path]:
         if not shutil.which(cmd):
             tool_lines.append(f"{cmd}: NOT INSTALLED")
             continue
-        res = version_results.get(cmd)
-        if not res:
-            tool_lines.append(f"{cmd}: NOT INSTALLED")
-            continue
         if cmd == "wpctl":
-            ver = next((l for l in res.stdout.splitlines() if "libwireplumber" in l.lower()), "")
-            if not ver:
-                wp_fallback = _run_cmd(["pacman", "-Q", "wireplumber"])
-                ver = wp_fallback.stdout.strip() if wp_fallback else "installed"
+            ver = package_versions.get("wireplumber") or "installed"
         elif cmd == "mpvpaper":
-            ver = res.stdout.splitlines()[0] if res.stdout.strip() else "installed"
+            ver = package_versions.get("mpvpaper") or "installed"
         else:
+            res = version_results.get(cmd)
+            if not res:
+                tool_lines.append(f"{cmd}: NOT INSTALLED")
+                continue
             ver = res.stdout.splitlines()[0] if res.stdout.strip() else (res.stderr.splitlines()[0] if res.stderr.strip() else "installed")
         tool_lines.append(f"{cmd}: {ver}")
     tool_versions = "\n".join(tool_lines)
@@ -595,8 +619,11 @@ def generate_bug_report() -> Optional[Path]:
     # Health Checks
     health_lines = []
     portal_gtk_res = results.get("portal_gtk")
-    if portal_gtk_res:
-        health_lines.append(f"xdg-desktop-portal-gtk: {'installed' if portal_gtk_res.returncode == 0 else 'NOT INSTALLED'}")
+    if distro in ("arch", "ubuntu") and backend_available():
+        portal_status = portal_gtk_res or "NOT INSTALLED"
+        health_lines.append(f"xdg-desktop-portal-gtk: {portal_status}")
+    else:
+        health_lines.append("xdg-desktop-portal-gtk: package status unavailable (unsupported or unavailable package backend)")
     df_res = results.get("df_home")
     if df_res:
         lines = df_res.stdout.strip().splitlines()

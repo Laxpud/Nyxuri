@@ -68,6 +68,10 @@
 
 ## 安装
 
+Ubuntu 26.04 的适配、软件源要求和剩余桌面验收见 [Ubuntu 兼容指南](llms-wiki/ubuntu-compatibility.md)。
+使用本 fork 的 Ubuntu 源码时，从该检出目录运行 `bash nyxuri/launcher.sh`；
+下方上游在线引导不会自动选择 fork 的 `ubuntu` 分支。
+
 ### 从 Git 仓库安装（推荐）
 
 ```bash
@@ -83,7 +87,7 @@ curl -fsSL --connect-timeout 10 https://raw.githubusercontent.com/ech678/Nyxuri/
 ```
 
 > [!TIP]
-> 自动支持 Shelly、paru、yay；均未安装时，`nyxuri install full` 会自动装好 `paru`。
+> Arch 自动探测 Shelly、paru、yay；缺少助手时尝试从已配置的软件源安装。Ubuntu 使用 APT，不安装 AUR 助手。
 
 <details>
 <summary>国内镜像加速（gh-proxy / CDN）</summary>

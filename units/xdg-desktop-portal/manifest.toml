@@ -1,2 +1,5 @@
 # xdg-desktop-portal manifest — package = binary = dir name; menu label only.
 label = "XDG Portals"
+
+[platforms.ubuntu]
+packages = ["xdg-desktop-portal", "xdg-desktop-portal-gtk", "xdg-desktop-portal-gnome"]

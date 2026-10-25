@@ -4,3 +4,7 @@ preserve_values = { "noctalia-config.toml" = ["enable_ddcutil"] }
 chmod = ["wallpaper-hook.sh", "mpvpaper-sync.sh", "tools/*.sh", "tools/*.py"]
 post_install = "render-gtk"
 post_remove = "remove-gtk-css"
+
+[platforms.ubuntu]
+packages = ["noctalia", "python3-gi", "gir1.2-gtklayershell-0.1", "wl-clipboard", "python3-cairo"]
+reason = "Noctalia requires its configured APT source."
