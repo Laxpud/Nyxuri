@@ -1,13 +1,12 @@
-"""Dual shell runtime management, readiness probe, and hot-switching state machine.
+"""管理双 Shell 运行态、就绪探测和 Wayland 会话中的热切换。
 
-Ensures safe transitions between Noctalia and Nyxuri Shell (custom) under Wayland.
-Strictly follows the P0-06 state machine:
-1. Target preflight
-2. Lock safety check
-3. Graceful stop of old instance (bounded 2.5s)
-4. Background spawn of new instance
-5. Bounded readiness probe (3.0s)
-6. Commit ledger on success; rollback and restore old shell on failure.
+按 P0-06 状态机完成 Noctalia 与 Nyxuri Shell 的交接：
+1. 预检目标入口。
+2. 检查锁屏状态。
+3. 请求旧实例优雅退出，等待上限 2.5s，超时后强制终止。
+4. 在后台启动新实例。
+5. 在 4.0s 内探测就绪。
+6. 成功后提交账本；失败时回滚并恢复旧 Shell。
 """
 
 import os
@@ -32,8 +31,9 @@ def normalize_shell_name(name: str) -> str:
 
 
 def find_default_custom_bin() -> str:
-    """Discover default nyxuri-shell binary from repo or PATH."""
-    repo_root = Path(__file__).resolve().parent.parent
+    """先从仓库根目录查找 Shell 入口，再回退到 PATH。"""
+    # 本文件位于 nyxuri/desktop/，向上三层才是包含 shell/ 的仓库根目录。
+    repo_root = Path(__file__).resolve().parents[2]
     local_script = repo_root / "shell" / "nyxuri-shell"
     if local_script.is_file() and os.access(local_script, os.X_OK):
         return str(local_script)
@@ -158,7 +158,8 @@ def probe_running_shells() -> "list[Tuple[str, int]]":
 
     def nyxuri_shell_dirs() -> "set[Path]":
         dirs: "set[Path]" = set()
-        for raw in (resolve_custom_bin(), str(Path(__file__).resolve().parent.parent / "shell")):
+        # 同时识别显式配置入口和当前源码树，避免源码启动实例漏出切换清理范围。
+        for raw in (resolve_custom_bin(), str(Path(__file__).resolve().parents[2] / "shell")):
             if not raw:
                 continue
             path = Path(raw)

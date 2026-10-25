@@ -40,6 +40,7 @@ from nyxuri.deploy.atomic import CarryPolicy
 from nyxuri.deploy.deploy import _phase_atomic_deployment, merge_deploy_unit
 from nyxuri.deploy.manifest import ModuleManifest, living_path
 from nyxuri.deploy.preset import write_active_preset
+from nyxuri.deploy.templates import _phase_render_templates
 from nyxuri.kernel.resolver import resolve_order
 
 STATE_SYNCED = "Synced"
@@ -673,6 +674,9 @@ def unit_on(
                 if uid in _phase_atomic_deployment([uid], carry_policy=policy):
                     results.append(Step(uid, False, "deploy-failed"))
                     return results
+                # 原子复制只铺设蓝图；钩子读取配置前，复用整装流程的单元级路径渲染，
+                # 将 /home/user 等占位符解析为本次 HOME，后续快照记录渲染后的内容。
+                _phase_render_templates(only_app=uid)
                 files = snapshot_files(dest, manifest)
                 # Carried files stay user-owned: they must never enter the
                 # snapshot, or the next deploy would mistake them for

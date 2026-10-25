@@ -15,7 +15,7 @@
 - [vision](vision.md): 五条简洁标准（透明/主权/包容/轻盈/自然）与桌面插件市场终态哲学
 - [unit-model](unit-model.md): 单元模型、内核架构（nyxuri/kernel/）、正交状态机、merge 共享生活区、纯文件 Vault、极简 manifest 契约、死刑清单、路径术语表
 - [manifest-schema](manifest-schema.md): manifest.toml 字段参考（target ~/ / merge）、单元钩子契约、catalog.toml 同源规则、声明式边界
-- [ubuntu-compatibility](ubuntu-compatibility.md): Ubuntu 包后端、软件来源、跳过构建清单与 Plasma/Niri 验收边界
+- [ubuntu-compatibility](ubuntu-compatibility.md): Ubuntu 包后端、依赖供应、会话行为与限制
 - [preset-mechanism](preset-mechanism.md): active 状态文件、通用零件插槽体系（Parts Slots）、防覆盖自愈、写时序铁律、原子写
 - [file-preservation](file-preservation.md): Dunder __custom__ walk + manifest preserve（两套刻意不合并）
 - [state-ops](state-ops.md): 快照生命周期（30 个滚动 prune）与勾选式卸载、执行时序铁律
@@ -38,7 +38,7 @@
 - [changelog-spec](changelog-spec.md): Changelog 规范、真实净变更原则与中间态 Bug 拦截
 - [tui-charter](tui-charter.md): 宏观 TUI 设计宪章、减法降噪、控制感与 Pre-flight 清单
 - [testing](testing.md): 测试策略与形状、TempEnv 隔离、mock 层级、测试镜像树
-- [fork-workflow](fork-workflow.md): 本 fork 的个人协作规则、分支职责、同步与 PR 授权边界
+- [fork-workflow](fork-workflow.md): 本 fork 的个人协作规则、分支职责、文档分工、同步与 PR 授权边界
 - [pr-branches](pr-branches.md): 从个人分支筛选已提交改动，在独立 worktree 准备干净 PR 分支
 
 ## Reference

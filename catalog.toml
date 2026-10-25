@@ -24,16 +24,27 @@ manual = ["flclash"]
 reason = "Official releases include a prebuilt Linux .deb package; install it manually."
 
 [quickshell]
-# Nyxuri Shell 的运行时底座：随 Noctalia AUR 传递引入，单独选用
-# nyxuri-shell 时由这里声明（shell/KNOWN-ISSUES 缺口清算）。
+# Nyxuri Shell 的独立运行时底座；Noctalia v5 不再提供 Quickshell。
 label = "Quickshell"
 category = "shell-runtime"
 detect = "quickshell"
 packages_aur = ["quickshell"]
 
 [quickshell.platforms.ubuntu]
-packages = ["quickshell"]
-reason = "Quickshell requires a separately configured APT source."
+# Ubuntu 的 Quickshell DEB 只拉取 Qt 共享库，QML 模块需要单独声明。
+# Controls 传递提供 QtQuick、QtQml、Shapes、Templates、Window；其余按 Shell 的 import 补齐。
+packages = [
+    "quickshell",
+    "qml6-module-qtquick-controls",
+    "qml6-module-qtquick-effects",
+    "qml6-module-qtquick-layouts",
+    "qml6-module-qtcore",
+    "qml6-module-qt-labs-folderlistmodel",
+    "qml6-module-qt5compat-graphicaleffects",
+]
+# Shell 的图标使用 Material Symbols 字族；旧 Material Icons 不能提供同一套字形。
+manual = ["material-symbols-rounded-font", "material-symbols-outlined-font"]
+reason = "Quickshell requires a separately configured APT source; provide Google's prebuilt Material Symbols Rounded and Outlined fonts manually."
 
 [kdenlive]
 label = "Kdenlive"

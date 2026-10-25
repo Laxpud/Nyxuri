@@ -22,27 +22,16 @@
 | T3 | 设置界面替换：Caelestia 安卓风味默认 + Dashboard 双轨 | 进行中 |
 | T4 | Shell 可控性与透明化 | 待开始 |
 | T5 | 多合成器 (Multi-WM) 架构解耦（门禁触发） | 待开始 |
-| U1 | Ubuntu 26.04 包管理、依赖声明与桌面兼容 | Plasma 阶段完成，待 Niri 验收 |
+| U1 | Ubuntu 26.04 包管理、依赖声明与桌面兼容 | 已完成 |
 
 ### Ubuntu 兼容
 
 实现与软件来源见 [Ubuntu 兼容指南](llms-wiki/ubuntu-compatibility.md)，平台字段见
 [manifest-schema](llms-wiki/manifest-schema.md#平台依赖覆盖)。
 
-- [x] APT/dpkg 后端、统一依赖解析与 CLI/TUI 接入。
-- [x] Plasma 中完成现有测试、隔离部署、APT 模拟及 Niri 配置校验。
-- [ ] 进入 Niri 后验证新会话启动、Noctalia IPC、启动器/设置/锁屏/静态壁纸及主题同步。
-- [ ] 进入 Niri 后验证 portal 文件选择、屏幕共享/截图、通知及剪贴板。
-- [ ] 进入 Niri 后验证快捷键、多显示器、自定义配置保留、Orbit/Scratchpad 定位。
-- [ ] 进入 Niri 后验证 Fcitx 在 GTK/Qt/浏览器中的输入及注销重登后的生命周期。
-- [ ] 进入 Niri 后验证自研 Shell 的窗口、动作、冷热切换及退出时的进程清理。
-
-2026-10-25 已确认：保留 Fcitx 原有部署契约，目标目录缺陷作为
-[已知问题](llms-wiki/ubuntu-compatibility.md#已确认的原有-fcitx-路径问题)记录，本轮不修复或迁移。
-Fcitx 的后续验收须保留这一限制，不能仅凭依赖齐全判定通过。
-
-Greeter 的实际登录管理器切换与重启需单独安排；本轮不切换 Plasma 的显示管理器。
-无已接入来源且需编译的依赖按兼容指南清单跳过，不以静态配置部署代替功能验收。
+APT/dpkg 后端、依赖声明及 Niri 核心交互、重登验收已完成。
+Fcitx 目标目录、Niri 多输出截图及可选运行时的限制见兼容指南；显示管理器切换、
+源码构建与 Fcitx 目录迁移不在本阶段交付范围。
 
 ### T0 终端体验修复（复制粘贴最终之战）
 

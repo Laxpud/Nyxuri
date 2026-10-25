@@ -154,27 +154,38 @@ def _check_scratchpad(env) -> None:
         print(msg("doctor_warn", text("Scratchpad: 缺少 tmux", "Scratchpad: tmux is missing")))
 
 def _check_orbit(env) -> None:
+    """核对 Orbit 的 GTK Layer Shell 绑定与 draw 回调使用的 Cairo 转换器。"""
     from nyxuri.kernel.ledger import active_shell
+    from nyxuri.pkg.platform import current_platform
+
     if active_shell() != "noctalia":
         return
     launcher = env.config_dir / THEME_ENGINE / "tools" / "orbit-launcher.py"
     src_launcher = env.units_src / THEME_ENGINE / "tools" / "orbit-launcher.py"
     if not launcher.is_file() and not src_launcher.is_file():
         return
+    # 1. 包名随发行版变化；未知平台只说明缺失能力，不推荐其他平台的包名。
+    packages = {
+        "arch": "python-gobject, gtk-layer-shell, python-cairo",
+        "ubuntu": "python3-gi, gir1.2-gtklayershell-0.1, python3-cairo, python3-gi-cairo",
+    }.get(current_platform())
+    missing = text("Orbit: 缺少 GTK Layer Shell 或 Cairo Python 绑定",
+                   "Orbit: GTK Layer Shell or Cairo Python bindings are missing")
+    if packages:
+        missing += text(f"，请安装 {packages}", f"; install {packages}")
+
+    # 2. import cairo 只证明绘图模块存在；require_foreign 还验证 GTK draw 信号所需转换器。
     try:
         res = timed_run(
-            [sys.executable, "-c", "import gi; gi.require_version('Gtk', '3.0'); gi.require_version('GtkLayerShell', '0.1')"],
+            [sys.executable, "-c", "import gi; import cairo; gi.require_foreign('cairo'); gi.require_version('Gtk', '3.0'); gi.require_version('GtkLayerShell', '0.1')"],
             10, capture_output=True, check=False,
         )
         if res is not None and res.returncode == 0:
-            print(msg("doctor_ok", text("Orbit: GtkLayerShell Python 运行环境可用", "Orbit: GtkLayerShell Python runtime is available")))
+            print(msg("doctor_ok", text("Orbit: GtkLayerShell 与 Cairo Python 运行环境可用", "Orbit: GtkLayerShell and Cairo Python runtime is available")))
         else:
-            print(msg("doctor_warn", text(
-                "Orbit: 缺少 GtkLayerShell Python 绑定，请安装 python-gobject 与 gtk-layer-shell",
-                "Orbit: GtkLayerShell Python bindings are missing; install python-gobject and gtk-layer-shell",
-            )))
+            print(msg("doctor_warn", missing))
     except Exception:
-        print(msg("doctor_warn", text("Orbit: 缺少 GtkLayerShell Python 绑定", "Orbit: GtkLayerShell Python bindings are missing")))
+        print(msg("doctor_warn", missing))
 
 def _check_shell(env) -> None:
     curr_shell = os.environ.get("SHELL", "")

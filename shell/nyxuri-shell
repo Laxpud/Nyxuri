@@ -19,17 +19,20 @@ if [ -d "${SHAPES_QML_PATH}" ]; then
     export QML2_IMPORT_PATH="${QML2_IMPORT_PATH:+${QML2_IMPORT_PATH}:}${SHAPES_QML_PATH}"
 fi
 
-# The Quickshell QML disk cache lives in a nyxuri-shell-private cache
-# namespace: 0.3.2 serves stale compilation units after source edits, and
-# multiple quickshell instances share (and stomp) the default cache dir.
-# It is cleared on every launch — a cold compile with the unit warm-up
-# imports is verified clean, and freshness beats cold-start milliseconds.
-# Do NOT set QML_DISABLE_DISK_CACHE instead: without the cache write, every
-# Loader load re-hits the 0.3.2 qs-import defect and units die at cold
-# compile.
+# Quickshell 使用 nyxuri-shell 专属缓存目录。0.3.2 编辑源码后可能读取旧编译结果，
+# 因此只在实际启动前清空 qmlcache；状态查询、IPC 和停止不能删除运行实例的缓存。
+# 不设置 QML_DISABLE_DISK_CACHE：禁写缓存会再次触发 Loader 内 qs import 解析缺陷。
 export NYXURI_ORIGINAL_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_CACHE_HOME="${NYXURI_ORIGINAL_CACHE_HOME}/nyxuri-shell"
-rm -rf "${XDG_CACHE_HOME}/quickshell/qmlcache"
+
+prepare_startup_cache() {
+    # 普通启动与锁屏缺席时的补启动共用此步骤；缺运行时则先报错，保留旧缓存。
+    if ! command -v qs >/dev/null 2>&1; then
+        printf "Nyxuri Shell requires 'qs' (Quickshell) in PATH.\n" >&2
+        return 127
+    fi
+    rm -rf "${XDG_CACHE_HOME}/quickshell/qmlcache"
+}
 
 # The generated palette has to be written where the shell reads it. The two sides
 # defaulted to different places: scripts/lib/nyxuri-paths.sh resolves to
@@ -108,6 +111,7 @@ if [ -n "$ACTION" ]; then
             ;;
         lock)
             if ! qs -p "${SHELL_DIR}" ipc call lock open 2>/dev/null; then
+                prepare_startup_cache
                 qs -p "${SHELL_DIR}" --no-duplicate >/dev/null 2>&1 &
                 for _ in $(seq 1 30); do
                     sleep 0.1
@@ -174,5 +178,6 @@ if [ -n "$ACTION" ]; then
     esac
 fi
 
-# Default: start Nyxuri Shell via quickshell
+# 默认入口实际启动 Shell，此时才清理旧编译缓存。
+prepare_startup_cache
 exec qs -p "${SHELL_DIR}" --no-duplicate "$@"

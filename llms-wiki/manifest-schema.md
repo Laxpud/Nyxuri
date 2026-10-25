@@ -41,7 +41,7 @@ Ubuntu 单元在同一个 manifest 中声明覆盖，包目录清单使用相同
 ```toml
 # units/noctalia/manifest.toml 的平台覆盖示例
 [platforms.ubuntu]
-packages = ["noctalia", "python3-gi", "gir1.2-gtklayershell-0.1", "wl-clipboard", "python3-cairo"]
+packages = ["noctalia", "python3-gi", "gir1.2-gtklayershell-0.1", "wl-clipboard", "python3-cairo", "python3-gi-cairo"]
 reason = "Noctalia requires its configured APT source."
 
 # catalog.toml 中的独立条目示例

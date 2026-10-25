@@ -35,6 +35,14 @@ class DependencyProbe:
         return self._query("fc-list", [":", "family"], 15).lower()
 
     @cached_property
+    def font_families(self):
+        """将 Fontconfig 实际列出的字族和别名拆成集合，用于指定字族的精确检测。"""
+        # fc-list 每行可能同时列出多个逗号分隔的字族别名；不使用 fc-match，
+        # 因为缺失目标字体时它仍会返回其他字体，不能作为安装成功的证据。
+        return {family.strip() for line in self.fonts.splitlines()
+                for family in line.split(",") if family.strip()}
+
+    @cached_property
     def flatpaks(self):
         return set(self._query("flatpak", ["list", "--system", "--app", "--columns=application"], 15).split())
 
@@ -54,7 +62,8 @@ class DependencyProbe:
             code = runtime_imports[name]
             result = timed_run([sys.executable, "-c", code], 10, capture_output=True, check=False)
             return result is not None and result.returncode == 0
-        if name in ("rime-ice", "jetbrains-mono-nerd-font"):
+        if name in ("rime-ice", "jetbrains-mono-nerd-font",
+                    "material-symbols-rounded-font", "material-symbols-outlined-font"):
             return self.manual_installed(name)
         patterns = {
             "ttf-jetbrains-mono": "jetbrains mono",
@@ -72,6 +81,12 @@ class DependencyProbe:
             return shutil.which("mpvpaper") is not None
         if name == "jetbrains-mono-nerd-font":
             return bool(re.search(r"jetbrains.*nerd", self.fonts))
+        symbol_families = {
+            "material-symbols-rounded-font": "material symbols rounded",
+            "material-symbols-outlined-font": "material symbols outlined",
+        }
+        if name in symbol_families:
+            return symbol_families[name] in self.font_families
         if name == "rime-ice":
             roots = (
                 Path("/usr/share/rime-data"),

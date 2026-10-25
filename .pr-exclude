@@ -3,8 +3,9 @@
 /tools/prepare-pr.py
 /llms-wiki/fork-workflow.md
 /llms-wiki/pr-branches.md
+/fork-notes/
 
-# 这两个上游文件目前仅新增了个人规则的入口和索引。
+# 这两个上游文件包含个人规则的入口和索引。
 # PR 分支保留它们的上游版本，避免留下指向已排除文档的链接。
 /AGENTS.md
 /llms-wiki/llms.txt

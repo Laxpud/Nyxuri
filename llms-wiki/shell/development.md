@@ -23,13 +23,20 @@ python3 shell/scripts/dev/run-tests.py --all
 python3 shell/scripts/dev/audit-lifecycle.py --root shell --scope all --check
 ```
 
-### 2. 隔离进程预览与 IPC 交互（不影响当前运行的桌面会话）
+### 2. 独立进程预览与 IPC 交互
 
-当前运行 Noctalia 时，无需关闭桌面，可直接拉起独立 Nyxuri Shell 进程进行预览：
+独立进程不等于独立桌面：直接运行会使用当前用户配置、写入主题模板和 Noctalia 色板，
+还会参与通知服务注册。当前运行 Noctalia 时，先用临时 HOME/XDG 目录和私有 D-Bus 会话
+隔离这些写入与服务；Wayland 和 Niri 仍是当前桌面，面板占位、窗口和用户触发的桌面动作仍可见。
 
 ```bash
-# 隔离前台启动（详细日志流，自动挂载 fallback QML 桩）
-shell/nyxuri-shell -v
+# 从仓库根目录启动预览；保留真实 XDG_RUNTIME_DIR 以连接当前 Wayland
+preview_root=$(mktemp -d /tmp/nyxuri-shell-preview.XXXXXX)
+env HOME="$preview_root" \
+    XDG_CONFIG_HOME="$preview_root/config" XDG_DATA_HOME="$preview_root/data" \
+    XDG_STATE_HOME="$preview_root/state" XDG_CACHE_HOME="$preview_root/cache" \
+    NYXURI_SHELL_RUNTIME_HOME="$preview_root/runtime" \
+    dbus-run-session -- shell/nyxuri-shell -v
 
 # 观察实时日志流（另一终端）
 qs log --path ./shell --follow
@@ -40,11 +47,18 @@ qs ipc --path ./shell show
 # 向调试实例派发动作（观察面板弹起与按需析构）
 qs ipc --path ./shell call power-menu toggle
 qs ipc --path ./shell call spotlight toggle
-qs ipc --path ./shell call lock open
 
 # 结束调试实例
 qs kill --path ./shell
 ```
+
+预览前检查没有同路径的 Nyxuri Shell 实例：wrapper 使用 `--no-duplicate`，重复调用会复用
+现有实例。上例未覆盖主动设置的 `NYXURI_SHELL_*` 路径变量，若会话设置过这些变量，先核对
+并将它们指向临时目录。锁屏单独人工验收，确认 PAM 认证与恢复手段后再执行 `lock open`。
+
+wrapper 只在真实启动路径（含锁屏补启动）清空专属 QML 缓存；`--status`、`--check-ready`、
+普通 `--ipc` 和 `--stop` 不清缓存。`shell isReady` 只表示宿主 IPC 阶段已到达，不能代替
+单元装载、Niri 连接、视觉及认证验收；结合 `shell diagnostics`、`shell log` 和实际窗口检查。
 
 ### 3. 真实会话双 Shell 平滑热切换（全桌面接管与即时切回）
 
@@ -54,9 +68,12 @@ qs kill --path ./shell
 # 检查当前双轨状态
 nyxuri shell status
 
-# 平滑切换至 Nyxuri Shell（停止旧端 -> 启动新端 -> 3.0s 探测就绪 -> 失败回滚）
-nyxuri shell set custom "$PWD/shell/nyxuri-shell"
-nyxuri shell switch nyxuri-shell
+# 先确认仓库自带 wrapper 需要的运行时已在 PATH
+command -v qs
+qs --version
+
+# 平滑切换（停止旧端 -> 启动新端 -> 4.0s 探测就绪 -> 失败回滚）
+nyxuri shell switch nyxuri-shell "$PWD/shell/nyxuri-shell"
 
 # 验证六大标准动作（快捷键或命令行）
 nyxuri-shell --action session        # 呼出会话菜单
@@ -66,6 +83,11 @@ nyxuri-shell --action lock           # 锁屏
 # 随时一键平滑切回 Noctalia
 nyxuri shell switch noctalia
 ```
+
+`shell set` 与 `shell switch` 使用同一切换流程：有 `WAYLAND_DISPLAY` 时都会立即切换，
+没有 Wayland 会话时才只记录偏好。不要用 `set` 登记路径后再执行一次 `switch`。
+当前预检只检查指定 executable 的文件与执行权限，自定义 executable 可自行选择运行时；
+使用仓库 wrapper 时，切换前自行检查 `qs`，避免停掉旧 Shell 后才发现依赖缺失。
 
 ## 日常开发循环
 
