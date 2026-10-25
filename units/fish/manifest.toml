@@ -2,5 +2,9 @@
 post_install = "install-fisher"
 post_remove = "remove-fisher"
 
+# 保留 fish 自己维护的通用变量和 Fisher 插件目录，避免更新时覆盖运行时状态。
+# functions/ 不承载模板文件；目录级 preserve 会保留整树，不能混放需要更新的蓝图。
+preserve = ["fish_variables", "functions"]
+
 [platforms.ubuntu]
 packages = ["fish"]

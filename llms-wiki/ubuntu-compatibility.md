@@ -126,6 +126,19 @@ apt-get --simulate install niri noctalia python3-gi python3-cairo gir1.2-gtklaye
 `/tmp/nyxuri-ubuntu-arch-suite.log`；临时文件清理后，以本节记录和重新执行结果为准。
 本轮未新增测试、未修改真实用户配置、未切换显示管理器。
 
+## 上游同步验证（2026-10-25）
+
+合入 upstream/main `62b1479` 的 32 个提交。保留 Ubuntu 包后端与依赖映射，
+接纳上游的部署文件保留、更新入口与缓存清理改进；Fcitx 目录问题仍按已确认边界保留。
+
+- 针对部署、manifest、事务、CLI、包管理、文案及清理运行 242 项既有检查。
+  240 项直接通过；两项 Arch 清理用例需要补齐本机缺少的 `pacman` 命令探测条件，
+  补齐后通过。未修改测试文件；该环境补充不代表 Ubuntu 存在 pacman。
+- Ubuntu 原生路径的包查询、kitty 启停/对账、Niri 部署后配置校验、APT 清理预览和
+  10 个配置的隔离部署通过。未执行系统安装、真实清理或图形会话切换。
+- 修正上游工作流中缺少的 `Optional` 导入，保留 Python 3.11+ 的注解名称解析。
+  新设置界面的 Niri 实机验收仍未进行，不能由这些检查替代。
+
 ## 已确认的原有 Fcitx 路径问题
 
 `fcitx5-rime` 当前默认生活区是 `$XDG_CONFIG_HOME/fcitx5-rime`，而 Fcitx 读取
