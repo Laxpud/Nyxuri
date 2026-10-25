@@ -92,6 +92,10 @@ Item {
         }
     }
 
+    function closeMenu() {
+        optionsPopup.close();
+    }
+
     function toggleMenu() {
         if (optionsPopup.visible)
             optionsPopup.close();

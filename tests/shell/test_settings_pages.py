@@ -74,6 +74,21 @@ ANCHOR_IDS = {
         "shell.section.sampling",
         "shell.section.diagnostics",
     ),
+    "GeneralBarPage.qml": (
+        "bar.section.position",
+        "bar.section.components",
+    ),
+    "DockPage.qml": (
+        "dock.section.appearance",
+        "dock.section.behavior",
+        "dock.section.previews",
+    ),
+    "GeneralSidebarPage.qml": (
+        "sidebar.section.sidebars",
+        "sidebar.section.desktop-card-layout",
+        "sidebar.section.clock-style",
+        "sidebar.section.system-cards",
+    ),
 }
 
 # Pre-M3 card chrome and legacy row vocabulary: none of it may come back
@@ -116,7 +131,7 @@ class TestAccountPageRebuild(unittest.TestCase):
     def test_search_anchor_ids_are_stable(self):
         source = _read("AccountPage.qml")
         for anchor_id in ANCHOR_IDS["AccountPage.qml"]:
-            self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+            self.assertIn(f'"id":"{anchor_id}"', source,
                           f"anchor missing or rewritten: {anchor_id}")
 
     def test_atom_groups_present(self):
@@ -190,7 +205,7 @@ class TestThemePageRebuild(unittest.TestCase):
     def test_search_anchor_ids_are_stable(self):
         source = _read("ThemePage.qml")
         for anchor_id in ANCHOR_IDS["ThemePage.qml"]:
-            self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+            self.assertIn(f'"id":"{anchor_id}"', source,
                           f"anchor missing or rewritten: {anchor_id}")
 
     def test_atom_groups_present(self):
@@ -269,7 +284,7 @@ class TestWallpaperPageRebuild(unittest.TestCase):
     def test_search_anchor_ids_are_stable(self):
         source = _read("WallpaperPage.qml")
         for anchor_id in ANCHOR_IDS["WallpaperPage.qml"]:
-            self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+            self.assertIn(f'"id":"{anchor_id}"', source,
                           f"anchor missing or rewritten: {anchor_id}")
 
     def test_atom_groups_present(self):
@@ -351,7 +366,7 @@ class TestDisplaysPagesRebuild(unittest.TestCase):
         for name in ("GammaControlPage.qml", "DisplayConfigurationPage.qml"):
             source = _read(name)
             for anchor_id in ANCHOR_IDS[name]:
-                self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+                self.assertIn(f'"id":"{anchor_id}"', source,
                               f"{name}: anchor missing or rewritten: {anchor_id}")
 
     def test_gamma_form_is_fully_atomized(self):
@@ -406,7 +421,7 @@ class TestLanguageAndRegionPageRebuild(unittest.TestCase):
     def test_search_anchor_ids_are_stable(self):
         source = _read("LanguageAndRegionPage.qml")
         for anchor_id in ANCHOR_IDS["LanguageAndRegionPage.qml"]:
-            self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+            self.assertIn(f'"id":"{anchor_id}"', source,
                           f"anchor missing or rewritten: {anchor_id}")
 
     def test_atom_groups_present(self):
@@ -458,7 +473,7 @@ class TestDefaultAppsPageRebuild(unittest.TestCase):
     def test_search_anchor_ids_are_stable(self):
         source = _read("DefaultAppsPage.qml")
         for anchor_id in ANCHOR_IDS["DefaultAppsPage.qml"]:
-            self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+            self.assertIn(f'"id":"{anchor_id}"', source,
                           f"anchor missing or rewritten: {anchor_id}")
 
     def test_rows_reuse_the_select_atom(self):
@@ -511,7 +526,7 @@ class TestSpotlightPageRebuild(unittest.TestCase):
     def test_search_anchor_ids_are_stable(self):
         source = _read("SpotlightPage.qml")
         for anchor_id in ANCHOR_IDS["SpotlightPage.qml"]:
-            self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+            self.assertIn(f'"id":"{anchor_id}"', source,
                           f"anchor missing or rewritten: {anchor_id}")
 
     def test_atom_groups_present(self):
@@ -568,7 +583,7 @@ class TestShellPageRebuild(unittest.TestCase):
     def test_search_anchor_ids_are_stable(self):
         source = _read("ShellPage.qml")
         for anchor_id in ANCHOR_IDS["ShellPage.qml"]:
-            self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+            self.assertIn(f'"id":"{anchor_id}"', source,
                           f"anchor missing or rewritten: {anchor_id}")
 
     def test_atom_groups_present(self):
@@ -601,6 +616,232 @@ class TestShellPageRebuild(unittest.TestCase):
         source = _read("ShellPage.qml")
         for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow", "GridLayout"):
             self.assertNotIn(token, source, f"legacy token re-entered ShellPage: {token}")
+
+
+class TestGeneralBarPageRebuild(unittest.TestCase):
+    """Bar: atom rows, drag-to-reorder fields kept as the custom shape."""
+
+    def test_nexus_scaffold_with_self_rendered_title(self):
+        source = _read("GeneralBarPage.qml")
+        self.assertIn("NexusPageBase {", source)
+        self.assertIn('title: SpotlightCatalog.title("bar")', source)
+
+    def test_window_contract_surface_survives(self):
+        source = _read("GeneralBarPage.qml")
+        for token in (
+            "property var parentModal: null",
+            "property bool presentationActive: false",
+            "property Item searchLeaf",
+        ):
+            self.assertIn(token, source, f"GeneralBarPage lost window contract token: {token}")
+
+    def test_search_anchor_ids_are_stable(self):
+        source = _read("GeneralBarPage.qml")
+        for anchor_id in ANCHOR_IDS["GeneralBarPage.qml"]:
+            self.assertIn('"id":"%s"' % anchor_id, source,
+                          f"anchor missing or rewritten: {anchor_id}")
+
+    def test_atom_groups_present(self):
+        source = _read("GeneralBarPage.qml")
+        for atom in ("PreferenceHeader", "PreferenceToggle", "PreferenceSelect", "ConnectedRect"):
+            self.assertIn(atom, source, f"GeneralBarPage must use the atom: {atom}")
+        self.assertEqual(source.count("inputRegionService: PopupInputRegionService"), 1,
+                         "the screen-edge select must register the popup input region")
+
+    def test_drag_fields_and_coordinators_survive(self):
+        source = _read("GeneralBarPage.qml")
+        self.assertEqual(source.count("SortableMultiSelectField {"), 3,
+                         "two bar zones + the quick settings field stay drag-enabled")
+        self.assertEqual(source.count("BarLayoutDragCoordinator {"), 2,
+                         "one coordinator per drag surface (zones / quick settings)")
+        self.assertIn("fields: [leadingField, trailingField]", source)
+        self.assertIn("fields: [quickSettingsField]", source)
+        # The overlay must not be a root child: NexusPageBase takes exactly
+        # one content child, so both coordinators ride inside the content
+        # wrapper that carries the column's implicit height.
+        wrapper = source.index("implicitHeight: contentColumn.implicitHeight")
+        self.assertIn("id: content", source[:wrapper],
+                      "the content wrapper must precede the coordinators")
+        self.assertGreater(source.index("BarLayoutDragCoordinator {"), wrapper,
+                           "drag coordinators must live inside the content wrapper")
+
+    def test_business_owners_unchanged(self):
+        source = _read("GeneralBarPage.qml")
+        for owner in (
+            "PersonalizationConfig.setValue(\"barOverlay\"",
+            "PersonalizationConfig.setBarPosition(",
+            "PersonalizationConfig.setBarShowNames(",
+            "PersonalizationConfig.setBarShowValues(",
+            "PersonalizationConfig.toggleBarComponent(",
+            "PersonalizationConfig.removeBarComponent(",
+            "PersonalizationConfig.moveBarComponent(",
+            "PersonalizationConfig.moveQuickSettingsComponent(",
+            "PersonalizationConfig.toggleQuickSettingsComponent(",
+            "PersonalizationConfig.removeQuickSettingsComponent(",
+            "PersonalizationConfig.edgePositions",
+            "PersonalizationConfig.barLeadingComponents",
+            "PersonalizationConfig.barTrailingComponents",
+            "PersonalizationConfig.quickSettingsComponents",
+        ):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+
+    def test_legacy_chrome_stays_out(self):
+        source = _read("GeneralBarPage.qml")
+        for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow", "StyledSwitch",
+                                          "EdgePositionSelector"):
+            self.assertNotIn(token, source, f"legacy token re-entered GeneralBarPage: {token}")
+
+
+class TestDockPageRebuild(unittest.TestCase):
+    """Dock: atom rows, first-run integration prompt kept above the groups."""
+
+    def test_nexus_scaffold_with_self_rendered_title(self):
+        source = _read("DockPage.qml")
+        self.assertIn("NexusPageBase {", source)
+        self.assertIn('title: SpotlightCatalog.title("dock")', source)
+
+    def test_window_contract_surface_survives(self):
+        source = _read("DockPage.qml")
+        for token in (
+            "property var parentModal: null",
+            "property bool presentationActive: false",
+            "property Item searchLeaf",
+        ):
+            self.assertIn(token, source, f"DockPage lost window contract token: {token}")
+
+    def test_search_anchor_ids_are_stable(self):
+        source = _read("DockPage.qml")
+        for anchor_id in ANCHOR_IDS["DockPage.qml"]:
+            self.assertIn('"id":"%s"' % anchor_id, source,
+                          f"anchor missing or rewritten: {anchor_id}")
+
+    def test_atom_groups_present(self):
+        source = _read("DockPage.qml")
+        for atom in ("PreferenceHeader", "PreferenceToggle", "PreferenceSlider", "PreferenceSelect"):
+            self.assertIn(atom, source, f"DockPage must use the atom: {atom}")
+        self.assertEqual(source.count("inputRegionService: PopupInputRegionService"), 3,
+                         "edge / surface style / minimize animation selects register input regions")
+
+    def test_setup_prompt_and_busy_semantics_survive(self):
+        source = _read("DockPage.qml")
+        self.assertIn("NiriSetupPrompt {", source, "the first-run integration prompt stays")
+        self.assertIn('NiriConfigService.setup("minimize-animation")', source)
+        self.assertIn('NiriConfigService.setMinimizeEffect(', source)
+        # The busy state folded into the subtext instead of a side spinner.
+        self.assertIn('NiriConfigService.activeFeature === "minimize-animation"', source)
+
+    def test_business_owners_unchanged(self):
+        source = _read("DockPage.qml")
+        for owner in (
+            'DockService.setOption("position"',
+            'DockService.setOption("iconSize"',
+            'DockService.setOption("magnification"',
+            'DockService.setOption("magnificationScale"',
+            'DockService.setOption("surfaceStyle"',
+            'DockService.setOption("autoHide"',
+            'DockService.setOption("launchBounce"',
+            'DockService.setOption("showIndicators"',
+            'DockService.setOption("showRecent"',
+            'DockService.setOption("contextPinning"',
+            'DockService.setOption("showThumbnails"',
+            'DockService.setOption("previewSize"',
+            "DockService.configError",
+            "DockService.supportsThumbnails",
+            "DockService.supportsMinimizeEffects",
+        ):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+
+    def test_legacy_chrome_stays_out(self):
+        source = _read("DockPage.qml")
+        for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow", "StyledSwitch",
+                                          "StyledButtonGroup", "GeneralSliderSetting",
+                                          "InlineBusyIndicator"):
+            self.assertNotIn(token, source, f"legacy token re-entered DockPage: {token}")
+
+
+class TestGeneralSidebarPageRebuild(unittest.TestCase):
+    """Sidebars: atom rows, layout twin-picker and card grid kept, sampling
+    consumers armed only while the page is presented."""
+
+    def test_nexus_scaffold_with_self_rendered_title(self):
+        source = _read("GeneralSidebarPage.qml")
+        self.assertIn("NexusPageBase {", source)
+        self.assertIn('title: SpotlightCatalog.title("sidebar")', source)
+
+    def test_window_contract_surface_survives(self):
+        source = _read("GeneralSidebarPage.qml")
+        for token in (
+            "property var parentModal: null",
+            "property bool presentationActive: false",
+            "property Item searchLeaf",
+        ):
+            self.assertIn(token, source, f"GeneralSidebarPage lost window contract token: {token}")
+
+    def test_search_anchor_ids_are_stable(self):
+        source = _read("GeneralSidebarPage.qml")
+        for anchor_id in ANCHOR_IDS["GeneralSidebarPage.qml"]:
+            self.assertIn('"id":"%s"' % anchor_id, source,
+                          f"anchor missing or rewritten: {anchor_id}")
+
+    def test_atom_groups_present(self):
+        source = _read("GeneralSidebarPage.qml")
+        for atom in ("PreferenceHeader", "PreferenceToggle", "PreferenceSelect",
+                     "PreferenceStepper", "PreferenceInput"):
+            self.assertIn(atom, source, f"GeneralSidebarPage must use the atom: {atom}")
+        self.assertEqual(source.count("inputRegionService: PopupInputRegionService"), 10,
+                         "ten select rows must register the popup input region")
+
+    def test_sampling_consumer_lifecycle_survives(self):
+        source = _read("GeneralSidebarPage.qml")
+        self.assertIn('SystemMonitorService.setConsumerModules("general-sidebar-settings"', source)
+        self.assertIn('SystemMonitorService.clearConsumer("general-sidebar-settings")', source)
+        self.assertIn("onPresentationActiveChanged:", source,
+                      "arming must track presentation, not just construction")
+
+    def test_cookie_block_dims_like_before(self):
+        source = _read("GeneralSidebarPage.qml")
+        self.assertEqual(source.count("root.cookieClockActive ? 1 : 0.42"), 9,
+                         "every cookie sub-row keeps the 42% dim while digital is active")
+        self.assertIn('UiPreferences.setSidebarCookieSides(', source)
+        self.assertIn('UiPreferences.setSidebarCookieDialStyle(', source)
+        self.assertIn('UiPreferences.setSidebarCookieHourHandStyle(', source)
+        self.assertIn('UiPreferences.setSidebarCookieMinuteHandStyle(', source)
+        self.assertIn('UiPreferences.setSidebarCookieSecondHandStyle(', source)
+        self.assertIn('UiPreferences.setSidebarCookieDateStyle(', source)
+
+    def test_semantic_pickers_survive_as_custom_shapes(self):
+        source = _read("GeneralSidebarPage.qml")
+        # The layout block is one card holding twin pickers bound to the same
+        # backing value (mode + placement presets) — no atom has this shape.
+        self.assertEqual(source.count("SystemCardService.setGlobalDesktopLayoutMode(value)"), 2)
+        self.assertIn("GridLayout", source, "the two-column card grid stays")
+        self.assertIn("SystemCardService.setCardEnabled(", source)
+
+    def test_business_owners_unchanged(self):
+        source = _read("GeneralSidebarPage.qml")
+        for owner in (
+            "PersonalizationConfig.setDashboardSidebarSide(",
+            "PersonalizationConfig.setQuickSettingsSidebarSide(",
+            "PersonalizationConfig.setKeepSidebarsLoaded(",
+            "PersonalizationConfig.setDesktopCardGridSnapEnabled(",
+            "PersonalizationConfig.setDesktopCardGridVisibleWhileDragging(",
+            "UiPreferences.setSidebarClockStyle(",
+            "UiPreferences.setSidebarCookieConstantlyRotate(",
+            "UiPreferences.setSidebarCookieHourMarks(",
+            "UiPreferences.setSidebarCookieTimeIndicators(",
+            "UiPreferences.setSystemMonitorGpuId(",
+            "UiPreferences.setSystemMonitorIntervalMs(",
+            "UiPreferences.setStorageCapacityDiskDevice(",
+            "SystemMonitorService.gpus",
+            "SystemMonitorService.disks",
+        ):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+
+    def test_legacy_chrome_stays_out(self):
+        source = _read("GeneralSidebarPage.qml")
+        for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow", "StyledSwitch",
+                                          "MaterialFilledTextField", "MaterialStepper"):
+            self.assertNotIn(token, source, f"legacy token re-entered GeneralSidebarPage: {token}")
 
 
 if __name__ == "__main__":

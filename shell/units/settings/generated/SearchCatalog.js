@@ -1410,7 +1410,7 @@ var catalog = {
       ],
       "anchor": true,
       "context": "GeneralBarPage",
-      "icon": "dock_to_bottom",
+      "icon": "view_agenda",
       "id": "bar.section.components",
       "path": [
         "bar"

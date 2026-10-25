@@ -24,6 +24,10 @@ ConnectedRect {
 
     signal selected(string value)
 
+    function closeMenu() {
+        splitButton.closeMenu();
+    }
+
     Layout.fillWidth: true
     implicitHeight: column.implicitHeight + NexusStyle.padding.medium * 2
     clip: false
