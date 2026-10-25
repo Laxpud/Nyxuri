@@ -24,15 +24,6 @@
 | T5 | 多合成器 (Multi-WM) 架构解耦（门禁触发） | 待开始 |
 | U1 | Ubuntu 26.04 包管理、依赖声明与桌面兼容 | 已完成 |
 
-### Ubuntu 兼容
-
-实现与软件来源见 [Ubuntu 兼容指南](llms-wiki/ubuntu-compatibility.md)，平台字段见
-[manifest-schema](llms-wiki/manifest-schema.md#平台依赖覆盖)。
-
-APT/dpkg 后端、依赖声明及 Niri 核心交互、重登验收已完成。
-Fcitx 目标目录、Niri 多输出截图及可选运行时的限制见兼容指南；显示管理器切换、
-源码构建与 Fcitx 目录迁移不在本阶段交付范围。
-
 ### T0 终端体验修复（复制粘贴最终之战）
 
 - **复制粘贴终审（已定案：正统方案）**：`Ctrl+Shift+C/V` 为唯一复制粘贴路径，
@@ -122,6 +113,14 @@ Fcitx 目标目录、Niri 多输出截图及可选运行时的限制见兼容指
   收编过渡形态——`SUPPORTED_WMS` 硬编码元组、组件菜单 WM 特判、doctor 三处
   合成器字面量（债务登记见 [delayed-decisions](llms-wiki/delayed-decisions.md)）。
 - 热重载、浮动便签与屏幕探测跨合成器适配，`doctor` 诊断与 `greeter` 会话自适应。
+
+### U1 Ubuntu 26.04 兼容
+
+- **已落地**：APT/dpkg 后端、依赖声明及 Niri 核心交互、重登验收已完成。
+- **交付边界**：Fcitx 目标目录、Niri 多输出截图及可选运行时仍有限制；显示管理器
+  切换、源码构建与 Fcitx 目录迁移不在本阶段交付范围。
+- **实现与限制**：见 [Ubuntu 兼容指南](llms-wiki/ubuntu-compatibility.md)；平台字段见
+  [manifest-schema](llms-wiki/manifest-schema.md#平台依赖覆盖)。
 
 ## Shell 侧
 
