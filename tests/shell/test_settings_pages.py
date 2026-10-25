@@ -101,6 +101,12 @@ ANCHOR_IDS = {
     "HorizontalClockPage.qml": (
         "keystone.horizontal-clock.section.horizontal-clock-style",
     ),
+    "NetworkPage.qml": (
+        "network.section.wired-connections",
+        "network.section.wi-fi",
+        "network.section.other-settings",
+        "network.section.connection-information",
+    ),
 }
 
 # Pre-M3 card chrome and legacy row vocabulary: none of it may come back
@@ -999,6 +1005,120 @@ class TestHorizontalClockPageRebuild(unittest.TestCase):
         for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow", "StyledSwitch",
                                           "KeystoneSection", "ClockSliderSetting"):
             self.assertNotIn(token, source, f"legacy token re-entered HorizontalClockPage: {token}")
+
+
+class TestNetworkPageRebuild(unittest.TestCase):
+    """Network: atom rows, fixed nearby viewport, scan/runtime leases kept."""
+
+    def test_nexus_scaffold_with_self_rendered_title(self):
+        source = _read("NetworkPage.qml")
+        self.assertIn("NexusPageBase {", source)
+        self.assertIn('title: SpotlightCatalog.title("network")', source)
+
+    def test_window_contract_surface_survives(self):
+        source = _read("NetworkPage.qml")
+        for token in (
+            "property var parentModal: null",
+            "property bool presentationActive: false",
+            "function closeChildWindows()",
+            "property Item searchLeaf",
+            "NetworkConfigWindow {",
+        ):
+            self.assertIn(token, source, f"NetworkPage lost window contract token: {token}")
+
+    def test_search_anchor_ids_are_stable(self):
+        source = _read("NetworkPage.qml")
+        for anchor_id in ANCHOR_IDS["NetworkPage.qml"]:
+            self.assertIn('"id":"%s"' % anchor_id, source,
+                          f"anchor missing or rewritten: {anchor_id}")
+
+    def test_atom_groups_present(self):
+        source = _read("NetworkPage.qml")
+        for atom in ("PreferenceHeader", "PreferenceToggle",
+                     "PreferenceAction", "PreferenceInfo"):
+            self.assertIn(atom, source, f"NetworkPage must use the atom: {atom}")
+
+    def test_scan_and_runtime_leases_survive(self):
+        source = _read("NetworkPage.qml")
+        for owner in (
+            'NetworkService.acquireScan("control-center-network")',
+            'NetworkService.releaseScan("control-center-network")',
+            "NetworkService.requestRuntimeDetails(",
+            "NetworkService.releaseRuntimeDetails()",
+            "root.beginInitialLoad",
+            "nearbyPassword.text = \"\"",
+        ):
+            self.assertIn(owner, source, f"lease/lifecycle owner dropped: {owner}")
+
+    def test_nearby_list_keeps_viewport_and_glyphs(self):
+        source = _read("NetworkPage.qml")
+        self.assertIn("component WifiListRow: ConnectedRect", source,
+                      "nearby rows stay custom connected cards (lock + bookmark glyphs)")
+        self.assertIn("StyledListView", source)
+        self.assertIn('"bookmark"', source)
+        self.assertIn('"lock"', source)
+        self.assertIn("passwordTarget = wifiListRow.modelData", source,
+                      "secure unknown networks still route to the password prompt")
+
+    def test_business_owners_unchanged(self):
+        source = _read("NetworkPage.qml")
+        for owner in (
+            "NetworkService.setWifiEnabled(",
+            "NetworkService.connectToWifiNetwork(",
+            "NetworkService.changePassword(",
+            "configWindow.openProfile(",
+            "configWindow.openSavedNetworks()",
+            "configWindow.openAddNetwork()",
+            "NetworkService.nearbyWifiNetworks",
+            "NetworkService.wiredProfiles",
+            "NetworkService.wiredDevices",
+        ):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+
+    def test_legacy_chrome_stays_out(self):
+        source = _read("NetworkPage.qml")
+        for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow", "StyledSwitch"):
+            self.assertNotIn(token, source, f"legacy token re-entered NetworkPage: {token}")
+
+
+class TestNetworkModalPagesRebuild(unittest.TestCase):
+    """Add network / profile editor / saved networks: atoms inside the modal."""
+
+    def test_add_network_uses_atoms_and_keeps_fields(self):
+        source = _read("AddNetworkPage.qml")
+        self.assertIn("PreferenceToggle {", source)
+        self.assertIn("PreferenceSelect {", source)
+        self.assertIn("OutlinedTextField {", source, "SSID and password stay full-width fields")
+        self.assertIn("root.clearSensitiveData()", source)
+        self.assertIn("NetworkService.addWifiNetwork(", source)
+        self.assertNotIn("SearchSelectMenuField", source)
+        for token in ("SettingsSection", "SettingsRow", "StyledSwitch"):
+            self.assertNotIn(token, source)
+
+    def test_profile_editor_uses_atoms_and_keeps_flow(self):
+        source = _read("NetworkProfileEditor.qml")
+        for atom in ("PreferenceHeader", "PreferenceInfo", "PreferenceToggle", "PreferenceSelect"):
+            self.assertIn(atom, source, f"NetworkProfileEditor must use the atom: {atom}")
+        for owner in (
+            "NetworkService.writeProfile(",
+            "NetworkService.forgetProfile(",
+            "NetworkService.connectProfile(",
+            "NetworkService.disconnectNetwork(",
+            "NetworkService.profileSnapshot(",
+            "root.autoconnect = checked",
+            "root.mode = value",
+        ):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+        for token in ("SettingsSection", "SettingsRow", "StyledSwitch", "SearchSelectMenuField"):
+            self.assertNotIn(token, source)
+
+    def test_saved_networks_are_connected_rows(self):
+        source = _read("SavedNetworksPage.qml")
+        self.assertIn("component SavedNetworkRow: ConnectedRect", source)
+        self.assertIn("signal detailRequested(var target)", source)
+        self.assertIn("chevron_right", source)
+        for token in ("SettingsRow", "SettingsSection"):
+            self.assertNotIn(token, source)
 
 
 if __name__ == "__main__":
