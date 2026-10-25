@@ -51,6 +51,29 @@ ANCHOR_IDS = {
         "displays.configuration.section.output-settings",
         "displays.configuration.section.hot-corners",
     ),
+    "LanguageAndRegionPage.qml": (
+        "language-region.section.language",
+        "language-region.section.region-weather-location",
+        "language-region.section.units",
+        "language-region.section.time-date",
+    ),
+    "DefaultAppsPage.qml": (
+        "default-apps.section.internet",
+        "default-apps.section.utilities",
+        "default-apps.section.documents",
+        "default-apps.section.multimedia",
+    ),
+    "SpotlightPage.qml": (
+        "spotlight.section.applications",
+        "spotlight.section.web-search",
+        "spotlight.section.clipboard",
+    ),
+    "ShellPage.qml": (
+        "shell.section.modules",
+        "shell.section.log",
+        "shell.section.sampling",
+        "shell.section.diagnostics",
+    ),
 }
 
 # Pre-M3 card chrome and legacy row vocabulary: none of it may come back
@@ -359,6 +382,225 @@ class TestDisplaysPagesRebuild(unittest.TestCase):
         # dialog still hosts one OutlinedTextField of its own).
         for dead in ("DisplayChoice", "SettingsRow", "SettingsActionRow", "GridLayout"):
             self.assertNotIn(dead, source, f"pre-M3 row survived: {dead}")
+
+
+class TestLanguageAndRegionPageRebuild(unittest.TestCase):
+    """Language & region: atom rows, functional location editor kept."""
+
+    def test_nexus_scaffold_with_self_rendered_title(self):
+        source = _read("LanguageAndRegionPage.qml")
+        self.assertIn("NexusPageBase {", source)
+        self.assertIn('title: SpotlightCatalog.title("language-region")', source)
+
+    def test_window_contract_surface_survives(self):
+        source = _read("LanguageAndRegionPage.qml")
+        for token in (
+            "property var parentModal: null",
+            "property bool presentationActive: false",
+            "signal navigateRequested(string pageId)",
+            "function closeChildWindows()",
+            "property Item searchLeaf",
+        ):
+            self.assertIn(token, source, f"LanguageAndRegionPage lost window contract token: {token}")
+
+    def test_search_anchor_ids_are_stable(self):
+        source = _read("LanguageAndRegionPage.qml")
+        for anchor_id in ANCHOR_IDS["LanguageAndRegionPage.qml"]:
+            self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+                          f"anchor missing or rewritten: {anchor_id}")
+
+    def test_atom_groups_present(self):
+        source = _read("LanguageAndRegionPage.qml")
+        for atom in ("PreferenceHeader", "PreferenceSelect", "ConnectedRect"):
+            self.assertIn(atom, source, f"LanguageAndRegionPage must use the atom: {atom}")
+        self.assertEqual(source.count("inputRegionService: PopupInputRegionService"), 4,
+                         "every select row must register the popup input region")
+
+    def test_business_owners_unchanged(self):
+        source = _read("LanguageAndRegionPage.qml")
+        for owner in (
+            "UiPreferences.setLanguage",
+            "UiPreferences.setWeatherTemperatureUnit",
+            "UiPreferences.setSystemTemperatureUnit",
+            "UiPreferences.setUseTwelveHourClock",
+            "I18nService.supportedLanguages",
+        ):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+        # The real location editor stays, unlike Caelestia's placeholder.
+        self.assertIn("LocationPicker {", source)
+        self.assertIn("parentModal: root.parentModal", source)
+        self.assertIn("WeatherService", _read("LocationPicker.qml"),
+                      "the retained location editor keeps its weather owner")
+
+    def test_legacy_chrome_stays_out(self):
+        source = _read("LanguageAndRegionPage.qml")
+        for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow", "StyledButtonGroup"):
+            self.assertNotIn(token, source, f"legacy token re-entered LanguageAndRegionPage: {token}")
+
+
+class TestDefaultAppsPageRebuild(unittest.TestCase):
+    """Default applications: Caelestia DefaultRow shape on the select atom."""
+
+    def test_nexus_scaffold_with_self_rendered_title(self):
+        source = _read("DefaultAppsPage.qml")
+        self.assertIn("NexusPageBase {", source)
+        self.assertIn('title: SpotlightCatalog.title("default-apps")', source)
+
+    def test_window_contract_surface_survives(self):
+        source = _read("DefaultAppsPage.qml")
+        for token in (
+            "property var parentModal: null",
+            "property bool presentationActive: false",
+            "property Item searchLeaf",
+        ):
+            self.assertIn(token, source, f"DefaultAppsPage lost window contract token: {token}")
+
+    def test_search_anchor_ids_are_stable(self):
+        source = _read("DefaultAppsPage.qml")
+        for anchor_id in ANCHOR_IDS["DefaultAppsPage.qml"]:
+            self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+                          f"anchor missing or rewritten: {anchor_id}")
+
+    def test_rows_reuse_the_select_atom(self):
+        source = _read("DefaultAppsPage.qml")
+        self.assertIn("component DefaultAppRow: PreferenceSelect", source,
+                      "default-app rows must reuse the select atom (Caelestia DefaultRow shape)")
+        self.assertIn("required property string roleId", source)
+        self.assertIn("required property string roleTitle", source)
+        self.assertIn("required property string roleIcon", source)
+        self.assertIn("fallbackText:", source, "empty selections keep the Caelestia fallback")
+        self.assertIn("inputRegionService: PopupInputRegionService", source)
+
+    def test_business_owners_unchanged(self):
+        source = _read("DefaultAppsPage.qml")
+        for owner in (
+            "DefaultApplicationsService.refresh()",
+            "DefaultApplicationsService.stateFor(",
+            "DefaultApplicationsService.setRole(",
+            "DefaultApplicationsService.loading",
+            "DefaultApplicationsService.busy",
+            "DefaultApplicationsService.lastError",
+            "DefaultApplicationsService.lastMessage",
+        ):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+
+    def test_legacy_chrome_stays_out(self):
+        source = _read("DefaultAppsPage.qml")
+        for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow", "ThemeIcon"):
+            self.assertNotIn(token, source, f"legacy token re-entered DefaultAppsPage: {token}")
+
+
+class TestSpotlightPageRebuild(unittest.TestCase):
+    """Spotlight: selects and stepper atoms, clipboard lifecycle kept."""
+
+    def test_nexus_scaffold_with_self_rendered_title(self):
+        source = _read("SpotlightPage.qml")
+        self.assertIn("NexusPageBase {", source)
+        self.assertIn('title: SpotlightCatalog.title("spotlight")', source)
+
+    def test_window_contract_surface_survives(self):
+        source = _read("SpotlightPage.qml")
+        for token in (
+            "property var parentModal: null",
+            "property bool presentationActive: false",
+            "function closeChildWindows()",
+            "property Item searchLeaf",
+        ):
+            self.assertIn(token, source, f"SpotlightPage lost window contract token: {token}")
+
+    def test_search_anchor_ids_are_stable(self):
+        source = _read("SpotlightPage.qml")
+        for anchor_id in ANCHOR_IDS["SpotlightPage.qml"]:
+            self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+                          f"anchor missing or rewritten: {anchor_id}")
+
+    def test_atom_groups_present(self):
+        source = _read("SpotlightPage.qml")
+        for atom in ("PreferenceHeader", "PreferenceSelect", "PreferenceStepper"):
+            self.assertIn(atom, source, f"SpotlightPage must use the atom: {atom}")
+        self.assertEqual(source.count("inputRegionService: PopupInputRegionService"), 4,
+                         "every select row must register the popup input region")
+
+    def test_business_owners_unchanged(self):
+        source = _read("SpotlightPage.qml")
+        for owner in (
+            "UiPreferences.setSpotlightAppStyle",
+            "UiPreferences.setSpotlightAppOrder",
+            "UiPreferences.setSpotlightSearchEngine",
+            "UiPreferences.setSpotlightClipboardStyle",
+            "UiPreferences.searchEngines",
+            "ClipboardService.loadHistoryConfig()",
+            "ClipboardService.setHistoryLimit",
+            "ClipboardService.historyConfigLoaded",
+        ):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+
+    def test_legacy_chrome_stays_out(self):
+        source = _read("SpotlightPage.qml")
+        for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow"):
+            self.assertNotIn(token, source, f"legacy token re-entered SpotlightPage: {token}")
+
+
+class TestShellPageRebuild(unittest.TestCase):
+    """Nyxuri Shell control plane: info/action/toggle atoms, owners intact."""
+
+    def test_nexus_scaffold_with_self_rendered_title(self):
+        source = _read("ShellPage.qml")
+        self.assertIn("NexusPageBase {", source)
+        self.assertIn('title: SpotlightCatalog.title("shell")', source)
+        # Section headers live in the [ShellPage] translation section; an
+        # explicit context keeps the runtime lookup and the i18n gate honest.
+        for key in ("Modules & dependencies", "Session log", "Resource sampling", "Diagnostics & paths"):
+            # Assembled from pieces: the i18n gate scans tests too and would
+            # otherwise parse a template literal as a real call with key "{key}".
+            call = "I18n." + "tr(" + '"' + key + '", "ShellPage")'
+            self.assertIn(call, source, f"ShellPage header lost its translation context: {key}")
+
+    def test_window_contract_surface_survives(self):
+        source = _read("ShellPage.qml")
+        for token in (
+            "property var parentModal: null",
+            "property bool presentationActive: false",
+            "property Item searchLeaf",
+        ):
+            self.assertIn(token, source, f"ShellPage lost window contract token: {token}")
+
+    def test_search_anchor_ids_are_stable(self):
+        source = _read("ShellPage.qml")
+        for anchor_id in ANCHOR_IDS["ShellPage.qml"]:
+            self.assertIn(f'\\"id\\":\\"{anchor_id}\\"'.replace("\\\"", '"'), source,
+                          f"anchor missing or rewritten: {anchor_id}")
+
+    def test_atom_groups_present(self):
+        source = _read("ShellPage.qml")
+        for atom in ("PreferenceHeader", "PreferenceInfo", "PreferenceToggle", "PreferenceAction"):
+            self.assertIn(atom, source, f"ShellPage must use the atom: {atom}")
+        # Unit switches ride the whole-row toggle atom, not raw switches.
+        self.assertNotIn("StyledSwitch", source, "unit toggles must use PreferenceToggle")
+
+    def test_business_owners_unchanged(self):
+        source = _read("ShellPage.qml")
+        for owner in (
+            "ShellControlService.setPageMounted(true)",
+            "ShellControlService.setPageMounted(false)",
+            "ShellControlService.exportDiagnostics()",
+            "UnitControlService.setUnit(",
+            "UnitControlService.canToggle(",
+            "UnitControlService.pendingUnitId",
+            "StateProjection.isEnabled(",
+            "NiriService.reconnect()",
+            "PersonalizationConfig.setOverviewEnabled(",
+            "UiPreferences.setControlPlaneResourceSampling(",
+            "SystemMonitorService.retry()",
+            "ApplicationService.openUrl(",
+            "Paths.configHome",
+        ):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+
+    def test_legacy_chrome_stays_out(self):
+        source = _read("ShellPage.qml")
+        for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow", "GridLayout"):
+            self.assertNotIn(token, source, f"legacy token re-entered ShellPage: {token}")
 
 
 if __name__ == "__main__":

@@ -151,6 +151,10 @@ class TestRowAtoms(unittest.TestCase):
         self.assertIn("SplitMenuButton {", source)
         # Compositor input regions are injected by the page, not read here.
         self.assertIn("property var inputRegionService: null", source)
+        # Caelestia SelectRow/PopupRow parity: optional leading icon and the
+        # SplitButton fallback for unset selections (default applications).
+        self.assertIn('property string icon: ""', source)
+        self.assertIn("property alias fallbackText: splitButton.fallbackText", source)
 
     def test_stepper_row(self):
         source = _source("PreferenceStepper.qml")

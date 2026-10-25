@@ -14,8 +14,12 @@ ConnectedRect {
 
     property alias label: titleLabel.text
     property string subtext: ""
+    property string icon: ""
     property alias model: splitButton.model
     property alias currentValue: splitButton.currentValue
+    // Shown when currentValue matches no model entry (Caelestia SelectRow
+    // fallbackText; e.g. an unset default application).
+    property alias fallbackText: splitButton.fallbackText
     property var inputRegionService: null
 
     signal selected(string value)
@@ -32,6 +36,15 @@ ConnectedRect {
         anchors.leftMargin: NexusStyle.padding.largeIncreased
         anchors.rightMargin: NexusStyle.padding.largeIncreased
         spacing: NexusStyle.padding.small
+
+        MaterialSymbol {
+            visible: root.icon.length > 0
+            Layout.preferredWidth: root.icon.length > 0 ? implicitWidth : 0
+            text: root.icon
+            iconSize: NexusStyle.icon.medium
+            fill: 1
+            color: Appearance.m3colors.m3onSurfaceVariant
+        }
 
         ColumnLayout {
             id: column
