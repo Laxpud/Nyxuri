@@ -24,6 +24,11 @@ ConnectedRect {
 
     signal moved(real value)
 
+    // Fired alongside the final `moved` of an interaction (drag release,
+    // click, wheel step) — consumers with live-preview semantics (the
+    // horizontal clock axes) persist on commit instead of on every tick.
+    signal committed(real value)
+
     Layout.fillWidth: true
     implicitHeight: column.implicitHeight + NexusStyle.padding.medium * 2
 
@@ -80,10 +85,15 @@ ConnectedRect {
                 Layout.preferredHeight: NexusStyle.padding.large + NexusStyle.padding.medium
 
                 function onWheel(event: WheelEvent): void {
-                    if (event.angleDelta.y > 0)
-                        root.moved(Math.min(root.to, root.value + root.wheelStep));
-                    else if (event.angleDelta.y < 0)
-                        root.moved(Math.max(root.from, root.value - root.wheelStep));
+                    if (event.angleDelta.y > 0) {
+                        const next = Math.min(root.to, root.value + root.wheelStep);
+                        root.moved(next);
+                        root.committed(next);
+                    } else if (event.angleDelta.y < 0) {
+                        const next = Math.max(root.from, root.value - root.wheelStep);
+                        root.moved(next);
+                        root.committed(next);
+                    }
                 }
 
                 // Unstyled Slider (QtQuick.Templates): behaviour only, all
@@ -136,12 +146,13 @@ ConnectedRect {
                             root.moved(slider.from + slider.pos * (slider.to - slider.from));
                         }
                         onReleased: event => {
-                            if (dragArea.dragMovement === 0) {
-                                const clickPos = Math.max(0, Math.min(1, event.x / width));
-                                root.moved(slider.from + clickPos * (slider.to - slider.from));
-                            } else {
-                                root.moved(slider.from + slider.pos * (slider.to - slider.from));
-                            }
+                            const next = dragArea.dragMovement === 0 ? slider.from + Math.max(0, Math.min(1,
+                                                                                                          event.x / width))
+                                                                       * (slider.to - slider.from) :
+                                                                       slider.from + slider.pos * (slider.to
+                                                                                                   - slider.from);
+                            root.moved(next);
+                            root.committed(next);
                             dragArea.dragMovement = 0;
                         }
                     }

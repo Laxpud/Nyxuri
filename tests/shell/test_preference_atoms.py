@@ -122,6 +122,8 @@ class TestRowAtoms(unittest.TestCase):
     def test_slider_row(self):
         source = _source("PreferenceSlider.qml")
         self.assertIn("signal moved(real value)", source)
+        # Live-preview consumers (horizontal clock axes) persist on commit.
+        self.assertIn("signal committed(real value)", source)
         self.assertIn("property real wheelStep:", source)
         self.assertIn("function onWheel(event: WheelEvent): void", source)
         # Slim Nexus slider: unstyled template Slider, visuals in contentItem.
