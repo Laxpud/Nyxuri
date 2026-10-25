@@ -203,6 +203,28 @@ class TestRealRepoManifests(unittest.TestCase):
         # dir name = package = binary → no packages override needed
         self.assertEqual(m.packages_repo, ["niri"])
 
+    def test_platform_override_table_is_preserved_with_arch_source_fields(self):
+        # 平台解析夹具必须位于临时 HOME，不能覆盖真实 units/ 蓝图。
+        unit = self.env.home / "fixtures" / "kitty"
+        unit.mkdir(parents=True)
+        (unit / "manifest.toml").write_text(
+            'packages = ["kitty"]\n'
+            'packages_aur = ["kitty-git"]\n'
+            '[platforms.ubuntu]\n'
+            'packages = ["kitty"]\n'
+            'manual = ["material-symbols-rounded-font"]\n'
+            'reason = "configured APT source required"\n',
+            encoding="utf-8",
+        )
+        parsed = manifest.load_manifest(unit)
+        self.assertEqual(parsed.packages_repo, ["kitty"])
+        self.assertEqual(parsed.packages_aur, ["kitty-git"])
+        self.assertEqual(parsed.platforms["ubuntu"], {
+            "packages": ["kitty"],
+            "manual": ["material-symbols-rounded-font"],
+            "reason": "configured APT source required",
+        })
+
     def test_noctalia_manifest_preserves_ddcutil(self):
         m = manifest.load_manifest(self.env.units_src / "noctalia")
         self.assertEqual(m.preserve_values,

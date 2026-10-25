@@ -27,6 +27,48 @@ def _quiet(fn, *args, **kwargs):
 
 class TestShellSwitcherClassification(unittest.TestCase):
 
+    def test_default_shell_comes_from_the_checked_out_source_tree(self):
+        """源码仓库的默认入口位于仓库根目录下的 shell/。"""
+        from nyxuri.desktop import shell_switcher
+
+        with TempEnv() as ctx:
+            repo = ctx.home / "source tree"
+            module = repo / "nyxuri" / "desktop" / "shell_switcher.py"
+            module.parent.mkdir(parents=True)
+            entry = repo / "shell" / "nyxuri-shell"
+            entry.parent.mkdir()
+            entry.write_text("#!/bin/sh\n", encoding="utf-8")
+            entry.chmod(0o755)
+
+            with patch.object(shell_switcher, "__file__", str(module)), \
+                 patch.object(shell_switcher.shutil, "which", return_value=None):
+                self.assertEqual(shell_switcher.find_default_custom_bin(), str(entry))
+
+    def test_running_shell_from_current_source_tree_is_classified(self):
+        """进程探测把当前 checkout 的 Quickshell 实例纳入切换清理范围。"""
+        from nyxuri.desktop import shell_switcher
+
+        with TempEnv() as ctx:
+            repo = ctx.home / "source tree"
+            module = repo / "nyxuri" / "desktop" / "shell_switcher.py"
+            shell_dir = repo / "shell"
+            module.parent.mkdir(parents=True)
+            shell_dir.mkdir()
+            cmdline = f"qs\0-p\0{shell_dir}\0".encode()
+            real_read_bytes = Path.read_bytes
+
+            def read_bytes(path):
+                if str(path) == "/proc/4242/cmdline":
+                    return cmdline
+                return real_read_bytes(path)
+
+            with patch.object(shell_switcher, "__file__", str(module)), \
+                 patch.dict(os.environ, {"NYXURI_CUSTOM_SHELL_BIN": ""}), \
+                 patch.object(shell_switcher, "find_pids",
+                              side_effect=lambda name: [4242] if name in ("qs", "quickshell") else []), \
+                 patch.object(Path, "read_bytes", read_bytes):
+                self.assertEqual(shell_switcher.probe_running_shells(), [("nyxuri-shell", 4242)])
+
     def test_third_party_quickshell_is_not_nyxuri_shell(self):
         from nyxuri.desktop import shell_switcher
         with TempEnv():

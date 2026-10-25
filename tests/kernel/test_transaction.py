@@ -8,31 +8,40 @@ import ast
 import hashlib
 import importlib
 import json
+import os
+import re
 import unittest
 from pathlib import Path
 from unittest import mock
+from unittest.mock import patch
 
 from nyxuri.kernel import ledger, transaction
 from tests.utils import TempEnv
-# Imports consolidated from the dissolved bugfix ledger.
-import os
-import re
-from unittest.mock import patch
 
 
 
 def _stage(ctx, spec):
-    """Create unit dirs under a temp units_src and point the env at it.
+    """在临时目录铺设单元夹具，并让当前环境从该目录读取蓝图。
 
-    spec maps unit id -> {"manifest": toml text | None, "files": {rel: content}}.
+    spec 按单元 ID 保存 manifest 文本和相对路径到内容的 files 映射。
+    未明确声明 packages 时视为无原生包依赖，避免配置生命周期测试依赖宿主包名。
     """
     configs = ctx.home / "configs-src"
     configs.mkdir(exist_ok=True)
     for uid, entry in spec.items():
         unit = configs / uid
         unit.mkdir(exist_ok=True)
-        if entry.get("manifest") is not None:
-            (unit / "manifest.toml").write_text(entry["manifest"], encoding="utf-8")
+        manifest = entry.get("manifest")
+        if manifest is None:
+            # 临时配置单元没有显式软件依赖；空列表避免按目录名推导宿主包名。
+            manifest = "packages = []\n"
+        elif not re.search(
+            r"(?m)^packages\s*=", re.split(r"(?m)^\s*\[", manifest, maxsplit=1)[0]
+        ):
+            # 显式清单也按无包样例处理，除非测试明确给出 repo 包列表。
+            # 放在首个表之前，确保它仍是 TOML 根字段。
+            manifest = "packages = []\n" + manifest
+        (unit / "manifest.toml").write_text(manifest, encoding="utf-8")
         for rel, content in entry.get("files", {}).items():
             p = unit / rel
             p.parent.mkdir(parents=True, exist_ok=True)
@@ -44,11 +53,17 @@ class TestUnitOn(unittest.TestCase):
     """Enable transaction: resolve → preflight → swap → ledger → event."""
 
     def setUp(self):
-        # Package preflight must never depend on the host machine's package
-        # state; the missing-package paths re-patch it explicitly.
-        patcher = mock.patch.object(transaction, "missing_packages", return_value=[])
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        # 普通事务样例不读取宿主包状态；依赖样例单独控制探测器或恢复真实解析链。
+        self._missing_packages_patcher = mock.patch.object(
+            transaction, "missing_packages", return_value=[]
+        )
+        self._missing_packages_patcher.start()
+        self.addCleanup(self._stop_missing_packages_patcher)
+
+    def _stop_missing_packages_patcher(self):
+        if self._missing_packages_patcher is not None:
+            self._missing_packages_patcher.stop()
+            self._missing_packages_patcher = None
 
     def test_on_deploys_and_records_five_fields(self):
         with TempEnv() as ctx:
@@ -91,7 +106,8 @@ class TestUnitOn(unittest.TestCase):
         with TempEnv() as ctx:
             _stage(ctx, {"app": {"manifest": 'packages = ["missing-pkg"]\n',
                                  "files": {"a.conf": "a"}}})
-            with mock.patch.object(transaction, "missing_packages",
+            with mock.patch("nyxuri.pkg.platform.current_platform", return_value="arch"), \
+                 mock.patch.object(transaction, "missing_packages",
                                    return_value=["missing-pkg"]):
                 steps = transaction.unit_on("app")
             self.assertFalse(steps[0].ok)
@@ -110,12 +126,182 @@ class TestUnitOn(unittest.TestCase):
                 calls.append((uid, pkgs))
                 return True
 
-            with mock.patch.object(transaction, "missing_packages",
+            with mock.patch("nyxuri.pkg.platform.current_platform", return_value="arch"), \
+                 mock.patch.object(transaction, "missing_packages",
                                    side_effect=[["missing-pkg"], []]):
                 steps = transaction.unit_on("app", install_packages=installer)
             self.assertTrue(steps[0].ok, str(steps))
             self.assertEqual(calls, [("app", ["missing-pkg"])])
             self.assertTrue((ctx.home / ".config/app/a.conf").is_file())
+
+    def test_ubuntu_unsupported_unit_is_rejected_before_deployment(self):
+        """Ubuntu 未声明依赖时，事务必须在安装或落账前停止。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {
+                "manifest": '[platforms.ubuntu]\nsupported = false\nreason = "not packaged"\n',
+                "files": {"a.conf": "a"},
+            }})
+            installer = mock.Mock()
+            with mock.patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"), \
+                 mock.patch.object(transaction, "_phase_atomic_deployment") as deploy, \
+                 mock.patch.object(transaction, "_run_unit_hook") as hook:
+                steps = transaction.unit_on("app", install_packages=installer)
+
+            self.assertFalse(steps[0].ok)
+            self.assertIn("unsupported-platform", steps[0].detail)
+            installer.assert_not_called()
+            deploy.assert_not_called()
+            hook.assert_not_called()
+            self.assertFalse((ctx.home / ".config/app").exists())
+            self.assertIsNone(ledger.get_unit("app"))
+
+    def test_ubuntu_unmapped_arch_package_is_rejected_before_deployment(self):
+        """Ubuntu 不得把顶层 Arch 包名当作无依赖或 APT 包名。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {
+                "manifest": 'packages = ["arch-only"]\n',
+                "files": {"a.conf": "a"},
+            }})
+            installer = mock.Mock()
+            with mock.patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"), \
+                 mock.patch.object(transaction, "_phase_atomic_deployment") as deploy:
+                steps = transaction.unit_on("app", install_packages=installer)
+
+            self.assertFalse(steps[0].ok)
+            self.assertIn("unsupported-platform", steps[0].detail)
+            installer.assert_not_called()
+            deploy.assert_not_called()
+            self.assertIsNone(ledger.get_unit("app"))
+
+    def test_ubuntu_package_still_missing_after_installer_stops_before_deploy(self):
+        """APT 成功返回后仍须重新探测；未满足的包不能进入部署事务。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {
+                "manifest": '[platforms.ubuntu]\npackages = ["apt-demo"]\n',
+                "files": {"a.conf": "a"},
+            }})
+            installer = mock.Mock(return_value=True)
+            with mock.patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"), \
+                 mock.patch.object(transaction, "missing_packages", side_effect=[["apt-demo"], ["apt-demo"]]) as missing, \
+                 mock.patch.object(transaction, "_phase_atomic_deployment") as deploy:
+                steps = transaction.unit_on("app", install_packages=installer)
+
+            self.assertFalse(steps[0].ok)
+            self.assertIn("missing-packages: apt-demo", steps[0].detail)
+            installer.assert_called_once_with("app", ["apt-demo"])
+            self.assertEqual(missing.call_count, 2)
+            deploy.assert_not_called()
+            self.assertFalse((ctx.home / ".config/app").exists())
+            self.assertIsNone(ledger.get_unit("app"))
+
+    def test_ubuntu_manual_resource_then_apt_supply_enables_and_audits_synced(self):
+        """先补手动资源，再模拟 APT 供给；真实 CLI 与事务完成部署并对账。"""
+        import contextlib
+        import io
+        from unittest.mock import patch
+
+        with TempEnv() as ctx:
+            # 此链路特意保留真实缺失包解析；包探测只使用本测试的内存集合。
+            self._stop_missing_packages_patcher()
+            unit_root = ctx.home / "isolated-units"
+            app = unit_root / "demo"
+            app.mkdir(parents=True)
+            (app / "manifest.toml").write_text(
+                'packages = ["arch-package"]\n'
+                '[platforms.ubuntu]\npackages = ["apt-package"]\n'
+                'manual = ["manual-font"]\n',
+                encoding="utf-8",
+            )
+            (app / "demo.conf").write_text("setting=true\n", encoding="utf-8")
+            ctx.env.units_src = unit_root
+            installed = set()
+
+            def invoke_cli(*, confirm=False, installer=None):
+                from nyxuri.cli import main
+
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with patch("sys.argv", ["nyxuri", "on", "demo"]), \
+                     patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"), \
+                     patch("nyxuri.pkg.detection.DependencyProbe.installed",
+                           new=lambda _probe, name: name in installed), \
+                     patch("nyxuri.cli.prompt_confirm", return_value=confirm) as prompt, \
+                     patch("nyxuri.cli._package_installer", side_effect=installer) as supply, \
+                     patch("nyxuri.cli.acquire_lock"), \
+                     patch("nyxuri.cli.init_logger"), \
+                     patch("nyxuri.cli.ensure_nyxuri_symlink"), \
+                     patch("nyxuri.cli.check_path_occlusion"), \
+                     contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                    with self.assertRaises(SystemExit) as result:
+                        main()
+                return result.exception.code, stdout.getvalue(), stderr.getvalue(), prompt, supply
+
+            code, output, error, prompt, supply = invoke_cli()
+            self.assertEqual(code, 1, output + error)
+            self.assertIn("manual-font", error)
+            prompt.assert_not_called()
+            supply.assert_not_called()
+            self.assertFalse((ctx.home / ".config/demo").exists())
+
+            installed.add("manual-font")
+
+            def install_apt(unit_id, packages):
+                self.assertEqual(unit_id, "demo")
+                self.assertEqual(packages, ["apt-package"])
+                installed.add("apt-package")
+                return True
+
+            code, output, _, prompt, supply = invoke_cli(confirm=True, installer=install_apt)
+            self.assertEqual(code, 0, output)
+            prompt.assert_called_once()
+            supply.assert_called_once_with("demo", ["apt-package"])
+            self.assertEqual((ctx.home / ".config/demo/demo.conf").read_text(encoding="utf-8"),
+                             "setting=true\n")
+            self.assertEqual(transaction.audit_units("demo"), {"demo": "Synced"})
+
+    def test_ubuntu_template_is_rendered_before_hook_and_snapshotted(self):
+        """Ubuntu 启用顺序应先渲染路径，再运行钩子并记录渲染后的哈希。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"niri": {
+                "manifest": 'post_install = "verify"\n[platforms.ubuntu]\npackages = []\n',
+                "files": {"config.kdl": 'include "/home/user/nested"\n'},
+            }})
+            hook = ctx.env.units_src / "niri" / "hooks" / "verify"
+            hook.parent.mkdir(parents=True)
+            hook.write_text(
+                "#!/bin/sh\ncat \"$NYXURI_UNIT_DEST/config.kdl\" > \"$HOME/hook-observed.txt\"\n",
+                encoding="utf-8",
+            )
+            hook.chmod(0o755)
+
+            with mock.patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"):
+                steps = transaction.unit_on("niri")
+
+            target = ctx.home / ".config/niri/config.kdl"
+            rendered = f'include "{ctx.home}/nested"\n'
+            self.assertTrue(steps[0].ok, str(steps))
+            self.assertEqual((ctx.home / "hook-observed.txt").read_text(encoding="utf-8"), rendered)
+            self.assertEqual(target.read_text(encoding="utf-8"), rendered)
+            self.assertEqual(ledger.get_unit("niri")["files"]["config.kdl"],
+                             hashlib.sha256(target.read_bytes()).hexdigest())
+
+    def test_ubuntu_custom_file_survives_template_deployment(self):
+        """平台适配部署不能覆盖用户的 Dunder 与按名 preserve 文件。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"niri": {
+                "manifest": 'preserve = ["monitor.kdl"]\n[platforms.ubuntu]\npackages = []\n',
+                "files": {"config.kdl": "blueprint\n"},
+            }})
+            living = ctx.home / ".config/niri"
+            living.mkdir(parents=True)
+            (living / "__custom__.kdl").write_text("private\n", encoding="utf-8")
+            (living / "monitor.kdl").write_text("outputs\n", encoding="utf-8")
+
+            with mock.patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"):
+                steps = transaction.unit_on("niri")
+
+            self.assertTrue(steps[0].ok, str(steps))
+            self.assertEqual((living / "__custom__.kdl").read_text(encoding="utf-8"), "private\n")
+            self.assertEqual((living / "monitor.kdl").read_text(encoding="utf-8"), "outputs\n")
 
     def test_on_already_enabled_is_noop(self):
         with TempEnv() as ctx:
@@ -182,6 +368,29 @@ class TestUnitOff(unittest.TestCase):
             self.assertEqual(rec["state"], "disabled")
             self.assertEqual(rec["files"], {})
             self.assertTrue(rec["vault"].endswith("vault/niri"))
+
+    def test_ubuntu_off_reports_mapped_packages_and_keeps_them_installed(self):
+        """Ubuntu 停用只撤配置，并报告平台覆盖声明的保留包。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"niri": {
+                "manifest": 'packages = ["arch-only"]\n'
+                            '[platforms.ubuntu]\npackages = ["ubuntu-only"]\n',
+                "files": {"config.kdl": "config\n"},
+            }})
+            manager_run = mock.patch("nyxuri.pkg.run")
+            manager = manager_run.start()
+            self.addCleanup(manager_run.stop)
+            with mock.patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"):
+                on_steps = transaction.unit_on("niri")
+                off_steps = transaction.unit_off("niri")
+
+            self.assertTrue(on_steps[0].ok, str(on_steps))
+            self.assertTrue(off_steps[0].ok, str(off_steps))
+            self.assertIn("packages-left: ubuntu-only", off_steps[0].detail)
+            self.assertNotIn("arch-only", off_steps[0].detail)
+            self.assertFalse((ctx.home / ".config/niri").exists())
+            self.assertEqual(ledger.get_unit("niri")["state"], "disabled")
+            manager.assert_not_called()
 
     def test_off_blocked_by_enabled_dependents_without_cascade(self):
         with TempEnv() as ctx:

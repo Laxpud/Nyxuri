@@ -16,11 +16,17 @@ import re
 import unittest
 from pathlib import Path
 
+from tests.utils import TempEnv
+
 
 class TestAISpecs(unittest.TestCase):
     """Ensure AI directives, architecture wiki, and index links stay unbroken."""
 
     def setUp(self):
+        # 预设读取会同步账本；文档契约检查也必须使用临时 HOME，不能改用户状态。
+        self.ctx = TempEnv()
+        self.ctx.__enter__()
+        self.addCleanup(self.ctx.__exit__, None, None, None)
         self.root_dir = Path(__file__).resolve().parent.parent
         self.wiki_dir = self.root_dir / "llms-wiki"
         self.llms_txt = self.wiki_dir / "llms.txt"

@@ -2,7 +2,10 @@
 
 import contextlib
 import io
+import subprocess
+import sys
 import unittest
+from unittest.mock import patch
 
 from tests.utils import TempEnv
 
@@ -38,6 +41,122 @@ class TestPresetDrift(unittest.TestCase):
         out = self._run_drift()
         self.assertIn("kitty", out)
         self.assertIn("ghost", out)
+
+
+class TestUbuntuDesktopDiagnostics(unittest.TestCase):
+    """诊断使用真实平台查询逻辑；外部运行时仅在进程边界替换。"""
+
+    def setUp(self):
+        self.ctx = TempEnv()
+        self.ctx.__enter__()
+        self.addCleanup(self.ctx.__exit__, None, None, None)
+        for target, value in (
+            ("nyxuri.core._CURRENT_LANG", "en"),
+            ("nyxuri.pkg.platform._os_release", {"ID": "ubuntu"}),
+        ):
+            option = {"return_value": value} if target.endswith("_os_release") else {"new": value}
+            patcher = patch(target, **option)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def capture(self, operation):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            operation(self.ctx.env)
+        return output.getvalue()
+
+    def test_orbit_checks_cairo_converter_and_reports_ubuntu_packages(self):
+        from nyxuri.sysdoctor import _check_orbit
+        # 缺转换器时 import cairo 可以成功；诊断必须把 require_foreign 放入同一探针。
+        for result in (None, subprocess.CompletedProcess([], 1), subprocess.CompletedProcess([], 0)):
+            with self.subTest(result=result), \
+                 patch("nyxuri.sysdoctor.timed_run", return_value=result) as runner:
+                output = self.capture(_check_orbit)
+            runner.assert_called_once_with(
+                [sys.executable, "-c", "import gi; import cairo; gi.require_foreign('cairo'); gi.require_version('Gtk', '3.0'); gi.require_version('GtkLayerShell', '0.1')"],
+                10, capture_output=True, check=False,
+            )
+            if result is not None and result.returncode == 0:
+                self.assertIn("runtime is available", output)
+            else:
+                for package in ("python3-gi", "python3-cairo", "python3-gi-cairo", "gir1.2-gtklayershell-0.1"):
+                    self.assertIn(package, output)
+                self.assertNotIn("python-gobject", output)
+
+    def test_orbit_unknown_platform_does_not_recommend_arch_packages(self):
+        from nyxuri.sysdoctor import _check_orbit
+        with patch("nyxuri.pkg.platform.current_platform", return_value="unsupported"), \
+             patch("nyxuri.sysdoctor.timed_run", return_value=None):
+            output = self.capture(_check_orbit)
+        self.assertIn("bindings are missing", output)
+        self.assertNotIn("python-gobject", output)
+        self.assertNotIn("python3-gi", output)
+
+    def test_orbit_probe_skipped_when_another_shell_is_active(self):
+        from nyxuri.sysdoctor import _check_orbit
+        with patch("nyxuri.kernel.ledger.active_shell", return_value="nyxuri-shell"), \
+             patch("nyxuri.sysdoctor.timed_run") as runner:
+            self.assertEqual(self.capture(_check_orbit), "")
+        runner.assert_not_called()
+
+    def test_portal_uses_dpkg_installed_status(self):
+        from nyxuri.sysdoctor import _check_portal_gtk
+        for state, expected in (("ii ", "backend is installed"), ("rc ", "is missing")):
+            commands = []
+
+            def run(argv, **kwargs):
+                commands.append((argv, kwargs))
+                output = "amd64\n" if argv[0] == "dpkg" else f"{state} xdg-desktop-portal-gtk:amd64\n"
+                return subprocess.CompletedProcess(argv, 0, output, "")
+
+            with self.subTest(state=state), patch("shutil.which", side_effect=lambda name: f"/fixture/{name}"), \
+                 patch("subprocess.run", side_effect=run):
+                output = self.capture(_check_portal_gtk)
+            self.assertIn(expected, output)
+            self.assertEqual([argv for argv, _ in commands], [
+                ["dpkg-query", "-W", "-f=${db:Status-Abbrev} ${binary:Package}\\n"],
+                ["dpkg", "--print-architecture"],
+            ])
+            for _, kwargs in commands:
+                self.assertEqual(kwargs["env"]["LC_ALL"], "C")
+                self.assertGreater(kwargs["timeout"], 0)
+
+    def test_portal_unavailable_backend_skips_package_query(self):
+        from nyxuri.sysdoctor import _check_portal_gtk
+        with patch("shutil.which", return_value=None), patch("subprocess.run") as runner:
+            output = self.capture(_check_portal_gtk)
+        self.assertIn("database is unavailable", output)
+        runner.assert_not_called()
+
+    def test_report_uses_native_versions_without_binary_version_side_effects(self):
+        from nyxuri.sysdoctor import generate_bug_report
+        calls = []
+        available = {"dpkg-query", "dpkg", "apt-get", "mpvpaper", "wpctl"}
+
+        def run(argv, **kwargs):
+            calls.append((argv, kwargs))
+            if argv == ["dpkg", "--print-architecture"]:
+                output = "amd64\n"
+            else:
+                self.assertEqual(argv[:3], ["dpkg-query", "-W", "-f=${db:Status-Abbrev}\\t${binary:Package}\\t${Version}\\n"])
+                self.assertEqual(argv[-2], "--")
+                output = f"ii \t{argv[-1]}:amd64\t9.1\n"
+            return subprocess.CompletedProcess(argv, 0, output, "")
+
+        with patch("shutil.which", side_effect=lambda name: f"/fixture/{name}" if name in available else None), \
+             patch("subprocess.run", side_effect=run), contextlib.redirect_stdout(io.StringIO()):
+            report = generate_bug_report()
+        self.assertTrue(report.is_relative_to(self.ctx.home))
+        content = report.read_text()
+        for expected in ("mpvpaper: 9.1", "wpctl: 9.1", "xdg-desktop-portal-gtk: 9.1"):
+            self.assertIn(expected, content)
+        self.assertEqual({argv[-1] for argv, _ in calls if argv[0] == "dpkg-query"}, {
+            "mpvpaper", "wireplumber", "xdg-desktop-portal-gtk",
+        })
+        self.assertTrue(all(argv[0] in {"dpkg-query", "dpkg"} for argv, _ in calls))
+        for _, kwargs in calls:
+            self.assertEqual(kwargs["env"]["LC_ALL"], "C")
+            self.assertGreater(kwargs["timeout"], 0)
 
 
 if __name__ == "__main__":

@@ -336,7 +336,7 @@ class TestPendingUpgradeBranch(unittest.TestCase):
 
 
 class TestDistroGuard(unittest.TestCase):
-    """Non-Arch systems must get a clear message instead of a wall of pacman errors."""
+    """缺少受支持的原生包后端时，在打开依赖安装菜单之前停止。"""
 
     def setUp(self):
         self._ctx = TempEnv()
@@ -345,10 +345,11 @@ class TestDistroGuard(unittest.TestCase):
     def tearDown(self):
         self._ctx.__exit__()
 
-    def test_install_full_blocked_without_pacman(self):
+    def test_install_full_blocked_when_no_native_backend_exists(self):
         from nyxuri.installer.workflows import install_configs_workflow
+        from nyxuri.core import msg
 
-        with patch("nyxuri.installer.workflows.shutil.which", return_value=None), \
+        with patch("nyxuri.installer.workflows.backend_available", return_value=False), \
              patch("nyxuri.installer.workflows.run_master_component_menu") as menu, \
              patch("builtins.print") as prn:
             result = install_configs_workflow("full")
@@ -356,12 +357,12 @@ class TestDistroGuard(unittest.TestCase):
         self.assertFalse(result)
         menu.assert_not_called()
         printed = " ".join(str(c.args[0]) for c in prn.call_args_list)
-        self.assertIn("pacman", printed)
+        self.assertIn(msg("distro_unsupported"), printed)
 
     def test_install_config_mode_not_blocked(self):
         from nyxuri.installer.workflows import install_configs_workflow
 
-        with patch("nyxuri.installer.workflows.shutil.which", return_value=None), \
+        with patch("nyxuri.installer.workflows.backend_available", return_value=False), \
              patch("sys.stdin.isatty", return_value=True), \
              patch("nyxuri.installer.workflows.run_master_component_menu", return_value=None), \
              patch("builtins.print"):
@@ -369,18 +370,19 @@ class TestDistroGuard(unittest.TestCase):
 
         self.assertTrue(result)  # cancelled-by-user path, not the distro guard
 
-    def test_deps_menu_blocked_without_pacman(self):
+    def test_deps_menu_blocked_without_native_backend(self):
         from nyxuri.installer.menus import deps_menu_loop
+        from nyxuri.core import msg
 
         with patch("sys.stdin.isatty", return_value=True), \
-             patch("nyxuri.installer.menus.shutil.which", return_value=None), \
+             patch("nyxuri.pkg.platform.backend_available", return_value=False), \
              patch("nyxuri.installer.menus.Menu") as menu, \
              patch("builtins.print") as prn:
             deps_menu_loop()
 
         menu.assert_not_called()
         printed = " ".join(str(c.args[0]) for c in prn.call_args_list)
-        self.assertIn("pacman", printed)
+        self.assertIn(msg("deps_menu_unsupported"), printed)
 
 
 class TestPreflightSudo(unittest.TestCase):
@@ -543,6 +545,146 @@ class TestCoreVerbs(unittest.TestCase):
             code, out, _ = self._run("on", "kitty")
         self.assertEqual(code, 1)
         self.assertIn("missing declared packages: kitty, fish", out)
+
+    def test_unit_step_report_explains_unsupported_platform(self):
+        """CLI 与 TUI 共用的事务摘要应保留平台不支持的原因。"""
+        from nyxuri.kernel.transaction import Step
+        from nyxuri.tui import format_steps
+
+        lines = format_steps([
+            Step("mango", False, "unsupported-platform: no Ubuntu dependency mapping"),
+        ])
+        rendered = "\n".join(lines)
+        self.assertIn("mango is unavailable on this platform", rendered)
+        self.assertIn("no Ubuntu dependency mapping", rendered)
+
+    def test_unit_step_report_keeps_hook_incomplete_warning(self):
+        """部署成功但主题 hook 失败时，共用摘要仍应明确显示未完成。"""
+        from nyxuri.kernel.transaction import Step
+        from nyxuri.tui import format_steps
+
+        lines = format_steps([
+            Step("noctalia", True, "enabled; hook-failed: render-gtk"),
+        ])
+        rendered = "\n".join(lines)
+        self.assertIn("noctalia: enabled", rendered)
+        self.assertIn("Hook incomplete: render-gtk", rendered)
+
+    def test_ubuntu_cli_tui_and_optional_menu_share_manifest_mapping(self):
+        """CLI、工作台和应用菜单都展示同一份 Ubuntu 依赖与手动资源。"""
+        import contextlib
+        import io
+        from types import SimpleNamespace
+
+        from nyxuri import cli
+        from nyxuri.core import msg
+        from nyxuri.deploy import manifest as manifest_module
+        from nyxuri.pkg import deps
+        from nyxuri.tui import UnitWorkshop
+
+        unit_id = "ubuntu-menu-probe"
+        unit_root = self._ctx.home / "isolated-units"
+        unit = unit_root / unit_id
+        unit.mkdir(parents=True)
+        (unit / "manifest.toml").write_text(
+            'optional = true\ncategory = "test"\n'
+            'packages = ["arch-only"]\npackages_aur = ["arch-aur"]\n'
+            '[platforms.ubuntu]\npackages = ["ubuntu-native"]\nmanual = ["font-resource"]\n',
+            encoding="utf-8",
+        )
+        (unit / "config.conf").write_text("value=true\n", encoding="utf-8")
+        self._ctx.env.units_src = unit_root
+
+        output = io.StringIO()
+        menu_groups = {}
+
+        def capture_menu(_title, groups, **_kwargs):
+            menu_groups["groups"] = groups
+            return SimpleNamespace(run=lambda: [])
+
+        def is_installed(_probe, name):
+            return name == "ubuntu-native"
+
+        with patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"), \
+             patch.object(manifest_module, "_MANIFEST_CACHE", None), \
+             contextlib.redirect_stdout(output):
+            self.assertEqual(cli._show_unit_detail(unit_id), 0)
+            cli_text = output.getvalue()
+            workshop_lines = UnitWorkshop()._detail_lines(unit_id, {}, 120)
+            workshop_text = "\n".join(str(value) for _, value in workshop_lines)
+
+        for rendered in (cli_text, workshop_text):
+            self.assertIn("ubuntu-native", rendered)
+            self.assertIn("font-resource", rendered)
+            self.assertNotIn("arch-only", rendered)
+            self.assertNotIn("arch-aur", rendered)
+
+        with patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"), \
+             patch.object(manifest_module, "_MANIFEST_CACHE", None), \
+             patch("nyxuri.pkg.deps.catalog_entries", return_value=[]), \
+             patch("nyxuri.pkg.deps.DependencyProbe.installed", new=is_installed), \
+             patch("nyxuri.pkg.deps.CategoryCheckboxList", side_effect=capture_menu), \
+             patch("sys.stdin.isatty", return_value=True), \
+             patch("builtins.print"):
+            supply_items = deps._supply_items()
+            self.assertTrue(deps.run_optional_apps_menu_loop())
+
+        item = next(row for row in supply_items if row["key"] == unit_id)
+        self.assertEqual(item["repo"], ["ubuntu-native"])
+        self.assertEqual(item["aur"], [])
+        self.assertEqual(item["manual"], ["font-resource"])
+        entry = next(
+            row
+            for group in menu_groups["groups"]
+            for row in group.entries
+            if row.key == unit_id
+        )
+        self.assertFalse(entry.installed)
+        self.assertEqual(entry.source_tag, msg("pkg_manual_label"))
+
+    def test_on_rejects_unsupported_unit_before_install_transaction(self):
+        """CLI 在 Ubuntu 上报告未支持单元，并且不进入内核事务。"""
+        from types import SimpleNamespace
+
+        manifest = SimpleNamespace(
+            name="mango", packages_repo=["mango"], packages_aur=[],
+            packages_flatpak=[], platforms={"ubuntu": {"supported": False, "reason": "unsupported"}},
+            manual=[],
+        )
+        with patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"), \
+             patch("nyxuri.cli.transaction.plan_on", return_value=["mango"]), \
+             patch("nyxuri.cli.ledger.all_units", return_value={}), \
+             patch("nyxuri.cli.registry.load_unit", return_value=manifest), \
+             patch("nyxuri.cli.transaction.unit_on") as unit_on:
+            code, _, err = self._run("on", "mango")
+
+        self.assertEqual(code, 1)
+        self.assertIn("unavailable on this platform", err)
+        unit_on.assert_not_called()
+
+    def test_on_rejects_missing_manual_resource_without_prompt_or_installer(self):
+        """手动资源不是 APT 包；CLI 报告缺失后直接停止。"""
+        from types import SimpleNamespace
+
+        manifest = SimpleNamespace(
+            name="nyxuri-shell", packages_repo=[], packages_aur=[], packages_flatpak=[],
+            platforms={"ubuntu": {"packages": [], "manual": ["font-resource"]}},
+            manual=["font-resource"],
+        )
+        with patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"), \
+             patch("nyxuri.cli.transaction.plan_on", return_value=["nyxuri-shell"]), \
+             patch("nyxuri.cli.ledger.all_units", return_value={}), \
+             patch("nyxuri.cli.registry.load_unit", return_value=manifest), \
+             patch("nyxuri.cli.transaction.missing_packages", return_value=["font-resource"]), \
+             patch("nyxuri.cli.prompt_confirm") as confirm, \
+             patch("nyxuri.cli.transaction.unit_on") as unit_on:
+            code, _, err = self._run("on", "nyxuri-shell")
+
+        self.assertEqual(code, 1)
+        self.assertIn("Supply these manually", err)
+        self.assertIn("font-resource", err)
+        confirm.assert_not_called()
+        unit_on.assert_not_called()
 
     def test_off_forwards_cascade_flag(self):
         from nyxuri.kernel.transaction import Step

@@ -527,7 +527,7 @@ class TestShellManagement(unittest.TestCase):
         self.assertIn("WlSessionLock {", lock_content)
         self.assertIn("PreLockCapture {", lock_content)
         self.assertIn("function open()", lock_content)
-        self.assertIn("function isLocked()", lock_content)
+        self.assertIn("function isLocked(): bool", lock_content)
         self.assertIn("password.conf", lock_content)
 
         # 2. Lock cards exist
