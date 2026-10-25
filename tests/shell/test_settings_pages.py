@@ -107,6 +107,14 @@ ANCHOR_IDS = {
         "network.section.other-settings",
         "network.section.connection-information",
     ),
+    "ConnectedDevicesPage.qml": (
+        "connected-devices.section.saved-devices",
+        "connected-devices.section.bluetooth-adapter",
+        "connected-devices.section.advanced-settings",
+    ),
+    "BluetoothPairingPage.qml": (
+        "connected-devices.bluetooth-pairing.section.nearby-devices",
+    ),
 }
 
 # Pre-M3 card chrome and legacy row vocabulary: none of it may come back
@@ -1119,6 +1127,115 @@ class TestNetworkModalPagesRebuild(unittest.TestCase):
         self.assertIn("chevron_right", source)
         for token in ("SettingsRow", "SettingsSection"):
             self.assertNotIn(token, source)
+
+
+class TestConnectedDevicesPageRebuild(unittest.TestCase):
+    """Connected devices: overview on the Nexus scaffold, Bluetooth subpages
+    keep their leases and their own back arrows."""
+
+    def test_shell_routing_survives(self):
+        source = _read("ConnectedDevicesPage.qml")
+        self.assertIn("function openSearchPath(path, serial)", source)
+        self.assertIn('currentView === "overview" ? overviewPage.flickable', source)
+        self.assertIn("function closeChildWindows()", source)
+        self.assertIn("SettingsPageHost {", source)
+        self.assertIn("function onReturnRequested()", source,
+                      "the shell still listens for subpage return requests")
+
+    def test_overview_is_a_nexus_page(self):
+        source = _read("ConnectedDevicesPage.qml")
+        self.assertIn("NexusPageBase {", source)
+        self.assertIn('title: SpotlightCatalog.title("connected-devices")', source)
+
+    def test_master_switch_leads_bare(self):
+        source = _read("ConnectedDevicesPage.qml")
+        # The Caelestia Connected devices original opens with a lone toggle.
+        self.assertIn("PreferenceToggle {", source)
+        self.assertIn('text: I18n.tr("Bluetooth")', source)
+        self.assertNotIn("GeneralSubpageHeader", source,
+                         "subpages render their own NexusPageBase back headers")
+
+    def test_search_anchor_ids_are_stable(self):
+        source = _read("ConnectedDevicesPage.qml")
+        for anchor_id in ANCHOR_IDS["ConnectedDevicesPage.qml"]:
+            self.assertIn('"id":"%s"' % anchor_id, source,
+                          f"anchor missing or rewritten: {anchor_id}")
+
+    def test_business_owners_unchanged(self):
+        source = _read("ConnectedDevicesPage.qml")
+        for owner in (
+            "BluetoothService.setBluetoothEnabled(",
+            "BluetoothService.setAdapterEnabled(",
+            "BluetoothService.setDiscoverable(",
+            "BluetoothService.setPairable(",
+            "BluetoothDeviceIcon.iconName(",
+            "BluetoothService.adapters",
+            "BluetoothService.devices",
+        ):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+
+    def test_legacy_chrome_stays_out(self):
+        source = _read("ConnectedDevicesPage.qml")
+        for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow", "StyledSwitch"):
+            self.assertNotIn(token, source, f"legacy token re-entered ConnectedDevicesPage: {token}")
+
+
+class TestBluetoothSubpagesRebuild(unittest.TestCase):
+    """Pairing + device subpages: leases, per-row spinners, forget dialog."""
+
+    def test_pairing_keeps_discovery_lease(self):
+        source = _read("BluetoothPairingPage.qml")
+        self.assertIn('acquireDiscovery("control-center-bluetooth-pairing")', source)
+        self.assertIn('releaseDiscovery("control-center-bluetooth-pairing")', source)
+        self.assertIn("onPresentationActiveChanged: root.updateDiscoveryLease()", source)
+        self.assertIn("Component.onDestruction: root.closeChildWindows()", source)
+
+    def test_pairing_is_a_nexus_subpage(self):
+        source = _read("BluetoothPairingPage.qml")
+        self.assertIn('title: SpotlightCatalog.title("connected-devices.bluetooth-pairing")', source)
+        self.assertIn("isSubPage: true", source)
+        self.assertIn("onBackRequested: root.returnRequested()", source)
+        self.assertIn("signal returnRequested", source)
+
+    def test_pairing_rows_carry_per_row_spinners(self):
+        source = _read("BluetoothPairingPage.qml")
+        self.assertIn("component NearbyDeviceRow: ConnectedRect", source,
+                      "pairing rows keep their trailing spinner as custom rows")
+        self.assertIn("BluetoothService.pairDevice(", source)
+        self.assertIn("root.pendingAddress", source)
+        for anchor_id in ANCHOR_IDS["BluetoothPairingPage.qml"]:
+            self.assertIn('"id":"%s"' % anchor_id, source)
+
+    def test_device_page_uses_atoms_and_keeps_flow(self):
+        source = _read("BluetoothDevicePage.qml")
+        self.assertIn("isSubPage: true", source)
+        self.assertIn("title: root.device ? root.device.name", source,
+                      "the subpage title tracks the selected device")
+        for atom in ("PreferenceHeader", "PreferenceToggle", "PreferenceAction", "PreferenceInfo"):
+            self.assertIn(atom, source, f"BluetoothDevicePage must use the atom: {atom}")
+        for owner in (
+            "BluetoothService.connectDevice(",
+            "BluetoothService.disconnectDevice(",
+            "BluetoothService.forgetDevice(",
+            "BluetoothService.setDeviceTrusted(",
+            "BluetoothService.setDeviceBlocked(",
+            "BluetoothService.setDeviceWakeAllowed(",
+            "ThinReadOnlySlider {",
+            "MaterialDialog {",
+        ):
+            self.assertIn(owner, source, f"business owner dropped: {owner}")
+        # The dialog must live inside the content column — a root-level child
+        # would break the scaffold's single-content-child contract.
+        dialog_index = source.index("MaterialDialog {")
+        content_end = source.rindex("    }\n}")
+        self.assertLess(dialog_index, content_end,
+                        "the forget dialog must ride inside the content column")
+
+    def test_legacy_chrome_stays_out(self):
+        for name in ("BluetoothPairingPage.qml", "BluetoothDevicePage.qml"):
+            source = _read(name)
+            for token in LEGACY_VOCABULARY + ("SettingsSection", "SettingsRow", "StyledSwitch"):
+                self.assertNotIn(token, source, f"legacy token re-entered {name}: {token}")
 
 
 if __name__ == "__main__":

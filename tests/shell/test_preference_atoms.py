@@ -111,6 +111,9 @@ class TestRowAtoms(unittest.TestCase):
 
     def test_toggle_row(self):
         source = _source("PreferenceToggle.qml")
+        self.assertIn("signal toggled", source)
+        # Optional leading icon (adapter rows, bluetooth trust/block/wake).
+        self.assertIn('property string icon: ""', source)
         self.assertIn("property alias checked: toggleItem.checked", source)
         self.assertRegex(source, r"signal toggled\b")
         # Whole-row activation: a row-level press area plus the pill switch.

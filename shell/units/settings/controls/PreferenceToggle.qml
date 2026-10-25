@@ -12,6 +12,7 @@ ConnectedRect {
 
     property string text: ""
     property string subtext: ""
+    property string icon: ""
     property alias checked: toggleItem.checked
 
     signal toggled
@@ -57,6 +58,15 @@ ConnectedRect {
         anchors.leftMargin: NexusStyle.padding.largeIncreased
         anchors.rightMargin: NexusStyle.padding.largeIncreased
         spacing: NexusStyle.padding.small
+
+        MaterialSymbol {
+            visible: root.icon.length > 0
+            Layout.preferredWidth: root.icon.length > 0 ? implicitWidth : 0
+            text: root.icon
+            iconSize: NexusStyle.icon.medium
+            fill: 1
+            color: Appearance.m3colors.m3onSurfaceVariant
+        }
 
         ColumnLayout {
             id: column
