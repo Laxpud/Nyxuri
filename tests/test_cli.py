@@ -59,7 +59,7 @@ class TestRetiredModuleCommands(unittest.TestCase):
 
 
 class TestUpdateForcePath(unittest.TestCase):
-    """update --force deploys wallpapers and replays enabled-unit hooks."""
+    """更新只刷新启用单元，force 与 deploy 的覆盖策略分别传递。"""
 
     def setUp(self):
         self._ctx = TempEnv()
@@ -68,21 +68,35 @@ class TestUpdateForcePath(unittest.TestCase):
     def tearDown(self):
         self._ctx.__exit__()
 
-    def test_force_deploys_wallpapers_and_replays_hooks(self):
+    def test_force_refreshes_only_enabled_units(self):
         from nyxuri.installer.workflows import offer_overwrite_upgrade
+        from nyxuri.kernel.transaction import Step
 
-        with patch("nyxuri.installer.workflows.deploy_selected_configs", return_value=[]), \
-             patch("nyxuri.installer.workflows._enable_wallpapers", return_value=True) as mock_wp, \
-             patch("nyxuri.installer.workflows.transaction.replay_enabled_hooks") as replay, \
+        with patch("nyxuri.kernel.ledger.all_units", return_value={
+                "wallpapers": {"state": "enabled"}, "fish": {"state": "disabled"}}), \
+             patch("nyxuri.installer.workflows.transaction.plan_on", side_effect=lambda uid: [uid]), \
+             patch("nyxuri.tui.choose_conflict_policy", return_value=True), \
+             patch("nyxuri.state.backup_configs", return_value=self._ctx.home / "snapshot"), \
+             patch("nyxuri.installer.workflows.transaction.unit_refresh",
+                   return_value=[Step("wallpapers", True, "refreshed")]) as refresh, \
+             patch("nyxuri.installer.workflows.transaction.unit_on") as enable, \
+             patch("nyxuri.installer.workflows.run_user_hooks", return_value=[]), \
              patch("nyxuri.installer.workflows.render_completion_screen"):
             self.assertTrue(offer_overwrite_upgrade("--force"))
+        from nyxuri.pkg.deps import unit_package_installer
+        refresh.assert_called_once_with("wallpapers", force=True, install_packages=unit_package_installer)
+        enable.assert_not_called()
 
-        mock_wp.assert_called_once_with()
-        replay.assert_called_once()
+    def test_deploy_does_not_imply_force(self):
+        from nyxuri.installer.workflows import offer_overwrite_upgrade
+        with patch("nyxuri.installer.workflows._enabled_update_items", return_value=["fish"]), \
+             patch("nyxuri.installer.workflows._deploy_units", return_value=True) as deploy:
+            self.assertTrue(offer_overwrite_upgrade("--deploy"))
+        deploy.assert_called_once_with(["fish"], update=True, force=False, backup=True)
 
 
 class TestUserHookEntrypoints(unittest.TestCase):
-    """Hooks run once only after a successful config deployment."""
+    """用户钩子只在全部单元事务完成后执行一次。"""
 
     def setUp(self):
         self._ctx = TempEnv()
@@ -93,27 +107,31 @@ class TestUserHookEntrypoints(unittest.TestCase):
 
     def test_force_update_runs_hooks_before_completion(self):
         from nyxuri.installer.workflows import offer_overwrite_upgrade
-
+        from nyxuri.kernel.transaction import Step
         events = []
-        with patch("nyxuri.installer.workflows.deploy_selected_configs", side_effect=lambda **_: events.append("configs") or []), \
-             patch("nyxuri.installer.workflows._enable_wallpapers", side_effect=lambda: events.append("wallpapers") or True), \
-             patch("nyxuri.installer.workflows.transaction.replay_enabled_hooks",
-                   side_effect=lambda: events.append("unit-hooks")), \
+        with patch("nyxuri.installer.workflows._enabled_update_items", return_value=["fish"]), \
+             patch("nyxuri.installer.workflows.transaction.plan_on", side_effect=lambda uid: [uid]), \
+             patch("nyxuri.tui.choose_conflict_policy", return_value=True), \
+             patch("nyxuri.state.backup_configs", return_value=self._ctx.home / "snapshot"), \
+             patch("nyxuri.installer.workflows.transaction.unit_refresh",
+                   side_effect=lambda uid, **kwargs: events.append("unit") or [Step(uid, True, "refreshed")]), \
              patch("nyxuri.installer.workflows.run_user_hooks", side_effect=lambda: events.append("hooks") or []), \
              patch("nyxuri.installer.workflows.render_completion_screen", side_effect=lambda *_, **__: events.append("completion")):
             self.assertTrue(offer_overwrite_upgrade("--force"))
-
-        self.assertEqual(events, ["configs", "wallpapers", "unit-hooks", "hooks", "completion"])
+        self.assertEqual(events, ["unit", "hooks", "completion"])
 
     def test_failed_and_code_only_updates_skip_hooks(self):
         from nyxuri.installer.workflows import offer_overwrite_upgrade
-
-        with patch("nyxuri.installer.workflows.deploy_selected_configs", return_value=["niri"]), \
+        from nyxuri.kernel.transaction import Step
+        with patch("nyxuri.installer.workflows._enabled_update_items", return_value=["fish"]), \
+             patch("nyxuri.installer.workflows.transaction.plan_on", side_effect=lambda uid: [uid]), \
+             patch("nyxuri.tui.choose_conflict_policy", return_value=True), \
+             patch("nyxuri.state.backup_configs", return_value=self._ctx.home / "snapshot"), \
+             patch("nyxuri.installer.workflows.transaction.unit_refresh", return_value=[Step("fish", False, "partial")]), \
              patch("nyxuri.installer.workflows.render_completion_screen"), \
              patch("nyxuri.installer.workflows.run_user_hooks") as hooks:
             self.assertFalse(offer_overwrite_upgrade("--force"))
         hooks.assert_not_called()
-
         with patch("nyxuri.installer.workflows.run_user_hooks") as hooks:
             self.assertTrue(offer_overwrite_upgrade("--no-deploy"))
         hooks.assert_not_called()
@@ -140,10 +158,16 @@ class TestUpdateReexecHandoff(unittest.TestCase):
                  patch("nyxuri.cli.check_path_occlusion"), \
                  patch("nyxuri.cli.safe_git_pull", return_value=True if pull else False), \
                  patch("nyxuri.cli.safe_git_checkout_ref", return_value=True if checkout else False), \
+                 patch("nyxuri.cli.subprocess.run", return_value=MagicMock(returncode=0, stdout="test-head\n")) as head, \
                  patch("nyxuri.core.os.execve", side_effect=exec_side_effect) as mock_exec, \
                  patch("builtins.print"):
                 with self.assertRaises(SystemExit) as ctx:
                     main()
+        if mock_exec.called:
+            head.assert_called_once_with(
+                ["git", "rev-parse", "HEAD"], cwd=self._ctx.env.repo_dir,
+                capture_output=True, text=True, check=False,
+            )
         return mock_exec, ctx
 
     def test_update_reexecs_into_fresh_process(self):
@@ -205,9 +229,28 @@ class TestUpdateReexecHandoff(unittest.TestCase):
             with self.assertRaises(SystemExit) as ctx:
                 main()
 
-        self.assertEqual(ctx.exception.code, 0)
+        self.assertEqual(ctx.exception.code, 1)
         self.assertTrue(target.is_symlink())
         self.assertEqual(target.resolve(strict=False), (self._ctx.env.home / "another-launcher").resolve(strict=False))
+
+    def test_local_update_skips_git_and_reexec(self):
+        """本地部署入口无需干净 Git 工作区，且 deploy 不被解析成 force。"""
+        from nyxuri.cli import _cmd_update
+        with patch("nyxuri.cli.safe_git_pull") as pull, \
+             patch("nyxuri.cli.safe_git_checkout_ref") as checkout, \
+             patch("nyxuri.cli.exec_cli") as restart, \
+             patch("nyxuri.cli.offer_overwrite_upgrade", return_value=True) as offer:
+            self.assertEqual(_cmd_update(["--local", "--deploy"]), 0)
+        offer.assert_called_once_with("--deploy")
+        pull.assert_not_called()
+        checkout.assert_not_called()
+        restart.assert_not_called()
+
+    def test_local_update_failure_is_nonzero(self):
+        """本地部署发生部分失败时，CLI 不能只因未拉取源码就返回成功。"""
+        from nyxuri.cli import _cmd_update
+        with patch("nyxuri.cli.offer_overwrite_upgrade", return_value=False):
+            self.assertEqual(_cmd_update(["--local"]), 1)
 
 
 class TestCliLinkOwnershipCallChains(unittest.TestCase):
@@ -237,7 +280,7 @@ class TestCliLinkOwnershipCallChains(unittest.TestCase):
 
 
 class TestCheckNewDepsPostUpdate(unittest.TestCase):
-    """check_new_deps_post_update should detect and offer to install missing deps."""
+    """旧全局补包入口保持兼容，由单元事务负责实际供应检查。"""
 
     def setUp(self):
         self._ctx = TempEnv()
@@ -255,7 +298,7 @@ class TestCheckNewDepsPostUpdate(unittest.TestCase):
 
         mock_install.assert_not_called()
 
-    def test_missing_deps_non_interactive_auto_installs(self):
+    def test_legacy_check_does_not_install_unselected_dependencies(self):
         from nyxuri.installer.workflows import check_new_deps_post_update
 
         with patch("nyxuri.installer.workflows.get_missing_deps", return_value=["some-pkg"]):
@@ -264,7 +307,7 @@ class TestCheckNewDepsPostUpdate(unittest.TestCase):
                     with patch("builtins.print"):
                         check_new_deps_post_update()
 
-        mock_install.assert_called_once_with(["some-pkg"])
+        mock_install.assert_not_called()
 
 
 class TestPendingUpgradeBranch(unittest.TestCase):
@@ -314,7 +357,7 @@ class TestPendingUpgradeBranch(unittest.TestCase):
     def test_pending_flag_deploys_and_exits(self):
         mock_offer, mock_check, _, ctx = self._main_pending({PENDING_UPGRADE_ENV: "--force"})
         mock_offer.assert_called_once_with("--force")
-        mock_check.assert_called_once()
+        mock_check.assert_not_called()
         self.assertEqual(ctx.exception.code, 0)
         self.assertNotIn(PENDING_UPGRADE_ENV, os.environ)  # marker consumed
 
@@ -500,7 +543,7 @@ class TestCoreVerbs(unittest.TestCase):
         self.assertEqual(code, 2)
 
     def test_on_rejects_unknown_flag(self):
-        code, _, _ = self._run("on", "kitty", "--force")
+        code, _, _ = self._run("on", "kitty", "--unknown")
         self.assertEqual(code, 2)
 
     def test_on_unknown_unit_exits_2_with_hint(self):
@@ -524,11 +567,12 @@ class TestCoreVerbs(unittest.TestCase):
         from nyxuri.kernel.transaction import Step
         captured = {}
 
-        def fake_unit_on(unit, *, preset=None, install_packages=None):
-            captured.update(unit=unit, preset=preset, installer=install_packages)
+        def fake_unit_on(unit, *, preset=None, force=False, install_packages=None):
+            captured.update(unit=unit, preset=preset, force=force, installer=install_packages)
             return [Step(unit, True, "enabled")]
 
         with patch("nyxuri.cli.transaction.unit_on", side_effect=fake_unit_on), \
+             patch("nyxuri.tui.choose_conflict_policy", return_value=False), \
              patch("nyxuri.cli.transaction.missing_packages", return_value=[]):
             code, out, _ = self._run("on", "kitty", "--preset", "dark")
         self.assertEqual(code, 0)
@@ -536,6 +580,16 @@ class TestCoreVerbs(unittest.TestCase):
         self.assertEqual(captured["preset"], "dark")
         self.assertIs(captured["installer"], _package_installer)
         self.assertIn("enabled", out)
+
+    def test_invalid_preset_fails_before_ledger_or_config_writes(self):
+        """显式无效预设由预检报告失败，不进入部署，也不创建账本。"""
+        from nyxuri.kernel import ledger
+        with patch("nyxuri.cli.transaction.unit_on") as enable:
+            code, _, _ = self._run("on", "kitty", "--preset", "missing-example")
+        self.assertEqual(code, 1)
+        enable.assert_not_called()
+        self.assertFalse(ledger.ledger_path().exists())
+        self.assertFalse((self._ctx.env.config_dir / "kitty").exists())
 
     def test_on_reports_missing_packages_failure(self):
         from nyxuri.kernel.transaction import Step
@@ -653,6 +707,7 @@ class TestCoreVerbs(unittest.TestCase):
         )
         with patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"), \
              patch("nyxuri.cli.transaction.plan_on", return_value=["mango"]), \
+             patch("nyxuri.tui.choose_conflict_policy", return_value=False), \
              patch("nyxuri.cli.ledger.all_units", return_value={}), \
              patch("nyxuri.cli.registry.load_unit", return_value=manifest), \
              patch("nyxuri.cli.transaction.unit_on") as unit_on:
@@ -673,6 +728,7 @@ class TestCoreVerbs(unittest.TestCase):
         )
         with patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"), \
              patch("nyxuri.cli.transaction.plan_on", return_value=["nyxuri-shell"]), \
+             patch("nyxuri.tui.choose_conflict_policy", return_value=False), \
              patch("nyxuri.cli.ledger.all_units", return_value={}), \
              patch("nyxuri.cli.registry.load_unit", return_value=manifest), \
              patch("nyxuri.cli.transaction.missing_packages", return_value=["font-resource"]), \

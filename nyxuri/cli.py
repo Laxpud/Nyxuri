@@ -91,18 +91,21 @@ def _report_steps(steps) -> int:
 
 def _cmd_on(sub_args: List[str]) -> int:
     """nyxuri on <unit> [--preset <name>] — disclose, then transact."""
-    usage = f"{CLI_CMD} on <unit> [--preset <name>]"
+    usage = f"{CLI_CMD} on <unit> [--preset <name>] [--force]"
     rest = list(sub_args)
     unit = rest.pop(0) if rest and not rest[0].startswith("-") else ""
     if not unit:
         exit_usage(usage)
     preset = None
+    force = False
     while rest:
         cur = rest.pop(0)
         if cur == "--preset":
             preset = rest.pop(0) if rest else ""
             if not preset:
                 exit_usage(usage)
+        elif cur == "--force":
+            force = True
         else:
             exit_usage(usage)
     try:
@@ -110,8 +113,13 @@ def _cmd_on(sub_args: List[str]) -> int:
     except KeyError:
         print(msg("cli_unknown_unit", unit), file=sys.stderr)
         return 2
+    from nyxuri.tui import choose_conflict_policy
+    decision = choose_conflict_policy(plan, presets={unit: preset} if preset else {}, force=force)
+    if decision is None:
+        print(msg("cli_aborted"))
+        return 1
     enabled = {u for u, rec in ledger.all_units().items() if rec.get("state") == "enabled"}
-    incoming = [u for u in plan if u not in enabled]
+    incoming = [u for u in plan if u not in enabled or ledger.get_deployment(u).get("pending")]
     if incoming:
         print(msg("cli_plan_on", " → ".join(incoming)))
     need_install: List[str] = []
@@ -136,7 +144,7 @@ def _cmd_on(sub_args: List[str]) -> int:
         print(msg("cli_aborted"), file=sys.stderr)
         return 1
     return _report_steps(
-        transaction.unit_on(unit, preset=preset, install_packages=_package_installer)
+        transaction.unit_on(unit, preset=preset, force=decision, install_packages=_package_installer)
     )
 
 
@@ -235,6 +243,9 @@ def _show_unit_detail(unit: str) -> int:
     if rec:
         print(f"  {msg('cli_detail_state')}: {rec.get('state', '-')}")
         print(f"  {msg('cli_detail_preset')}: {rec.get('preset', '-')}")
+        pending = ledger.get_deployment(unit).get("pending")
+        if pending:
+            print(f"  {msg('cli_detail_pending')}: {pending}")
         if rec.get("vault"):
             print(f"  {msg('cli_detail_vault')}: {rec['vault']}")
         if rec.get("updated"):
@@ -260,6 +271,8 @@ def _print_audit(report: dict) -> None:
         transaction.STATE_SYNCED: (Colors.BOLD_GREEN, "[✓]"),
         transaction.STATE_DRIFTED: (Colors.BOLD_YELLOW, "[!]"),
         transaction.STATE_GHOST: (Colors.BOLD_RED, "[✗]"),
+        "Pending": (Colors.BOLD_YELLOW, "[!]"),
+        "Orphan": (Colors.BOLD_RED, "[!]"),
     }
     for uid in sorted(report):
         color, mark = marks.get(report[uid], (Colors.DIM, "[•]"))
@@ -270,6 +283,10 @@ def _print_audit(report: dict) -> None:
         print(msg("cli_audit_drifted_hint"))
     if transaction.STATE_GHOST in report.values():
         print(msg("cli_audit_ghost_hint"))
+    if "Pending" in report.values():
+        print(msg("cli_audit_pending_hint"))
+    if "Orphan" in report.values():
+        print(msg("cli_audit_orphan_hint"))
 
 
 def _cmd_doctor(sub_args: List[str]) -> int:
@@ -355,6 +372,12 @@ def _cmd_test(sub_args: List[str]) -> int:
 def _cmd_preset(sub_args: List[str]) -> int:
     """nyxuri preset <app> [list|apply <name>|save <name>|edit <name>|delete <name>|parts|part <slot> <name>]"""
     usage = f"{CLI_CMD} preset <app> [list|apply <name>|save <name>|edit <name>|delete <name>|parts|part <slot> <name>]"
+    force = "--force" in sub_args
+    if force:
+        sub_args = list(sub_args)
+        sub_args.remove("--force")
+        if len(sub_args) < 2 or sub_args[1] not in ("apply", "part"):
+            exit_usage(usage)
     if len(sub_args) < 2:
         exit_usage(usage)
     app = sub_args[0]
@@ -390,7 +413,7 @@ def _cmd_preset(sub_args: List[str]) -> int:
         slot = sub_args[2]
         part_name = sub_args[3]
         from nyxuri.deploy.preset import apply_part
-        if apply_part(app, slot, part_name):
+        if apply_part(app, slot, part_name, force=force):
             print(f"[✓] 已切换 {app} 零件 [{slot}]: {part_name}")
             return 0
         else:
@@ -400,7 +423,7 @@ def _cmd_preset(sub_args: List[str]) -> int:
         if not name or len(sub_args) > 3:
             exit_usage(f"{CLI_CMD} preset {app} {action} <name>")
         fn = {"apply": apply_preset, "save": save_preset, "edit": edit_preset, "delete": delete_preset}[action]
-        return 0 if fn(app, name) else 1
+        return 0 if (fn(app, name, force=force) if action == "apply" else fn(app, name)) else 1
     exit_usage(usage)
 
 
@@ -479,21 +502,28 @@ def _cmd_shell(sub_args: List[str]) -> int:
 
 
 def _cmd_update(sub_args: List[str]) -> int:
-    usage = f"{CLI_CMD} update [--force|--no-deploy] [--to <tag|commit>]"
+    usage = f"{CLI_CMD} update [--local] [--force|--deploy|--no-deploy] [--to <tag|commit>]"
     flag = ""
     to_ref = ""
+    local = False
     it = iter(sub_args)
     for cur in it:
         if cur == "--to":
             to_ref = next(it, "")
             if not to_ref or to_ref.startswith("-"):
                 exit_usage(usage)
+        elif cur == "--local":
+            local = True
         elif cur in ("--force", "--deploy", "--no-deploy"):
             if flag:
                 exit_usage(usage)
             flag = cur
         else:
             exit_usage(usage)
+    if local:
+        if to_ref or flag == "--no-deploy":
+            exit_usage(usage)
+        return 0 if offer_overwrite_upgrade(flag) else 1
     env = get_env()
     check_path_occlusion()
     if to_ref:
@@ -517,6 +547,9 @@ def _cmd_update(sub_args: List[str]) -> int:
     if update_result is False:
         print(msg("updating_failed"), file=sys.stderr)
         return 1
+    if update_result is None:
+        print(msg("update_skipped_local_hint"), file=sys.stderr)
+        return 1
     return 0
 
 
@@ -538,8 +571,8 @@ def _cmd_help(sub_args: List[str]) -> int:
 
 
 COMMANDS = {
-    "on":        (_cmd_on,        f"{CLI_CMD} on <unit> [--preset <name>]"),
-    "enable":    (_cmd_on,        f"{CLI_CMD} on <unit> [--preset <name>]"),
+    "on":        (_cmd_on,        f"{CLI_CMD} on <unit> [--preset <name>] [--force]"),
+    "enable":    (_cmd_on,        f"{CLI_CMD} on <unit> [--preset <name>] [--force]"),
     "off":       (_cmd_off,       f"{CLI_CMD} off <unit> [--cascade]"),
     "disable":   (_cmd_off,       f"{CLI_CMD} off <unit> [--cascade]"),
     "list":      (_cmd_list,      f"{CLI_CMD} list [unit]"),
@@ -556,7 +589,7 @@ COMMANDS = {
     "preset":    (_cmd_preset,    f"{CLI_CMD} preset <app> [list|apply <name>|save <name>|edit <name>|delete <name>|parts|part <slot> <name>]"),
     "theme":     (_cmd_theme,     f"{CLI_CMD} theme [toggle|dark|light|sync|status]"),
     "shell":     (_cmd_shell,     f"{CLI_CMD} shell [get|set <noctalia|nyxuri-shell> [bin_path]|switch [<noctalia|nyxuri-shell> [bin_path]]|status] [EXPERIMENTAL]"),
-    "update":    (_cmd_update,    f"{CLI_CMD} update [--force|--no-deploy] [--to <tag|commit>]"),
+    "update":    (_cmd_update,    f"{CLI_CMD} update [--local] [--force|--deploy|--no-deploy] [--to <tag|commit>]"),
     "help":      (_cmd_help,      f"{CLI_CMD} help"),
 }
 
@@ -602,8 +635,7 @@ def main() -> None:
 
     if pending_flag is not None:
         deploy_ok = offer_overwrite_upgrade(pending_flag)
-        check_new_deps_post_update()
-        print(msg("updating_done"))
+        print(msg("updating_done" if deploy_ok else "updating_failed"))
         if not sys.stdin.isatty():
             sys.exit(0 if deploy_ok else 1)
         press_any_key()

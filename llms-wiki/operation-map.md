@@ -11,9 +11,9 @@
 | 命令 | 干啥 |
 |---|---|
 | `list [unit]` | 单元全景（开关状态 × 当前预设），或单个单元详情（manifest 声明 × 账本记录 × 对账态） |
-| `on <unit> [--preset <name>]`（等价 `enable`） | 启用单元：依赖闭包披露 → 当前平台包与手动资源预检 → 缺失包披露确认 → 事务落账 + `unit-changed` 事件 |
-| `off <unit> [--cascade]`（等价 `disable`） | 停用单元：反向依赖强阻断（显式 `--cascade` 才级联）→ 自定义入 Vault → 实机抹白；报告列明幸存外部文件与保留的包 |
-| `doctor [unit]` | 单元三态对账（`Synced` / `Drifted` / `Ghost`）；无参时在对账表后附加系统体检段（`sysdoctor`） |
+| `on <unit> [--preset <name>] [--force]`（等价 `enable`） | 启用单元：依赖闭包披露 → 当前平台包与手动资源预检 → 缺失包披露确认 → 事务落账 + `unit-changed` 事件 |
+| `off <unit> [--cascade]`（等价 `disable`） | 停用单元：反向依赖强阻断（显式 `--cascade` 才级联）→ 修改与自定义逐文件入 Vault → 撤回受管文件；报告列明幸存外部文件与保留的包 |
+| `doctor [unit]` | 单元对账（`Synced` / `Drifted` / `Ghost` / `Pending` / `Orphan`）；无参时在对账表后附加系统体检段（`sysdoctor`） |
 
 切换前披露、切换后交报告是产品定论：`plan_on` / `plan_off`（只读）供界面披露，
 写入只走 `transaction.unit_on` / `unit_off` 唯一事务路径。
@@ -22,8 +22,8 @@
 
 | 命令 | 干啥 |
 |---|---|
-| `install [full\|config]` | 旧世界整装流水线（配置 + 壁纸单元 + 钩子重放）；市场化后由 `on <unit>` 接管 |
-| `update [--force\|--no-deploy] [--to <tag\|commit>]` | 拉新版本 + 重新部署（KM5：线性迁移机制已清算，账本即真相）；`--to` 锁到指定版本（system 模式 → 交还系统包管理器）。部署走所有权 carry（#139）：用户改动与自放文件原样搬入、Ghost 单元冻结并提示 `on` 收编；`--force` = 采纳模板侧（payload 名全部认领 + 账本重登记），不是清剿 |
+| `install [full\|config]` | 所选单元及依赖通过 `unit_on` 部署并登记；`full` 检查供应并执行钩子，`config` 只复制并标记 `config-only`，后续 `on` 补完依赖与钩子 |
+| `update [--local] [--force\|--deploy\|--no-deploy] [--to <tag\|commit>]` | 默认先更新源码，再刷新账本中已启用且仍有蓝图的单元（含 merge）；`--local` 直接应用当前源码，不能与 `--to` / `--no-deploy` 组合；`--deploy` 是正常保留策略，`--force` 在快照成功后采用模板冲突路径；`--no-deploy` 仅更新源码 |
 | `preset <app> [list\|apply <name>\|save <name>\|edit <name>\|delete <name>\|parts\|part <slot> <name>]` | 切/管理预设与零件插槽（状态接入 `state.json` 账本） |
 | `theme [toggle\|dark\|light\|sync\|status]` | 原生切换/同步深浅主题（纯 Python 调度 gsettings、GTK settings.ini、Noctalia IPC 与 Kitty 信号） |
 | `shell [get\|set <noctalia\|nyxuri-shell> [bin_path]\|switch [\|bin_path]\|status]` | 查看或切换桌面外壳运行插槽。**[EXPERIMENTAL]** nyxuri-shell 开发中，输出带实验性警告 |
@@ -37,12 +37,19 @@
 | `test` | 开发者沙箱部署测试（`HOME=$(mktemp -d) python3 -m nyxuri test` 的落点；install.sh 已不透传参数） |
 | `help` | 用法 |
 
-Ubuntu 的来源准备、`install full` 部分完成返回非零及手动依赖边界见
+Ubuntu 的来源准备及手动依赖边界见
 [Ubuntu 兼容指南](ubuntu-compatibility.md)。
 
-`update` 的重启（命令行与控制面板两条路径都算）一律 `os.execve` 回常驻启动器
+拉取源码后的 `update` 重启（命令行与控制面板两条路径都算）一律 `os.execve` 回常驻启动器
 `nyxuri/launcher.sh`（`core.exec_cli`）——repo / standalone 模式下只有 launcher 会把
 引擎塞进 `sys.path`，自己拼 `python -m nyxuri` 离开仓库根目录就必炸（#138）。
+
+冲突确认在 `on`、安装、更新和预设切换中共用：展示路径，选择保留、备份后覆盖或取消。
+非交互默认保留，`--force` 才明确采用模板；普通备份复选框不会关闭强制覆盖的保险快照。
+更新跳过未启用/Ghost 单元；源码工作区不干净导致拉取跳过时，CLI 返回非零并提示 `--local`。
+单元钩子失败报告部分完成并保留待重试阶段，重跑相应 `on` / `off`，不将失败显示为完成。
+预设 `apply` / `part` 同样接受 `--force`，仅操作已启用且支持目录预设的单元，详见
+[预设机制](preset-mechanism.md)。快照与卸载的恢复边界见 [状态操作](state-ops.md)。
 
 ## 已处决（KM3.5 + KM5，调用即 unknown command）
 

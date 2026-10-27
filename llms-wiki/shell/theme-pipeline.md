@@ -10,8 +10,11 @@
 （matugen 仅做纯取色）→ 一次运行双写 `colors.json`（Shell 热载）与
 `palette-modes.json`（dark+light 双模式）。TemplateService 监听
 `palette-modes.json`：写 Noctalia 色板镜像，然后对全部启用模板执行渲染
-队列；队列按表达式子集（`TemplateExpr.js`）渲染每个模板，原子写输出，
-再跑注册表里的 post hook（kitty include、btop 信号、starship 托管块）。
+队列；队列按表达式子集（`TemplateExpr.js`）渲染每个模板。内置模板先写状态区，
+再由 `desktop.owned_outputs` 持锁核对消费者开关、原值及最后写入身份后提交；
+btop 和 Starship 的配置接线也按同样方式登记，后续个人修改会阻断自动覆盖。
+用户自建模板仍按其显式输出与 post hook 执行。归属与停用规则见
+[Manifest Schema](../manifest-schema.md#跨单元模板消费者)。
 
 ## 渲染队列不变量
 

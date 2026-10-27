@@ -12,12 +12,17 @@ from nyxuri.core import MAIN_WM, THEME_ENGINE
 from nyxuri.core import get_env, get_pics_dir
 
 
-def _phase_render_templates(only_app: Optional[str] = None) -> None:
-    """Render portable template paths (/home/user -> real $HOME, dynamic screenshot path).
+def _phase_render_templates(only_app: Optional[str] = None, *, exclude: Optional[set[str]] = None) -> None:
+    """只渲染本次落地的模板，保留 carry 路径的个人内容。
 
-    When ``only_app`` is set, render only that app's templates (narrow path for
-    preset switches — no cross-app side effects). None = render all (full deploy).
+    exclude 使用单元目标目录内的相对路径；单文件单元使用目标文件名。
+    因此用户修改即使含 /home/user，也不会在更新时被再次替换。
     """
+    exclude = exclude or set()
+    def may_render(path, uid):
+        rel = path.relative_to(get_env().config_dir / uid).as_posix()
+        return path.is_file() and not path.is_symlink() and rel not in exclude
+
     env = get_env()
     home = env.home
     config_dir = env.config_dir
@@ -25,7 +30,7 @@ def _phase_render_templates(only_app: Optional[str] = None) -> None:
 
     if only_app in (None, THEME_ENGINE):
         noctalia_conf = config_dir / THEME_ENGINE / f"{THEME_ENGINE}-config.toml"
-        if noctalia_conf.is_file():
+        if may_render(noctalia_conf, THEME_ENGINE):
             content = noctalia_conf.read_text(encoding="utf-8", errors="replace")
             content = re.sub(r'^directory = ".*"', lambda _m: f'directory = "{wp_dest}"', content, flags=re.MULTILINE)
             content = re.sub(r'^video_directory = ".*"', lambda _m: f'video_directory = "{wp_dest / "video"}"', content, flags=re.MULTILINE)
@@ -34,7 +39,7 @@ def _phase_render_templates(only_app: Optional[str] = None) -> None:
 
     if only_app in (None, MAIN_WM):
         niri_conf = config_dir / MAIN_WM / "config.kdl"
-        if niri_conf.is_file():
+        if may_render(niri_conf, MAIN_WM):
             content = niri_conf.read_text(encoding="utf-8", errors="replace")
             content = content.replace("/home/user", str(home))
             pics_dir = get_pics_dir()
@@ -48,14 +53,14 @@ def _phase_render_templates(only_app: Optional[str] = None) -> None:
 
     if only_app in (None, "mango"):
         mango_conf = config_dir / "mango" / "config.conf"
-        if mango_conf.is_file():
+        if may_render(mango_conf, "mango"):
             content = mango_conf.read_text(encoding="utf-8", errors="replace")
             content = content.replace("/home/user", str(home))
             mango_conf.write_text(content, encoding="utf-8")
 
     if only_app in (None, "fish"):
         fish_vars = config_dir / "fish" / "fish_variables"
-        if fish_vars.is_file():
+        if may_render(fish_vars, "fish"):
             content = fish_vars.read_text(encoding="utf-8", errors="replace")
             content = content.replace("/home/user", str(home))
             fish_vars.write_text(content, encoding="utf-8")

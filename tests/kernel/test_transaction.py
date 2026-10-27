@@ -444,13 +444,8 @@ class TestUnitOff(unittest.TestCase):
             self.assertFalse((dest / "k.conf").exists())
             self.assertEqual(transaction.audit_units("kitty"), {"kitty": "Ghost"})
 
-    def test_off_without_ledger_wipes_blueprint_keeps_foreign(self):
-        """No snapshot: blueprint-named files are withdrawn, foreign survive.
-
-        A pre-ledger (v3-era) dest must never lose the user's personal files
-        to an `off` (#139) — ownership falls back to blueprint names, and
-        everything else survives, reported as foreign-left.
-        """
+    def test_off_without_ledger_preserves_unknown_files(self):
+        """没有账本归属时，同名模板也不足以证明文件可以删除。"""
         with TempEnv() as ctx:
             _stage(ctx, {"kitty": {"files": {"k.conf": "x"}}})
             dest = ctx.home / ".config/kitty"
@@ -459,9 +454,9 @@ class TestUnitOff(unittest.TestCase):
             (dest / "my-notes.txt").write_text("keep me\n")
             steps = transaction.unit_off("kitty")
             self.assertTrue(steps[0].ok)
-            self.assertFalse((dest / "k.conf").exists(), "blueprint-named files are ours to withdraw")
+            self.assertTrue((dest / "k.conf").exists(), "unknown files must survive")
             self.assertTrue((dest / "my-notes.txt").is_file(), "user files must never be eaten")
-            self.assertIn("foreign-left: my-notes.txt", steps[0].detail)
+            self.assertIn("foreign-left: k.conf, my-notes.txt", steps[0].detail)
 
     def test_off_never_eats_unregistered_single_file(self):
         """Single-file unit: a dest file outside the managed snapshot survives."""
@@ -561,7 +556,7 @@ class TestOwnershipCarryLedger(unittest.TestCase):
             self.assertEqual(set(baselines["kitty"]), {"k.conf"})
             self.assertIsNone(baselines["fish"], "Ghost units have no baseline")
 
-    def test_on_adopts_claiming_payload_and_keeps_extras(self):
+    def test_on_preserves_unknown_payload_and_keeps_extras(self):
         with TempEnv() as ctx:
             _stage(ctx, {"app": {"files": {"a.conf": "template\n"}}})
             dest = ctx.home / ".config/app"
@@ -570,13 +565,14 @@ class TestOwnershipCarryLedger(unittest.TestCase):
             (dest / "extra.conf").write_text("user's tool\n", encoding="utf-8")
             steps = transaction.unit_on("app")
             self.assertTrue(steps[0].ok, str(steps))
-            # Adoption: the engine claims its payload name…
-            self.assertEqual((dest / "a.conf").read_text(), "template\n")
+            # 首次启用没有归属证据，同名个人文件必须保留并披露冲突。
+            self.assertEqual((dest / "a.conf").read_text(), "user's own take\n")
+            self.assertEqual(steps[0].conflicts, ("a.conf",))
             # …and the user's extra file survives as user-owned.
             self.assertEqual((dest / "extra.conf").read_text(), "user's tool\n")
             rec = ledger.get_unit("app")
-            self.assertEqual(set(rec["files"]), {"a.conf"},
-                             "carried extras must never enter the snapshot")
+            self.assertEqual(set(rec["files"]), set(),
+                             "carried files must never enter the snapshot")
             self.assertEqual(transaction.audit_units("app"), {"app": "Synced"})
 
     def test_update_carry_then_resnapshot_rebaselines_laid_only(self):
@@ -603,11 +599,11 @@ class TestOwnershipCarryLedger(unittest.TestCase):
 
             transaction.resnapshot_units(["app"], policy.carried)
             rec = ledger.get_unit("app")
-            self.assertNotIn("a.conf", rec["files"],
-                             "a carried file must never read as engine-laid")
+            self.assertEqual(rec["files"]["a.conf"], hashlib.sha256(b"v1\n").hexdigest(),
+                             "modified files retain the original deployment baseline")
             self.assertNotIn("extra.conf", rec["files"])
-            # Drift is judged per ledger entry, so carried files are not noise.
-            self.assertEqual(transaction.audit_units("app"), {"app": "Synced"})
+            # 保留历史归属后，doctor 继续如实显示个人改动。
+            self.assertEqual(transaction.audit_units("app"), {"app": "Drifted"})
 
             # Force is the adopt verb: template side wins and is re-baselined.
             self.assertNotIn("app", transaction._phase_atomic_deployment(["app"]))
@@ -875,11 +871,12 @@ class TestUnitHooks(unittest.TestCase):
             rec = ledger.get_unit("app")
             self.assertIn("hooked.conf", rec["files"], "hook products must enter the managed snapshot")
 
-    def test_on_hook_failure_surfaces_in_detail_without_blocking(self):
+    def test_on_hook_failure_marks_pending(self):
         with TempEnv() as ctx:
             _stage(ctx, {"app": {"manifest": 'post_install = "nope"\n', "files": {"a.conf": "a"}}})
             steps = transaction.unit_on("app")
-            self.assertTrue(steps[0].ok)
+            self.assertFalse(steps[0].ok)
+            self.assertEqual(ledger.get_deployment("app")["pending"], "post_install")
             self.assertIn("hook-failed: nope", steps[0].detail)
             self.assertTrue((ctx.home / ".config/app/a.conf").is_file())
 
@@ -899,7 +896,8 @@ class TestUnitHooks(unittest.TestCase):
             with mock.patch.object(transaction, "_run_unit_hook", side_effect=spy):
                 transaction.unit_on("app")
                 steps = transaction.unit_off("app")
-            self.assertTrue(steps[0].ok, str(steps))
+            self.assertFalse(steps[0].ok, str(steps))
+            self.assertEqual(ledger.get_deployment("app")["pending"], "post_remove")
             self.assertEqual(calls[-1], ("app", "clean", False),
                              "post_remove must run after the wipe")
             self.assertFalse((ctx.home / ".config/app").exists())
@@ -965,3 +963,235 @@ class TestLedgerResilience(unittest.TestCase):
                 os.waitpid(pid, 0)
             data = ledger.read_ledger()
             self.assertEqual([data.get(f"k{i}") for i in range(6)], list(range(6)))
+
+
+class TestManagementLifecycleAcceptance(unittest.TestCase):
+    """审查方案明确列出的隔离验收：归档、预检、重试、共享目录和损坏账本。"""
+
+    def setUp(self):
+        patcher = mock.patch.object(transaction, "missing_packages", return_value=[])
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_modified_directory_file_and_merge_roundtrip_keep_original_baseline(self):
+        """三种落地形状都先归档普通改动，再恢复，重复刷新不能认领个人版本。"""
+        for shape in ("directory", "file", "merge"):
+            with self.subTest(shape=shape), TempEnv() as ctx:
+                manifest = ('target = "a.conf"\n' if shape == "file" else
+                            'merge = true\ntarget = "~/shared"\n' if shape == "merge" else '')
+                _stage(ctx, {"app": {"manifest": manifest, "files": {"a.conf": "v1"}}})
+                self.assertTrue(transaction.unit_on("app")[0].ok)
+                root = ctx.home / ("shared" if shape == "merge" else ".config/app")
+                target = ctx.home / ".config/a.conf" if shape == "file" else root / "a.conf"
+                baseline = ledger.get_unit("app")["files"]["a.conf"]
+                target.write_text("personal")
+                self.assertTrue(transaction.unit_off("app")[0].ok)
+                self.assertFalse(target.exists())
+                self.assertEqual((transaction.vault_dir("app") / "a.conf").read_text(), "personal")
+                self.assertTrue(transaction.unit_on("app")[0].ok)
+                (ctx.env.units_src / "app/a.conf").write_text("v2")
+                for _ in range(2):
+                    self.assertTrue(transaction.unit_refresh("app")[0].ok)
+                    self.assertEqual(target.read_text(), "personal")
+                    self.assertEqual(ledger.get_unit("app")["files"]["a.conf"], baseline)
+                self.assertEqual(transaction.audit_units("app"), {"app": "Drifted"})
+                self.assertTrue(transaction.unit_off("app")[0].ok)
+                self.assertEqual((transaction.vault_dir("app") / "a.conf").read_text(), "personal")
+
+    def test_vault_restores_nested_custom_without_removing_foreign_sibling(self):
+        """Vault 的叶节点合并不得把同父目录内的外来文件整目录替换。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {"files": {"main.conf": "template"}}})
+            transaction.unit_on("app")
+            root = ctx.home / ".config/app/nested"
+            root.mkdir()
+            (root / "user__custom__.conf").write_text("custom")
+            (root / "foreign.conf").write_text("foreign")
+            transaction.unit_off("app")
+            self.assertEqual((root / "foreign.conf").read_text(), "foreign")
+            transaction.unit_on("app")
+            self.assertEqual((root / "user__custom__.conf").read_text(), "custom")
+            self.assertEqual((root / "foreign.conf").read_text(), "foreign")
+
+    def test_invalid_explicit_preset_has_no_dependency_or_active_writes(self):
+        """显式预设先于依赖部署校验，失败不创建账本、active 或依赖配置。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"base": {"files": {"base.conf": "base"}},
+                         "app": {"manifest": 'dependencies = ["base"]\n', "files": {"a.conf": "a"}}})
+            step = transaction.unit_on("app", preset="missing")[0]
+            self.assertFalse(step.ok)
+            self.assertFalse(ledger.ledger_path().exists())
+            self.assertFalse((ctx.env.config_dir / "base").exists())
+            self.assertFalse((ctx.env.presets_dir / "app.active").exists())
+            self.assertFalse((ctx.env.state_dir / "vault").exists())
+
+    def test_explicit_preset_on_empty_target_is_not_reset_to_default(self):
+        """首次启用即部署所选预设，文件和两处预设状态一致。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {"files": {"a.conf": "default", "__presets__/dark/a.conf": "dark"}}})
+            self.assertTrue(transaction.unit_on("app", preset="dark")[0].ok)
+            self.assertEqual((ctx.env.config_dir / "app/a.conf").read_text(), "dark")
+            self.assertEqual(ledger.get_unit("app")["preset"], "dark")
+            self.assertEqual((ctx.env.presets_dir / "app.active").read_text(), "dark")
+
+    def test_force_has_recoverable_backup_and_backup_failure_does_not_overwrite(self):
+        """强制覆盖前备份个人内容；备份失败不落地，也不能由普通备份选项绕过。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {"files": {"a.conf": "template"}}})
+            dest = ctx.env.config_dir / "app"
+            dest.mkdir()
+            (dest / "a.conf").write_text("personal")
+            (dest / "foreign").write_text("foreign")
+            with mock.patch("nyxuri.state.backup.backup_configs", return_value=None):
+                self.assertFalse(transaction.unit_on("app", force=True)[0].ok)
+            self.assertEqual((dest / "a.conf").read_text(), "personal")
+            self.assertIsNone(ledger.get_unit("app"))
+            result = transaction.unit_on("app", force=True)[0]
+            self.assertTrue(result.ok, result)
+            self.assertEqual((Path(result.backup) / "app/a.conf").read_text(), "personal")
+            self.assertTrue((Path(result.backup) / "snapshot.json").is_file())
+            self.assertEqual((dest / "a.conf").read_text(), "template")
+            self.assertEqual((dest / "foreign").read_text(), "foreign")
+
+    def test_hook_failures_remain_pending_and_retry_completes(self):
+        """on 和 off 的关键钩子失败都返回未完成，并允许同一动词重试。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {"manifest": 'post_install = "setup"\npost_remove = "clean"\n',
+                                 "files": {"a.conf": "a"}}})
+            with mock.patch.object(transaction, "_run_unit_hook", side_effect=[False, True, False, True]) as hook:
+                first = transaction.unit_on("app")[0]
+                self.assertFalse(first.ok)
+                self.assertEqual(transaction.audit_units("app"), {"app": "Pending"})
+                self.assertTrue(transaction.unit_on("app")[0].ok)
+                self.assertFalse(transaction.unit_off("app")[0].ok)
+                self.assertEqual(ledger.get_deployment("app")["pending"], "post_remove")
+                self.assertTrue(transaction.unit_off("app")[0].ok)
+                self.assertIsNone(ledger.get_deployment("app")["pending"])
+                self.assertEqual([call.args[2] for call in hook.call_args_list], ["setup", "setup", "clean", "clean"])
+
+    def test_merge_refresh_updates_owned_adds_new_removes_old_and_preserves_personal(self):
+        """真实新旧版本差异覆盖新增、修改、删除与冲突，共享目录不整体置换。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {"manifest": 'merge = true\ntarget = "~/shared"\n',
+                                 "files": {"update": "v1", "edit": "v1", "retire": "old"}}})
+            transaction.unit_on("app")
+            root = ctx.home / "shared"
+            (root / "edit").write_text("personal")
+            (root / "foreign").write_text("foreign")
+            src = ctx.env.units_src / "app"
+            (src / "update").write_text("v2")
+            (src / "edit").write_text("v2")
+            (src / "retire").unlink()
+            (src / "new").write_text("new")
+            step = transaction.unit_refresh("app")[0]
+            self.assertTrue(step.ok, step)
+            self.assertEqual(step.conflicts, ("edit",))
+            self.assertEqual((root / "update").read_text(), "v2")
+            self.assertEqual((root / "edit").read_text(), "personal")
+            self.assertEqual((root / "foreign").read_text(), "foreign")
+            self.assertEqual((root / "new").read_text(), "new")
+            self.assertFalse((root / "retire").exists())
+            self.assertNotIn("foreign", ledger.get_unit("app")["files"])
+
+    def test_orphan_audit_and_withdraw_use_historical_target(self):
+        """源码已删除时 doctor 继续报告其他单元，并依据历史元数据安全停用。"""
+        import shutil
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {"files": {"a.conf": "a"}}, "other": {"files": {"o.conf": "o"}}})
+            transaction.unit_on("app")
+            transaction.unit_on("other")
+            dest = ctx.env.config_dir / "app/a.conf"
+            dest.write_text("personal")
+            shutil.rmtree(ctx.env.units_src / "app")
+            self.assertEqual(transaction.audit_units(), {"app": "Orphan", "other": "Synced"})
+            self.assertEqual(transaction.plan_off("app"), ["app"])
+            self.assertTrue(transaction.unit_off("app")[0].ok)
+            self.assertFalse(dest.exists())
+            self.assertEqual((transaction.vault_dir("app") / "a.conf").read_text(), "personal")
+
+    def test_changed_layout_requires_old_target_withdrawal(self):
+        """manifest 更改目标后拒绝直接 refresh，off 仍撤回历史落地点。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {"manifest": 'merge = true\ntarget = "~/old"\n', "files": {"a": "a"}}})
+            transaction.unit_on("app")
+            (ctx.env.units_src / "app/manifest.toml").write_text('packages = []\nmerge = true\ntarget = "~/new"\n')
+            self.assertFalse(transaction.unit_refresh("app")[0].ok)
+            self.assertTrue((ctx.home / "old/a").exists())
+            self.assertFalse((ctx.home / "new").exists())
+            self.assertTrue(transaction.unit_off("app")[0].ok)
+            self.assertFalse((ctx.home / "old/a").exists())
+
+    def test_corrupt_ledger_and_lock_failure_stop_before_file_changes(self):
+        """损坏与锁异常不能伪装首次部署；保留原账本和配置字节。"""
+        with TempEnv() as ctx:
+            _stage(ctx, {"app": {"files": {"a.conf": "a"}}})
+            path = ledger.ledger_path()
+            path.write_text('{"units": invalid')
+            self.assertFalse(transaction.unit_on("app")[0].ok)
+            self.assertEqual(path.read_text(), '{"units": invalid')
+            self.assertFalse((ctx.env.config_dir / "app").exists())
+            path.unlink()
+            with mock.patch.object(ledger.fcntl, "flock", side_effect=OSError("lock unavailable")):
+                self.assertFalse(transaction.unit_on("app")[0].ok)
+            self.assertFalse(path.exists())
+            self.assertFalse((ctx.env.config_dir / "app").exists())
+
+
+class TestManagedRuntimeTransformationLifecycle(unittest.TestCase):
+    """审查方案中的运行时产物基线、更新和停用闭环，所有内容均在 TempEnv。"""
+
+    def setUp(self):
+        patcher = mock.patch.object(transaction, "missing_packages", return_value=[])
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _starship(self, ctx):
+        """启用最小主题消费者并选择自研Shell，只验证Python提交边界。"""
+        _stage(ctx, {
+            "theme": {"manifest": 'runtime = true\n'},
+            "starship": {"manifest": 'target = "starship.toml"\n', "files": {"starship.toml": "template-v1"}},
+        })
+        self.assertTrue(transaction.unit_on("theme")[0].ok)
+        self.assertTrue(transaction.unit_on("starship")[0].ok)
+        ledger.set_shell("nyxuri-shell")
+        return ctx.env.config_dir / "starship.toml"
+
+    def test_managed_main_file_render_refresh_restore_and_off(self):
+        """运行态基线仍可升级模板，停用撤回变换后不把原模板误归档为个人修改。"""
+        from nyxuri.desktop import owned_outputs
+        with TempEnv() as ctx:
+            target = self._starship(ctx)
+            self.assertTrue(owned_outputs.write_transformation("nyxuri-shell", "starship", target, b"rendered-v1"))
+            self.assertEqual(target.read_text(), "rendered-v1")
+            self.assertEqual(transaction.audit_units("starship"), {"starship": "Synced"})
+            (ctx.env.units_src / "starship/starship.toml").write_text("template-v2")
+            self.assertTrue(transaction.unit_refresh("starship")[0].ok)
+            self.assertEqual(target.read_text(), "template-v2")
+            self.assertTrue(owned_outputs.write_transformation("nyxuri-shell", "starship", target, b"rendered-v2"))
+            owned_outputs.withdraw_outputs(producer="nyxuri-shell")
+            self.assertEqual(target.read_text(), "template-v2")
+            self.assertEqual(transaction.audit_units("starship"), {"starship": "Synced"})
+            self.assertTrue(owned_outputs.write_transformation("nyxuri-shell", "starship", target, b"rendered-again"))
+            self.assertTrue(transaction.unit_off("starship")[0].ok)
+            self.assertFalse(target.exists())
+            self.assertFalse((transaction.vault_dir("starship") / "starship.toml").exists())
+
+    def test_personal_main_file_change_is_not_rebased_by_render_or_refresh(self):
+        """运行态主文件的个人修改保持漂移证据，off归档后on仍受同一保护。"""
+        from nyxuri.desktop import owned_outputs
+        with TempEnv() as ctx:
+            target = self._starship(ctx)
+            self.assertTrue(owned_outputs.write_transformation("nyxuri-shell", "starship", target, b"rendered"))
+            baseline = ledger.get_unit("starship")["files"]["starship.toml"]
+            target.write_text("personal")
+            self.assertFalse(owned_outputs.write_transformation("nyxuri-shell", "starship", target, b"other-render"))
+            (ctx.env.units_src / "starship/starship.toml").write_text("template-v2")
+            self.assertTrue(transaction.unit_refresh("starship")[0].ok)
+            self.assertEqual(target.read_text(), "personal")
+            self.assertEqual(ledger.get_unit("starship")["files"]["starship.toml"], baseline)
+            self.assertTrue(transaction.unit_off("starship")[0].ok)
+            self.assertEqual((transaction.vault_dir("starship") / "starship.toml").read_text(), "personal")
+            self.assertTrue(transaction.unit_on("starship")[0].ok)
+            self.assertEqual(target.read_text(), "personal")
+            self.assertFalse(owned_outputs.write_transformation("nyxuri-shell", "starship", target, b"other-render"))
+            self.assertEqual(transaction.audit_units("starship"), {"starship": "Drifted"})
