@@ -22,7 +22,7 @@ from nyxuri.deploy.atomic import (CarryPolicy, _path_identity, _deploy_ignore_fa
 from nyxuri.deploy.deploy import _phase_atomic_deployment, merge_deploy_unit
 from nyxuri.deploy.manifest import ModuleManifest, living_path
 from nyxuri.deploy.preset import write_active_preset
-from nyxuri.deploy.templates import _phase_render_templates
+from nyxuri.deploy.templates import _phase_render_templates, prepare_screenshot_directory
 from nyxuri.kernel.resolver import resolve_order
 
 STATE_SYNCED = "Synced"
@@ -374,10 +374,15 @@ def _copy_leaf(src: Path, dst: Path) -> None:
 
 def _vault_archive(unit_id: str, dest: Path, manifest: ModuleManifest,
                    rec: Optional[dict] = None) -> List[str]:
-    """先完整复制 Custom、preserve 和已修改受管文件，成功后才撤回原件。"""
+    """只归档有来源记录的保留文件和普通修改，全部复制成功后才撤回原件。
+
+    preserve/Custom 只声明更新时保留，不能证明路径由 Nyxuri 创建。受保护路径
+    使用独立来源集合，不计算漂移哈希；既有个人插件等未知内容始终留在生效区。
+    """
     baseline = (rec or {}).get("files", {})
+    protected = set(ledger.get_deployment(unit_id).get("protected_paths", []))
     selected = [(rel, path) for rel, path in _leaves(dest)
-                if _is_user_owned(rel, manifest)
+                if (rel in protected or rel in baseline) and _is_user_owned(rel, manifest)
                 or (rel in baseline and _path_identity(path) != baseline[rel])]
     vault = vault_dir(unit_id)
     # 冲突版本集中保存在状态域；绝不覆盖保险库里尚未恢复的旧内容。
@@ -394,12 +399,13 @@ def _vault_archive(unit_id: str, dest: Path, manifest: ModuleManifest,
     return [rel for rel, _ in selected]
 
 
-def _vault_restore(unit_id: str, dest: Path, *, single: bool = False) -> int:
+def _vault_restore(unit_id: str, dest: Path, *, single: bool = False,
+                   excluded: Optional[set[str]] = None) -> int:
     """逐文件恢复；现有同级目录保留，冲突双方保全后保留生效区版本。"""
     vault = vault_dir(unit_id)
     if not vault.is_dir():
         return 0
-    entries = list(_leaves(vault))
+    entries = [(rel, src) for rel, src in _leaves(vault) if rel not in (excluded or set())]
     for rel, src in entries:
         target = _safe_leaf(dest, rel, single=single)
         if target.exists() or target.is_symlink():
@@ -536,6 +542,8 @@ def _historical_manifest(uid: str, rec: Optional[dict]):
             raise ValueError(f"Orphan has no deployment target: {uid}")
         manifest = ModuleManifest(uid, [], [], [], [], {}, [], uid, "", uid, [], False)
     dest = _unit_dest(uid, manifest)
+    if not meta and rec and manifest.legacy_targets:
+        meta = _legacy_metadata(uid, manifest, rec, {}) or {}
     if meta:
         dest = Path(meta["target"])
         if not dest.is_absolute() or dest == get_env().home or not dest.parent.resolve().is_relative_to(get_env().home.resolve()):
@@ -545,6 +553,175 @@ def _historical_manifest(uid: str, rec: Optional[dict]):
                            merge=shape == "merge", runtime=shape == "runtime",
                            target=(str(dest) if shape in ("file", "merge") else ""))
     return manifest, dest
+
+
+def _legacy_metadata(uid: str, manifest: ModuleManifest, rec: dict, meta: dict) -> Optional[dict]:
+    """识别已声明的旧布局；五字段旧账本只使用明确的历史默认值。
+
+    没有账本的旧目录仍是未知用户内容。已保存的动态 Pictures 目标可随用户
+    图片目录设置改变而迁移；其他目标或形状变化必须与 legacy_targets 匹配。
+    """
+    if not rec:
+        return None
+    current = _metadata(manifest, _unit_dest(uid, manifest))
+    if meta and meta.get("target") == current["target"] and meta.get("shape") == current["shape"]:
+        return None
+    declared = []
+    for target, shape in manifest.legacy_targets.items():
+        old = replace(manifest, target=target)
+        declared.append(dict(target=str(_unit_dest(uid, old)), shape=shape,
+                             preserve=list(manifest.preserve), pending=None))
+    if meta:
+        if any(meta.get("target") == old["target"] and meta.get("shape") == old["shape"] for old in declared):
+            return meta
+        if manifest.target.startswith("@pictures/") and meta.get("shape") == "merge":
+            return meta
+        return None
+    if len(declared) == 1:
+        return declared[0]
+    return None
+
+
+def _migration_entries(uid: str, manifest: ModuleManifest, rec: dict, oldmeta: dict):
+    """选择有归属证据及保留协议覆盖的旧文件，并合入尚未恢复的 Vault。"""
+    old = Path(oldmeta["target"])
+    if old.is_symlink() or not old.parent.resolve().is_relative_to(get_env().home.resolve()):
+        raise ValueError(f"Unsafe migration target: {old}")
+    baseline = {**oldmeta.get("archived_baselines", {}), **rec.get("files", {})}
+    entries = {rel: path for rel, path in _leaves(old)
+               if rel in baseline or _is_user_owned(rel, manifest)}
+    # 同名 Vault 版本保留在保险库；生效区版本优先，后续恢复会明确报告冲突。
+    for rel, path in _leaves(vault_dir(uid)):
+        entries.setdefault(rel, path)
+    return entries
+
+
+def _migration_conflicts(uid: str, manifest: ModuleManifest, rec: dict, oldmeta: dict) -> List[str]:
+    dest = _unit_dest(uid, manifest)
+    conflicts = []
+    for rel, source in _migration_entries(uid, manifest, rec, oldmeta).items():
+        target = _safe_leaf(dest, rel)
+        if target == source:
+            continue
+        if (target.exists() or target.is_symlink()) and _path_identity(target) != _path_identity(source):
+            conflicts.append(rel)
+    return sorted(conflicts)
+
+
+def _migrate_layout(uid: str, manifest: ModuleManifest, rec: dict, oldmeta: dict,
+                    *, force: bool = False):
+    """先备份旧区、新区、账本与 Vault，再逐文件复制并验证，最后撤回旧件。
+
+    pending=migration 始终保留旧目标，off 拒绝执行；复制阶段中断后可重复运行。
+    所有新件验证成功前不删除任何旧件。删除阶段中断用迁移身份补验已落地文件，
+    不能把部分迁移误判为完整启用。force 仅解决迁移目的地冲突，不丢弃旧修改。
+    """
+    from nyxuri.state.backup import backup_configs
+    from nyxuri.deploy.atomic import atomic_replace_item
+    old, dest = Path(oldmeta["target"]), _unit_dest(uid, manifest)
+    entries = _migration_entries(uid, manifest, rec, oldmeta)
+    conflicts = _migration_conflicts(uid, manifest, rec, oldmeta)
+    backup = backup_configs(note=f"Before layout migration {uid}", interactive=False,
+                            extra_paths=[old, dest, vault_dir(uid)])
+    if backup is None:
+        raise OSError(f"Migration backup failed: {uid}")
+    previous = oldmeta.get("migration", {}) or {}
+    identities = {**previous.get("files", {}), **{rel: _path_identity(path) for rel, path in entries.items()}}
+    ledger.set_deployment(uid, **{**oldmeta, "pending": "migration",
+        "migration": {"target": str(dest), "shape": _metadata(manifest, dest)["shape"],
+                      "files": identities, "backup": str(backup)}})
+    if conflicts and not force:
+        return str(backup), conflicts, False
+    for rel, source in entries.items():
+        target = _safe_leaf(dest, rel)
+        if target != source and _path_identity(target) != identities[rel]:
+            if not atomic_replace_item(source, target):
+                raise OSError(f"Migration copy failed: {rel}")
+    for rel, digest in identities.items():
+        if _path_identity(_safe_leaf(dest, rel)) != digest:
+            raise OSError(f"Migration verification failed: {rel}")
+    for rel, source in entries.items():
+        if source != _safe_leaf(dest, rel):
+            source.unlink()
+    if old != dest and old.is_dir():
+        _prune_empty_dirs(old)
+        if not any(old.iterdir()):
+            old.rmdir()
+    ledger.set_deployment(uid, **{**_metadata(manifest, dest), "migration": None,
+                                  "pending": "deploy"})
+    return str(backup), conflicts, True
+
+
+def _excluded_payload(manifest: ModuleManifest) -> set[str]:
+    """按全部已启用单元与平台支持决定条件文件，不读取当前桌面会话。"""
+    from nyxuri.pkg.requirements import resolve_requirements
+    enabled = _enabled_set()
+    excluded = set(manifest.retired_files)
+    for rel, required in manifest.when_units.items():
+        for uid in required:
+            if uid not in enabled:
+                excluded.add(rel)
+                break
+            try:
+                supported = resolve_requirements(registry.load_unit(uid)).supported
+            except KeyError:
+                supported = False
+            if not supported:
+                excluded.add(rel)
+                break
+    return excluded
+
+
+def _retire_payload(uid: str, manifest: ModuleManifest, dest: Path, baseline: dict,
+                    excluded: set[str], backup: str):
+    """退役旧通用规则；条件失效的已修改规则先入 Vault，供重新启用恢复。
+
+    retired_files 中只有哈希等于旧基线的文件才删除；未知或修改版本不接管。
+    条件规则只处理历史账本已登记的文件，避免删除其他桌面管理器留下的内容。
+    """
+    archived = {}
+    kept = []
+    for rel in sorted(excluded):
+        path = _safe_leaf(dest, rel)
+        if not (path.exists() or path.is_symlink()):
+            if rel in baseline and rel not in manifest.retired_files:
+                archived[rel] = baseline[rel]
+            continue
+        digest = _path_identity(path)
+        if rel in manifest.retired_files:
+            if baseline.get(rel) == digest:
+                if not backup:
+                    backup = str(backup_conflicts(uid, [rel]))
+                path.unlink()
+            else:
+                kept.append(rel)
+        elif rel in baseline:
+            archived[rel] = baseline[rel]
+            if digest != baseline[rel]:
+                vault = _safe_leaf(vault_dir(uid), rel)
+                if vault.exists() or vault.is_symlink():
+                    if _path_identity(vault) != digest:
+                        raise ValueError(f"Vault conflict: {rel}")
+                else:
+                    _copy_leaf(path, vault)
+            path.unlink()
+        else:
+            kept.append(rel)
+    return archived, kept, backup
+
+
+def _sync_conditionals(changed: set[str]) -> List[Step]:
+    """仅刷新已启用、引用本轮单元的条件配置；不启用单元、不重启 Portal。"""
+    result = []
+    for uid in sorted(_enabled_set()):
+        try:
+            manifest = registry.load_unit(uid)
+        except KeyError:
+            continue
+        if any(changed.intersection(required) for required in manifest.when_units.values()):
+            result.extend(unit_on(uid, refresh=True, run_hooks=False, check_packages=False,
+                                  _sync_dependents=False, _configuration_sync=True))
+    return result
 
 
 def backup_conflicts(unit_id: str, paths: List[str]) -> Path:
@@ -590,7 +767,8 @@ def _payload_paths(unit_id: str, manifest: ModuleManifest, source: Path, selecte
                 if name not in skipped:
                     path = Path(directory) / name
                     payload[path.relative_to(root).as_posix()] = path
-    return payload
+    excluded = _excluded_payload(manifest)
+    return {rel: path for rel, path in payload.items() if rel not in excluded}
 
 
 def plan_conflicts(unit_id: str, preset: Optional[str] = None) -> List[str]:
@@ -601,9 +779,11 @@ def plan_conflicts(unit_id: str, preset: Optional[str] = None) -> List[str]:
     source, selected = _source_for(unit_id, manifest, preset)
     dest = _unit_dest(unit_id, manifest)
     rec = ledger.get_unit(unit_id) or {}
-    baseline = rec.get("files", {}) or ledger.get_deployment(unit_id).get("archived_baselines", {})
+    oldmeta = ledger.get_deployment(unit_id)
+    baseline = {**oldmeta.get("archived_baselines", {}), **rec.get("files", {})}
     single = bool(manifest.target and not manifest.merge)
-    conflicts = set()
+    legacy = _legacy_metadata(unit_id, manifest, rec, oldmeta)
+    conflicts = set(_migration_conflicts(unit_id, manifest, rec, legacy)) if legacy else set()
     for rel, src in _payload_paths(unit_id, manifest, source, selected).items():
         if _is_user_owned(rel, manifest):
             continue
@@ -616,6 +796,8 @@ def plan_conflicts(unit_id: str, preset: Optional[str] = None) -> List[str]:
                     conflicts.add(rel)
     # Custom 的同名冲突也必须披露；此处不把它列为强制模板覆盖对象。
     for rel, archived in _leaves(vault_dir(unit_id)):
+        if rel in _excluded_payload(manifest):
+            continue
         target = _safe_leaf(dest, rel, single=single)
         if (target.exists() or target.is_symlink()) and _path_identity(target) != _path_identity(archived):
             conflicts.add(rel)
@@ -626,7 +808,8 @@ def plan_conflicts(unit_id: str, preset: Optional[str] = None) -> List[str]:
 def unit_on(unit_id: str, *, preset: Optional[str] = None,
             install_packages: Optional[Callable[[str, List[str]], bool]] = None,
             force: bool = False, refresh: bool = False, run_hooks: bool = True,
-            check_packages: bool = True) -> List[Step]:
+            check_packages: bool = True, _sync_dependents: bool = True,
+            _configuration_sync: bool = False) -> List[Step]:
     """预检全部输入，再按依赖序部署；文件提交后钩子失败保留 pending 供重试。"""
     plan = _enable_closure(unit_id)
     enabled = _enabled_set()
@@ -647,18 +830,23 @@ def unit_on(unit_id: str, *, preset: Optional[str] = None,
         if ok:
             ledger.set_deployment(unit_id, pending=None)
         return [Step(unit_id, ok, "refreshed" if ok else "partial; preset-reload-failed", status="completed" if ok else "partial")]
-    if unit_id in enabled and all(uid in enabled for uid in plan) and preset is None and not refresh and not force and not meta.get("pending"):
+    if unit_id in enabled and all(uid in enabled for uid in plan) and preset is None and not refresh and not force and not meta.get("pending") and not _legacy_metadata(unit_id, registry.load_unit(unit_id), ledger.get_unit(unit_id) or {}, meta):
         return [Step(unit_id, True, "already-enabled", status="unchanged")]
     # 1. 显式预设及全部依赖平台必须先通过，失败时不安装包、不修改 active/Vault。
     candidates = [uid for uid in plan if uid not in enabled or uid == unit_id]
     prepared = {}
     migrations = set()
+    layouts = {}
     from nyxuri.pkg.requirements import resolve_requirements
     for uid in candidates:
         manifest = registry.load_unit(uid)
         source, selected = _source_for(uid, manifest, preset if uid == unit_id else None)
         oldmeta = ledger.get_deployment(uid)
-        if oldmeta and oldmeta.get("target") != str(_unit_dest(uid, manifest)):
+        legacy = _legacy_metadata(uid, manifest, ledger.get_unit(uid) or {}, oldmeta)
+        if legacy:
+            layouts[uid] = legacy
+        elif oldmeta and (oldmeta.get("target") != str(_unit_dest(uid, manifest))
+                          or oldmeta.get("shape") != _metadata(manifest, _unit_dest(uid, manifest))["shape"]):
             oldrecord = ledger.get_unit(uid) or {}
             if oldrecord.get("state") != "disabled" or oldmeta.get("pending"):
                 return [Step(uid, False, "layout-changed: disable old deployment before enabling", status="failed")]
@@ -680,11 +868,25 @@ def unit_on(unit_id: str, *, preset: Optional[str] = None,
         dest = _unit_dest(uid, manifest)
         rec = ledger.get_unit(uid) or {}
         oldmeta = ledger.get_deployment(uid)
-        baseline = dict(rec.get("files", {}) or oldmeta.get("archived_baselines", {}))
+        baseline = {**oldmeta.get("archived_baselines", {}), **rec.get("files", {})}
+        # 保留路径只保存来源，不把个人内容重基为模板哈希。历史 files 中已有的
+        # 保留路径也提供归属证据；单凭当前 preserve 名称不能接管旧个人文件。
+        protected = set(oldmeta.get("protected_paths", []))
+        protected.update(rel for rel in baseline if _is_user_owned(rel, manifest))
         if uid in migrations and oldmeta.get("shape") == "file" and len(baseline) == 1:
             baseline = {dest.name: next(iter(baseline.values()))}
         conflicts = plan_conflicts(uid, preset if uid == unit_id else None)
-        backup = str(backup_conflicts(uid, conflicts)) if uid in migrations or force else ""
+        backup = ""
+        migrated = uid in layouts
+        if migrated:
+            backup, migration_conflicts, complete = _migrate_layout(uid, manifest, rec, layouts[uid], force=force)
+            if not complete:
+                return results + [Step(uid, False, "migration-conflicts: " + ", ".join(migration_conflicts),
+                                       "partial", tuple(migration_conflicts), backup)]
+        elif uid in migrations or force:
+            backup = str(backup_conflicts(uid, conflicts))
+        # 迁移中 force 已选定旧生效内容；本轮模板合流仍须保护该内容。
+        deploy_force = force and not migrated
         if force and backup:
             from nyxuri.desktop.owned_outputs import authorize_output_overwrites
             authorize_output_overwrites(uid, Path(backup))
@@ -693,22 +895,35 @@ def unit_on(unit_id: str, *, preset: Optional[str] = None,
         carried = {}
         files = {}
         old_paths = {rel for rel, _ in _leaves(dest)}
+        excluded = _excluded_payload(manifest)
+        archived_baselines = {rel: digest for rel, digest in oldmeta.get("archived_baselines", {}).items()
+                              if rel not in manifest.retired_files}
+        kept = []
         if not manifest.runtime and manifest.is_deployable:
-            _vault_restore(uid, dest, single=bool(manifest.target and not manifest.merge))
+            archived, kept, backup = _retire_payload(uid, manifest, dest, baseline, excluded, backup)
+            archived_baselines.update(archived)
+            baseline = {rel: digest for rel, digest in baseline.items() if rel not in excluded}
+            _vault_restore(uid, dest, single=bool(manifest.target and not manifest.merge), excluded=excluded)
             # Vault 恢复的个人内容不是本轮模板新建，不能授权渲染器接管。
             old_paths = {rel for rel, _ in _leaves(dest)}
             if manifest.merge:
-                laid = merge_deploy_unit(uid, manifest, baseline=baseline, force=force)
+                source, _ = _source_for(uid, manifest, None)
+                merge_baseline = {rel: digest for rel, digest in baseline.items()
+                                  if not _is_user_owned(rel, manifest)}
+                laid = merge_deploy_unit(uid, manifest, baseline=merge_baseline, force=deploy_force,
+                                         include_rels=set(_payload_paths(uid, manifest, source, selected)))
                 if laid is None:
                     return results + [Step(uid, False, "deploy-failed", status="partial", backup=backup)]
                 files = {rel: _path_identity(dest / rel) for rel in laid}
                 for rel, digest in baseline.items():
                     if (dest / rel).exists() and rel not in files:
                         files[rel] = digest
+                files = {rel: digest for rel, digest in files.items()
+                         if not _is_user_owned(rel, manifest)}
             else:
                 # force 只让模板重占具名冲突；未知额外文件仍由 carry 保留。
-                effective = None if force else baseline
-                policy = CarryPolicy(baselines={uid: effective}, unknown=not force, carried={uid: {}})
+                effective = None if deploy_force else baseline
+                policy = CarryPolicy(baselines={uid: effective}, unknown=not deploy_force, carried={uid: {}})
                 if uid in _phase_atomic_deployment([uid], carry_policy=policy,
                         preset_overrides={uid: selected}, reconcile_parts=False):
                     return results + [Step(uid, False, "deploy-failed", status="partial", backup=backup)]
@@ -725,6 +940,9 @@ def unit_on(unit_id: str, *, preset: Optional[str] = None,
         if not manifest.runtime:
             from nyxuri.desktop.owned_outputs import register_deployed_outputs
             register_deployed_outputs(uid, {path for rel, path in _leaves(dest) if rel not in old_paths})
+            protected.update(rel for rel, _ in _leaves(dest)
+                             if rel not in old_paths and _is_user_owned(rel, manifest))
+        ledger.set_deployment(uid, protected_paths=sorted(protected))
         # 零件目标由 manifest preserve 保留；只登记本次首次铺设的路径，已有路径沿用旧基线。
         for cfg in manifest.parts.values():
             target_rel = cfg.get("target")
@@ -739,6 +957,8 @@ def unit_on(unit_id: str, *, preset: Optional[str] = None,
                     files[key] = _path_identity(path)
         # 3. 先提交实际文件基线，再跑钩子；失败不能把普通 on 变成 already-enabled。
         ledger.set_unit(uid, state="enabled", preset=selected, files=files, vault=None)
+        # 先记录已落地配置，再准备用户截图目录；mkdir 失败后仍能按正确基线重试。
+        prepare_screenshot_directory(only_app=uid, exclude=set(carried))
         from nyxuri.desktop.owned_outputs import rebase_transformations
         rebase_transformations(uid)
         if manifest.parts:
@@ -747,8 +967,9 @@ def unit_on(unit_id: str, *, preset: Optional[str] = None,
             if failed_parts:
                 return results + [Step(uid, False, "partial; parts-failed: " + ", ".join(failed_parts), status="partial")]
             files = dict(ledger.get_unit(uid)["files"])
-        ledger.set_deployment(uid, pending="consumer-sync")
+        ledger.set_deployment(uid, pending="consumer-sync", archived_baselines=archived_baselines)
         before_hook = snapshot_files(dest, manifest) if not manifest.runtime else {}
+        hook_paths = {rel for rel, _ in _leaves(dest)} if not manifest.runtime else set()
         from nyxuri.desktop.owned_outputs import managed_paths
         external_before = managed_paths()
         hook_ok = True
@@ -761,6 +982,13 @@ def unit_on(unit_id: str, *, preset: Optional[str] = None,
             ledger.set_deployment(uid, pending="post_install")
             hook_ok = (_run_unit_hook(uid, manifest, manifest.post_install, force=True) if force
                        else _run_unit_hook(uid, manifest, manifest.post_install))
+            if not manifest.runtime:
+                # 外部产物账本负责 Fisher 等钩子输出的撤回，避免同一文件双重归属。
+                external_owned = external_before | managed_paths()
+                protected.update(rel for rel, path in _leaves(dest)
+                                 if rel not in hook_paths and path not in external_owned
+                                 and _is_user_owned(rel, manifest))
+                ledger.set_deployment(uid, protected_paths=sorted(protected))
         if run_hooks and manifest.post_install and not manifest.runtime and not manifest.merge:
             after_hook = snapshot_files(dest, manifest)
             external_owned = external_before | managed_paths()
@@ -773,13 +1001,17 @@ def unit_on(unit_id: str, *, preset: Optional[str] = None,
                         and _safe_leaf(dest, rel, single=bool(manifest.target)) not in external_owned):
                     files[rel] = digest
             ledger.set_unit(uid, state="enabled", preset=selected, files=files, vault=None)
-        pending = None if check_packages else "config-only"
+        pending = None if check_packages or _configuration_sync else "config-only"
+        if _configuration_sync and oldmeta.get("pending") not in (None, "deploy", "migration", "consumer-sync"):
+            pending = oldmeta["pending"]
         if not run_hooks and manifest.post_install and oldmeta.get("pending") in ("post_install", "config-only"):
             pending = oldmeta["pending"]
         ledger.set_deployment(uid, pending=pending if hook_ok else "post_install")
         if hook_ok:
             _emit(uid, "enabled")
-        detail = ("config-only" if not check_packages else "refreshed" if refresh else "enabled") if hook_ok else "partial; hook-failed: " + manifest.post_install
+        detail = ("config-only" if not check_packages and not _configuration_sync else "refreshed" if refresh else "enabled") if hook_ok else "partial; hook-failed: " + manifest.post_install
+        if kept:
+            detail += "; foreign-left: " + ", ".join(kept)
         if conflicts:
             detail += "; conflicts: " + ", ".join(conflicts)
         if backup:
@@ -787,6 +1019,8 @@ def unit_on(unit_id: str, *, preset: Optional[str] = None,
         results.append(Step(uid, hook_ok, detail, "completed" if hook_ok else "partial", tuple(conflicts), backup))
         if not hook_ok:
             break
+    if _sync_dependents:
+        results.extend(_sync_conditionals({step.unit for step in results if step.ok}))
     return results
 
 
@@ -798,7 +1032,7 @@ def unit_refresh(unit_id: str, *, force: bool = False, run_hooks: bool = True,
 
 
 @_guarded
-def unit_off(unit_id: str, *, cascade: bool = False) -> List[Step]:
+def unit_off(unit_id: str, *, cascade: bool = False, _sync_dependents: bool = True) -> List[Step]:
     """按历史落地点归档修改再撤回，外来内容原地保留，钩子失败允许重试。"""
     if unit_id not in registry.unit_ids() and ledger.get_unit(unit_id) is None:
         raise KeyError(f"unknown unit: {unit_id}")
@@ -809,12 +1043,14 @@ def unit_off(unit_id: str, *, cascade: bool = False) -> List[Step]:
     for uid in plan:
         rec = ledger.get_unit(uid)
         meta = ledger.get_deployment(uid)
+        if meta.get("pending") == "migration":
+            return results + [Step(uid, False, "migration-pending: retry on or rollback before off", status="partial")]
         manifest, dest = _historical_manifest(uid, rec)
         if ((rec or {}).get("state") == "disabled" or (rec is None and not dest.exists())) and not meta.get("pending"):
             results.append(Step(uid, True, "already-disabled", status="unchanged"))
             continue
         ledger.set_deployment(uid, **{**_metadata(manifest, dest), "pending": "withdraw",
-            "archived_baselines": (rec or {}).get("files", {}) or meta.get("archived_baselines", {})})
+            "archived_baselines": {**meta.get("archived_baselines", {}), **(rec or {}).get("files", {})}})
         try:
             from nyxuri.desktop.owned_outputs import refresh_consumer_outputs
             refresh_consumer_outputs({uid: False})
@@ -846,6 +1082,8 @@ def unit_off(unit_id: str, *, cascade: bool = False) -> List[Step]:
         results.append(Step(uid, hook_ok, detail, "completed" if hook_ok else "partial"))
         if not hook_ok:
             break
+    if _sync_dependents:
+        results.extend(_sync_conditionals({step.unit for step in results if step.ok}))
     return results
 
 

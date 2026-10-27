@@ -18,6 +18,10 @@
   没有 Ubuntu 声明的原生包不会退回 Arch 包名；手动依赖不会作为 APT 包名执行。
 - `off` 仍只停用配置并保留软件包，原子部署、Dunder、Vault 和快照契约不变。
 
+引擎目前只支持默认 XDG 根目录布局；自定义配置、缓存、数据或状态根目录会在写入前
+明确拒绝，不会自动重置到默认目录。允许的变量取值见
+[文件保留契约](file-preservation.md#xdg-根目录边界)。
+
 ## 安装方式
 
 在已准备源码的目录中使用仓库自身入口，避免命中旧版本用户级启动器：
@@ -30,14 +34,16 @@ bash nyxuri/launcher.sh on kitty
 ```
 
 单元启用会先披露缺失依赖；来源未配置或手动资源缺失时，报告原因，不把单元记为成功启用。
-依赖齐全但会话钩子失败时，沿用单元事务的非致命警告契约：配置可以启用，CLI 显示
-`Hook incomplete`。这不代表 Noctalia 的 GTK 渲染等会话动作已经完成。
+依赖齐全但会话钩子失败时，已经部署的配置保留，事务报告 `partial`，CLI 返回非零，
+账本保留 `post_install` 待完成阶段；再次 `on` 会重试，不将会话动作记为完整成功。
 手动安装了兼容二进制或资源后，再次启用会重新检测，不需要伪造 dpkg 状态。
 
 `install config` 只部署配置，仍要求用户自行准备运行时。`install full` 在 Ubuntu
 安装会话工具链与所选单元依赖，非交互默认不安装未使用的可选应用或 greeter。
-会话工具链中的手动资源缺失时，普通包与配置可以完成，命令会报告未完成并返回非零；
-普通软件包安装失败或所选单元依赖缺失会中止后续部署。配置部署不会替用户启用新单元。
+会话工具链中的必需手动资源缺失时，已安装的普通包保留，命令报告未完成并返回非零，
+不会继续部署配置。普通软件包安装失败或所选单元依赖缺失也会中止后续部署。
+所选单元通过统一事务登记；配置模式会留下 `config-only` 待完成阶段，后续 `on`
+检查依赖并运行钩子。
 
 Noctalia v5 与旧版基于 Quickshell 的 Noctalia Shell 是不同运行时；Nyxuri 自研
 Shell 仍需单独的 Quickshell。
@@ -46,7 +52,8 @@ Noctalia 单元附带的 Orbit 使用 GTK3 的 `draw` 信号绘制 Cairo 内容�
 绘图模块 `python3-cairo` 与 GI 的 Cairo 转换器 `python3-gi-cairo` 分包；两者都需
 声明，单独安装 `python3-gi` 和 `python3-cairo` 不保证 GTK 绘图回调可用。
 
-Ubuntu 上除 Quickshell 外，还需安装 Nyxuri Shell 使用的 QML 模块；具体依赖见
+Ubuntu 上除 Quickshell 外，还需安装 Nyxuri Shell 使用的 QML 模块，以及壁纸色板生成所需的
+`matugen`、`jq`；启动 QML 不代表主题生成链路可用。具体依赖见
 [catalog.toml](../catalog.toml) 的 Quickshell Ubuntu 条目。Qt 共享库不能代替 QML 插件。
 
 Nyxuri Shell 的图标要求 `Material Symbols Rounded` 与 `Material Symbols Outlined`
@@ -64,12 +71,28 @@ Nyxuri Shell 的图标要求 `Material Symbols Rounded` 与 `Material Symbols Ou
 - Niri、Noctalia、Quickshell 等声明了额外 APT 来源要求的软件，需要预先配置兼容来源；
   Nyxuri 不自动添加来源或导入密钥。
 - 手动二进制依赖安装后应能由对应命令探针发现；字体与 Rime 等资源按资源探针检查。
-  `mpvpaper` 声明为手动依赖，缺失时视频壁纸不可用，不影响静态壁纸文件部署。
+  `mpvpaper` 在应用目录中作为可选视频壁纸能力供给，不属于 Ubuntu 必需工具链；
+  缺失时视频壁纸不可用，不影响静态壁纸部署与完整安装的其他部分。
+  JetBrains Nerd Font 仍是必需的手动字体资源，普通 JetBrains Mono 不能替代。
 - Flatpak 应用使用目录中声明的 app ID，不转换为原生包名。
 - Mango 和 Shelly 当前未声明 Ubuntu 支持；不要套用 Arch 安装或构建流程。
 - Greeter 服务与显示管理器切换应单独安排，不属于普通依赖安装。
 
+Fish 单元显式供给 Fisher 下载与解包所需的 `curl`、`tar`；从已准备的源码执行安装时，
+不能依赖首次引导脚本或其他软件已顺带安装这些工具。
+
+切换到 Nyxuri Shell 前先检查实际 Quickshell、平台包、字体和隔离 QML 导入探针。
+失败时显示具体原因并保留当前 Shell；检查过程及运行时选择见
+[Shell 开发指南](shell/development.md)。
+
 ## Niri 会话行为与限制
+
+Portal 单元向共享配置目录逐文件部署。只有已启用且当前平台支持的 WM 才获得对应
+`niri-portals.conf` 或 `mango-portals.conf`；支持多个已启用 WM 共存，不依据当前会话
+选择唯一规则。开关 WM 会同步已经启用的 Portal 单元，不自动启用它。
+不再部署通用 `portals.conf`：历史版本未修改的受管文件先备份再退役，个人修改和未知文件
+保留并报告。GNOME 等桌面的自有路由不受管；规则改变后需重新登录使会话重新采用配置，
+Nyxuri 不在开关单元时重启 Portal 后端。
 
 Niri 配置在登录时显式启动 GTK portal。该后端提供暗色偏好等接口；退出会话时遗留的
 D-Bus 激活等待可能使新会话中的 GTK 应用启动缓慢或首次主题不正确。
@@ -78,21 +101,42 @@ D-Bus 激活等待可能使新会话中的 GTK 应用启动缓慢或首次主题
 
 自研 Shell 的可选功能限制见 [Shell 已知问题](../shell/KNOWN-ISSUES.md)。
 
+Niri 26.04 未实现 GNOME portal 使用的 `InteractiveScreenshot` 接口；
+`interactive=true` 截图请求会失败。非交互全屏截图与 Niri 自身截图快捷键是不同入口。
+
 Niri 26.04 的 portal 全屏截图接口只接受单输出，双屏会失败；可使用普通 Niri
 单屏截图路径。限制依据 [Niri 26.04 源码](https://github.com/niri-wm/niri/blob/v26.04/src/niri.rs#L5298-L5310)，
 不能据此推断其他版本或所有截图接口都存在同样限制。
 
-## Fcitx 配置路径限制
+同一版本的 Portal 截图保存分支直接创建文件；若默认的 `图片/Screenshots` 尚不存在，
+它会记录 `error creating file` 并在完成回调前返回，导致请求等待。这与普通快捷键截图
+会准备父目录的分支不同，见 [Niri 26.04 源码](https://github.com/niri-wm/niri/blob/v26.04/src/niri.rs#L5335-L5358)。
+Nyxuri 在 Niri 默认模板成功落地并完成路径渲染后，显式创建本地化图片目录下的
+`Screenshots` 容器；纯模板渲染不执行此动作，个人 carry 配置和非默认截图路径不改。
+目录创建失败会让事务保留未完成状态。该目录与实际截图属于用户数据，不登记为单元产物，
+也不随 Niri 停用删除。该准备解决缺失目录导致的保存失败，不解除上述多输出限制。
 
-`fcitx5-rime` 当前默认生活区是 `$XDG_CONFIG_HOME/fcitx5-rime`，而 Fcitx 读取
-`$XDG_CONFIG_HOME/fcitx5`。单元 hook 只管理用户数据目录中的皮肤与 Rime 方案，
-不会把 `profile` / `conf/classicui.conf` 转移到 Fcitx 配置目录。因此，依赖检测通过
-不代表输入法配置生效；已有 Fcitx 配置可用，也不能证明新安装路径正确。
+## Fcitx 配置与旧布局迁移
 
-这是原有单元目标路径缺陷。改成共享目录需要一起处理单元分类与已有 ledger 的迁移，
-不能直接改 target 后执行 off：旧快照中的相对文件名可能对应新目录里的用户文件。
-修复需要先设计旧布局识别和账本迁移，再处理共享目录中的文件归属；
-Ubuntu 依赖适配不包含这项迁移。
+`fcitx5-rime` 将配置部署到 Fcitx 实际读取的 `~/.config/fcitx5`，按共享目录处理；
+`profile` 与 `conf/classicui.conf` 沿用保留声明，目录中的其他输入法配置不被整体替换。
+hook 管理用户数据目录中的皮肤与 Rime 方案，资源检测通过仍不等于会话中输入法已启动。
+
+Niri 模板在自身 `environment` 中设置 `GTK_IM_MODULE "fcitx"`，让其启动的 GTK 应用
+走 Fcitx GTK 模块。
+[Fcitx 官方说明](https://fcitx-im.org/wiki/Using_Fcitx_5_on_Wayland#Gtk3_/_Gtk4)
+允许 GTK3/4 使用原生 text-input-v3 或 Fcitx 模块。此兼容选择只写入 Niri 配置，
+不修改登录 profile、GTK 共享设置或 systemd 全局环境，避免改变 GNOME 会话的输入法。
+[Niri 环境说明](https://niri-wm.github.io/niri/Configuration%3A-Miscellaneous.html#environment)
+明确其环境配置仅传给 Niri 启动的进程；由 systemd / D-Bus 激活的应用不保证继承，
+需按实际启动路径单独验收。配置变更后应重新启动相关应用；已有个人 Niri 配置仍按
+保留规则处理，不自动覆盖。此设置也不自动改写个人 Fcitx `profile`、添加 Rime 或选择方案。
+
+已有账本的旧 `~/.config/fcitx5-rime` 布局在启用或刷新时迁移；先备份旧区、新区、
+账本与 Vault，再复制有归属证据或保留协议覆盖的文件。目标冲突默认保全双方并记待完成，
+明确 force 后采用旧生效区内容；同轮模板刷新不会再覆盖迁移过来的个人修改。
+无账本的旧目录不自动认领。迁移重试、停用与回滚边界见
+[文件保留](file-preservation.md#共享目录布局迁移)。
 
 ## 数据声明与维护
 

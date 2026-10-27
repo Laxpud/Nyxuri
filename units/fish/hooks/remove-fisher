@@ -9,7 +9,7 @@ from nyxuri.desktop.owned_outputs import withdraw_outputs
 
 def main() -> int:
     """恢复未被个人改动的原值；保留旧fisher.json及来源不明的插件文件。"""
-    withdraw_outputs(producer="fish-plugins")
+    withdraw_outputs(producer="fish-plugins", ordinary_only=True)
     return 0
 
 

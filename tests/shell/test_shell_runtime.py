@@ -54,7 +54,8 @@ class ShellLauncherTests(unittest.TestCase):
             "print(json.dumps({'argv': sys.argv[1:], "
             "'qml': os.getenv('QML_IMPORT_PATH', ''), "
             "'qml2': os.getenv('QML2_IMPORT_PATH', ''), "
-            "'cache': os.getenv('XDG_CACHE_HOME', '')}))\n"
+            "'cache': os.getenv('XDG_CACHE_HOME', ''), "
+            "'qml_cache': os.getenv('QML_DISK_CACHE_PATH', '')}))\n"
         )
         qs.chmod(0o755)
         self.environment = {
@@ -159,13 +160,88 @@ class ShellLauncherTests(unittest.TestCase):
         unrelated = cache_home / "other-app" / "keep"
         unrelated.parent.mkdir(parents=True)
         unrelated.write_text("user data", encoding="utf-8")
+        other_qml = cache_home / "quickshell/qmlcache/other-config.qmlc"
+        other_qml.parent.mkdir(parents=True)
+        other_qml.write_text("other Quickshell cache", encoding="utf-8")
 
-        result = self.invoke("-v", XDG_CACHE_HOME=str(cache_home))
+        result = self.invoke("-v", XDG_CACHE_HOME=str(cache_home), QML_DISK_CACHE_PATH=str(other_qml.parent))
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(cache.exists())
         self.assertEqual(unrelated.read_text(encoding="utf-8"), "user data")
-        self.assertEqual(json.loads(result.stdout)["cache"], str(cache_home / "nyxuri-shell"))
+        self.assertEqual(other_qml.read_text(encoding="utf-8"), "other Quickshell cache")
+        self.assertEqual(json.loads(result.stdout)["cache"], str(cache_home))
+        self.assertEqual(json.loads(result.stdout)["qml_cache"], str(cache))
+
+    def _engine_probe_runtime(self):
+        """用 qs 进程边界承接 wrapper 环境，内部真实运行引擎 API 和永久 CLI。"""
+        api_code = (
+            "import json, os, sys\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "from nyxuri.core import get_env, XDGLayoutError\n"
+            "try:\n"
+            "    env = get_env()\n"
+            "except XDGLayoutError as exc:\n"
+            "    print(str(exc), file=sys.stderr)\n"
+            "    sys.exit(1)\n"
+            "print(json.dumps({'config': str(env.config_dir), 'cache': str(env.cache_dir), "
+            "'state': str(env.state_dir), 'xdg_cache': os.environ.get('XDG_CACHE_HOME', ''), "
+            "'qml_cache': os.environ.get('QML_DISK_CACHE_PATH', '')}))\n"
+        )
+        repo = SHELL.parent
+        qs = self.ctx.home / "bin/qs"
+        qs.write_text(
+            "#!" + sys.executable + "\n"
+            "import json, os, subprocess, sys\n"
+            f"api_code = {api_code!r}\n"
+            f"repo = {str(repo)!r}\n"
+            "commands = {'api': [sys.executable, '-I', '-B', '-c', api_code, repo], "
+            "'cli': ['bash', repo + '/nyxuri/launcher.sh', 'help']}\n"
+            "results = {}\n"
+            "for name, argv in commands.items():\n"
+            "    completed = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=10)\n"
+            "    results[name] = {'argv': argv, 'returncode': completed.returncode, "
+            "'stdout': completed.stdout, 'stderr': completed.stderr}\n"
+            "print(json.dumps(results))\n",
+            encoding="utf-8",
+        )
+        qs.chmod(0o755)
+        return api_code
+
+    def test_wrapper_children_use_default_xdg_for_real_engine_api_and_cli(self):
+        """UI 派生进程的真实引擎调用不能把 QML 专属缓存误认为用户 XDG 布局。"""
+        api_code = self._engine_probe_runtime()
+        result = self.invoke("-v")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        children = json.loads(result.stdout)
+        self.assertEqual(children["api"]["argv"], [sys.executable, "-I", "-B", "-c", api_code, str(SHELL.parent)])
+        self.assertEqual(children["cli"]["argv"], ["bash", str(SHELL.parent / "nyxuri/launcher.sh"), "help"])
+        for name, child in children.items():
+            self.assertEqual(child["returncode"], 0, f"{name}: {child['stderr']}")
+            self.assertNotIn("Unsupported XDG", child["stderr"])
+        api = json.loads(children["api"]["stdout"])
+        self.assertEqual(api["config"], str(self.ctx.home / ".config"))
+        self.assertEqual(api["cache"], str(self.ctx.home / ".cache/nyxuri"))
+        self.assertEqual(api["state"], str(self.ctx.home / ".local/state/nyxuri"))
+        self.assertEqual(api["xdg_cache"], str(self.ctx.home / ".cache"))
+        self.assertEqual(api["qml_cache"], str(self.ctx.home / ".cache/nyxuri-shell/quickshell/qmlcache"))
+        self.assertIn("Nyxuri", children["cli"]["stdout"])
+
+    def test_wrapper_does_not_bypass_custom_xdg_rejection_for_engine_children(self):
+        """内部缓存改为 Qt 专用设置后，真正的自定义 XDG 仍须由引擎拒绝。"""
+        self._engine_probe_runtime()
+        log = self.ctx.env.state_dir / "install.log"
+        log.write_text("previous-log\n", encoding="utf-8")
+        for cache_home in (self.ctx.home / "custom-cache", Path("/outside-test-home/cache")):
+            with self.subTest(cache_home=cache_home):
+                result = self.invoke("--status", XDG_CACHE_HOME=str(cache_home),
+                                     NYXURI_ORIGINAL_CACHE_HOME=str(self.ctx.home / ".cache"))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                for child in json.loads(result.stdout).values():
+                    self.assertEqual(child["returncode"], 1)
+                    self.assertIn("Unsupported XDG_CACHE_HOME", child["stderr"])
+                self.assertEqual(log.read_text(encoding="utf-8"), "previous-log\n")
+                self.assertFalse(self.ctx.env.nyx_dir.exists())
 
     def test_missing_quickshell_preserves_cache_and_fails_before_start(self):
         """没有 qs 时报告缺少运行时，并保留可能仍有用的缓存。"""

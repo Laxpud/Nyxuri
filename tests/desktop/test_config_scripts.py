@@ -788,5 +788,34 @@ class TestBrightnessKeys(unittest.TestCase):
         self.assertEqual(self._calls(), [])
 
 
+class TestKittyConfiguredMouseBindings(unittest.TestCase):
+    """用实际Kitty解析默认/transparent配置，确认无无效鼠标绑定且键盘缩放生效。"""
+
+    def test_templates_parse_without_wheel_binding_warnings(self):
+        executable = shutil.which("kitty")
+        if executable is None:
+            self.skipTest("Kitty parser is unavailable")
+        driver = (
+            "import sys\n"
+            "from kitty.config import load_config\n"
+            "from kitty.options.utils import parse_shortcut\n"
+            "bad = []\n"
+            "config = load_config(sys.argv[-1], accumulate_bad_lines=bad)\n"
+            "assert not bad, repr(bad)\n"
+            "for key, action in [('ctrl+equal','change_font_size all +1.0'),('ctrl+minus','change_font_size all -1.0'),('ctrl+0','change_font_size all 0')]:\n"
+            "    mappings = config.keyboard_modes[''].keymap[parse_shortcut(key)]\n"
+            "    assert mappings[-1].definition == action, (key, mappings[-1].definition)\n"
+        )
+        with TempEnv():
+            for relative in ("units/kitty/kitty.conf", "units/kitty/__presets__/transparent/kitty.conf"):
+                with self.subTest(config=relative):
+                    command = [executable, "+runpy", driver, str(_REPO / relative)]
+                    result = subprocess.run(command, capture_output=True, text=True, timeout=15)
+                    self.assertEqual(command[:2], [executable, "+runpy"])
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertNotIn("not recognized", result.stderr)
+                    self.assertNotIn("Ignoring invalid mouse action", result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

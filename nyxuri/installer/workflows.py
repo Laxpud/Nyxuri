@@ -10,12 +10,8 @@ from nyxuri.core import get_env, log_msg
 from nyxuri.deploy import (
     config_item_dest,
     config_item_src,
-    discover_config_items,
     render_completion_screen,
     run_user_hooks,
-)
-from nyxuri.deploy.deploy import (
-    wallpapers_pack_present,
 )
 from nyxuri.pkg.deps import (
     core_requirements, get_missing_deps, install_selected_deps, unit_package_installer,
@@ -28,6 +24,7 @@ from nyxuri.kernel import registry, transaction
 from nyxuri.core import msg
 from nyxuri.tui import MenuItem, Menu, prompt_confirm
 from nyxuri.installer.menus import run_master_component_menu
+from nyxuri.installer.candidates import discover_install_config_items
 
 def _phase_preflight_check(
     mode: str,
@@ -106,6 +103,8 @@ def _deploy_units(items: List[str], *, update: bool, mode: str = "full",
                                            interactive=False) is None:
         return False
     failed = []
+    wallpaper_selected = "wallpapers" in items
+    wallpaper_ok = None
     for uid in items:
         if update:
             steps = transaction.unit_refresh(uid, force=decision, install_packages=unit_package_installer)
@@ -115,19 +114,27 @@ def _deploy_units(items: List[str], *, update: bool, mode: str = "full",
                 run_hooks=mode == "full", check_packages=mode == "full")
         for line in format_steps(steps):
             print(line)
-        if any(not step.ok for step in steps):
+        step_failed = any(not step.ok for step in steps)
+        if uid == "wallpapers":
+            # 只报告本轮壁纸事务结果；外部手动大包或既存视频不能冒充部署成功。
+            wallpaper_ok = bool(steps) and not step_failed
+            step_failed = not wallpaper_ok
+        if step_failed:
             failed.append(uid)
             # 已完成单元保留真实状态，失败后不再触发后续消费者或用户钩子。
             break
     if failed:
         render_completion_screen("update" if update else mode, chosen_items=items,
-                                 failed_items=failed)
+                                 failed_items=failed, wallpaper_selected=wallpaper_selected,
+                                 wallpaper_ok=wallpaper_ok)
         return False
     if mode == "config":
         print(msg("install_config_only_notice"))
-        render_completion_screen(mode, chosen_items=items)
+        render_completion_screen(mode, chosen_items=items, wallpaper_selected=wallpaper_selected,
+                                 wallpaper_ok=wallpaper_ok)
     else:
-        _finish_successful_deploy("update" if update else mode, chosen_items=items)
+        _finish_successful_deploy("update" if update else mode, chosen_items=items,
+                                 wallpaper_selected=wallpaper_selected, wallpaper_ok=wallpaper_ok)
     return True
 
 
@@ -146,9 +153,10 @@ def install_configs_workflow(mode: str = "full") -> bool:
         wallpapers, backup = chosen["wallpapers"], chosen["backup"]
     else:
         preferred = detect_preferred_wm()
-        items = [uid for uid in discover_config_items()
+        items = [uid for uid in discover_install_config_items()
                  if uid not in SUPPORTED_WMS or uid == preferred]
-        wallpapers, backup = mode == "full" and not wallpapers_pack_present(), False
+        # 非交互full同样选择随仓库提供的默认壁纸，不触发外部大包下载。
+        wallpapers, backup = mode == "full", False
         if mode == "full" and current_platform() == "ubuntu":
             probe = DependencyProbe()
             items = [uid for uid in items if not registry.load_unit(uid).is_optional

@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import shlex
+import signal
 import shutil
 import subprocess
 import sys
@@ -300,10 +301,21 @@ def rebase_transformations(consumer: str) -> None:
         _save(data)
 
 
-def withdraw_outputs(producer: str | None = None, consumer: str | None = None) -> None:
-    """仅撤回最后内容仍相符的登记产物；个人改动及其恢复证据继续保留。"""
-    with ledger.mutation_lock(), _locked():
+def withdraw_outputs(producer: str | None = None, consumer: str | None = None, *, ordinary_only: bool = False) -> None:
+    """按最后身份撤回产物；子进程hook只能清理不需要改账本的普通产物。
+
+    父事务持有ledger锁等待hook退出，子进程不能再次申请同一把锁。普通产物
+    只需要external锁；主文件可逆变换仍由父事务按ledger→external顺序撤回，
+    并同步其普通files基线。hook意外遇到变换时立即报错，不能等待父锁或漏改基线。
+    """
+    ledger_context = contextlib.nullcontext() if ordinary_only else ledger.mutation_lock()
+    with ledger_context, _locked():
         data = _read()
+        if ordinary_only and any(record.get("kind") == "transform"
+                and (producer is None or record["producer"] == producer)
+                and (consumer is None or record["consumer"] == consumer)
+                for record in data["outputs"].values()):
+            raise RuntimeError("Managed transformations must be withdrawn by the parent unit transaction")
         for raw, record in list(data["outputs"].items()):
             if producer is not None and record["producer"] != producer:
                 continue
@@ -354,6 +366,27 @@ def _specs() -> dict:
         "nyxuri_qt6": ("theme", pool / "qtct.conf", env.config_dir / "qt6ct/colors/noctalia.conf"),
         "nyxuri_kitty": ("kitty", pool / "kitty.conf", env.config_dir / "kitty/themes/noctalia.conf"),
     }
+
+
+def _noctalia_instance_running() -> bool:
+    """只识别同UID的实际Noctalia实例，安装状态、账本开关和Shell偏好都不是运行证明。"""
+    # 延迟导入，避免桌面切换模块与产物模块在初始化时形成循环依赖。
+    from nyxuri.desktop.shell_switcher import probe_running_shells
+    for kind, pid in probe_running_shells():
+        if kind != "noctalia":
+            continue
+        process = Path("/proc") / str(pid)
+        try:
+            if process.stat().st_uid != os.getuid():
+                continue
+            arguments = process.joinpath("cmdline").read_bytes().split(b"\0")
+            # 进程清单可能正好看见短暂的IPC客户端；它不提供重载服务。
+            if any(argument in (b"msg", b"--help", b"--version", b"-h", b"-V") for argument in arguments[1:]):
+                continue
+            return True
+        except (OSError, ProcessLookupError):
+            continue
+    return False
 
 
 def refresh_consumer_outputs(overrides: dict[str, bool] | None = None) -> None:
@@ -417,12 +450,67 @@ def refresh_consumer_outputs(overrides: dict[str, bool] | None = None) -> None:
         files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
         ledger.set_unit("noctalia", state=record["state"], preset=record["preset"], files=files,
                         vault=record["vault"], updated=record["updated"])
-    # 无图形会话时只提交磁盘表和门控；避免隔离HOME或SSH操作触碰其他桌面守护进程。
-    if os.environ.get("WAYLAND_DISPLAY") and shutil.which("noctalia"):
+    # 非Noctalia会话也可能保留其enabled配置。只有同用户的实际实例在运行才请求重载；
+    # 当前偏好不能替代进程事实，真实实例拒绝重载时仍应报告partial供重试。
+    if os.environ.get("WAYLAND_DISPLAY") and shutil.which("noctalia") and _noctalia_instance_running():
         result = subprocess.run(["noctalia", "msg", "config-reload"], timeout=15, check=False,
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if result.returncode:
             raise RuntimeError("Noctalia template configuration reload failed")
+
+
+def _kitty_instances() -> list[int]:
+    """只选择当前UID的GUI Kitty进程，排除runpy/kitten等短暂命令。"""
+    result = []
+    for process in Path("/proc").iterdir():
+        if not process.name.isdigit():
+            continue
+        try:
+            if process.stat().st_uid != os.getuid() or process.joinpath("comm").read_text().strip() != "kitty":
+                continue
+            arguments = process.joinpath("cmdline").read_bytes().split(b"\0")
+            if not arguments or Path(os.fsdecode(arguments[0])).name != "kitty":
+                continue
+            if any(argument in (b"+runpy", b"+kitten", b"+complete", b"--help", b"--version") for argument in arguments[1:]):
+                continue
+            result.append(int(process.name))
+        except (FileNotFoundError, ProcessLookupError):
+            continue
+    return result
+
+
+def _reload_kitty_after_commit(producer: str, target: Path) -> bool:
+    """受管主题已经落盘后再通知现有Kitty，避免主题事件的早期USR1读到旧色板。
+
+    只由主要themes/noctalia.conf模板调用一次，不在current-theme.conf保留槽另发
+    一次全局通知。没有图形会话或实例均为正常情况；发送失败返回False供post hook重试。
+    """
+    if not os.environ.get("WAYLAND_DISPLAY"):
+        return True
+    with _locked():
+        # off门控可能在文件提交之后到达；持同一把external锁再次检查，不能停用后重载。
+        if not _can_render(producer, "kitty"):
+            return True
+        record = _read()["outputs"].get(str(target))
+        if record is None or _identity(_capture(target)) != record["last"]:
+            print(f"[!] Kitty theme changed before reload; preserved: {target}", file=sys.stderr)
+            return False
+        try:
+            instances = _kitty_instances()
+        except OSError as error:
+            print(f"[!] Kitty reload process probe failed: {error}", file=sys.stderr)
+            return False
+        succeeded = True
+        for pid in instances:
+            try:
+                # 精确PID和信号代替全局pkill，只影响上述同UID GUI实例。
+                os.kill(pid, signal.SIGUSR1)
+            except ProcessLookupError:
+                continue
+            except OSError as error:
+                print(f"[!] Kitty reload failed for PID {pid}: {error}", file=sys.stderr)
+                succeeded = False
+        return succeeded
 
 
 def commit_template(name: str, producer: str = "noctalia") -> bool:
@@ -433,7 +521,9 @@ def commit_template(name: str, producer: str = "noctalia") -> bool:
     if not _enabled(consumer, states) or not _enabled("theme", states) or not _enabled(producer, states):
         return True
     stage = get_env().state_dir / "template-staging" / producer / name
-    return write_output(producer, consumer, target, stage.read_bytes(), require_enabled=True)
+    if not write_output(producer, consumer, target, stage.read_bytes(), require_enabled=True):
+        return False
+    return _reload_kitty_after_commit(producer, target) if consumer == "kitty" else True
 
 
 def _validate_content(value: dict) -> None:
@@ -503,7 +593,8 @@ def _declared_output_paths() -> set[Path]:
     skin = env.home / ".local/share/fcitx5/themes/nyxmellow/templates"
     paths.update(skin / name for name in ("theme.conf", "panel.svg", "highlight.svg"))
     rime = env.home / ".local/share/fcitx5/rime"
-    paths.update(rime / name for name in ("default.custom.yaml", "user.yaml"))
+    # user.yaml归librime维护，会追加构建时间等运行态；不能把它当可恢复的模板目标。
+    paths.add(rime / "default.custom.yaml")
     return paths
 
 
@@ -540,8 +631,12 @@ def restore_state(source: Path, manifest: dict) -> None:
     with _locked():
         current = _read()
         for raw, content in value["targets"].items():
-            # 撤回后仍有登记项说明用户修改过，不能让回滚覆盖这份修改。
             existing = _capture(Path(raw))
+            # 旧产物可能被应用运行时追加内容，而快照已保存同一份内容。精确相等无需
+            # 改文件，也不能因此把旧last重基成当前值；原归属证据仍从快照原样恢复。
+            if existing == content:
+                continue
+            # 真正晚于快照的不同内容仍必须保留，不能借旧claim绕过冲突保护。
             if raw in current["outputs"] and existing["kind"] != "missing":
                 raise RuntimeError(f"External output conflict during restore: {raw}")
             original = value["metadata"]["outputs"][raw]["original"]
@@ -550,7 +645,9 @@ def restore_state(source: Path, manifest: dict) -> None:
             _restore(Path(raw), content)
         for raw, content in value.get("unmanaged_targets", {}).items():
             existing = _capture(Path(raw))
-            if existing != content and existing["kind"] != "missing":
+            if existing == content:
+                continue
+            if existing["kind"] != "missing":
                 raise RuntimeError(f"Unmanaged external snapshot conflict: {raw}")
             _restore(Path(raw), content)
         _save(value["metadata"])
@@ -588,6 +685,8 @@ def commit_shell_template(name: str, stage: Path) -> bool:
         raise ValueError("Invalid shell template staging path")
     if not write_output("nyxuri-shell", consumer, target, stage.read_bytes(), require_enabled=True):
         return False
+    if name == "kitty":
+        return _reload_kitty_after_commit("nyxuri-shell", target)
     # 应用接线同样保存原值，不能由旧shell hook直接改写个人配置。
     if name == "btop":
         config = env.config_dir / "btop/btop.conf"

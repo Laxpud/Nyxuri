@@ -8,6 +8,10 @@
 
 ## 单元动词（4 动词接管）
 
+所有命令在迁移、锁与日志写入前校验四个 XDG 根目录。当前只支持 HOME 下的默认布局；
+自定义路径会报错退出，启动器不会静默改写调用者环境。目录契约见
+[文件保留](file-preservation.md)。
+
 | 命令 | 干啥 |
 |---|---|
 | `list [unit]` | 单元全景（开关状态 × 当前预设），或单个单元详情（manifest 声明 × 账本记录 × 对账态） |
@@ -36,6 +40,12 @@
 | `bug` | 导出诊断报告 |
 | `test` | 开发者沙箱部署测试（`HOME=$(mktemp -d) python3 -m nyxuri test` 的落点；install.sh 已不透传参数） |
 | `help` | 用法 |
+
+首次安装的交互菜单与非交互入口共用 `installer.candidates.discover_install_config_items()`，
+候选覆盖所有有配置载荷的目录、单文件与 merge 单元（包括 Portal、Fcitx 和主题）；排除
+runtime 与仅声明软件包的单元。壁纸保留独立资源选项。窗口管理器选择及可选供给筛选沿用
+原规则：Ubuntu 非交互 full 不顺带安装尚未具备供给的 optional 单元。底层原子部署批次与
+预设目录发现仍排除 merge，不能为了安装候选扩张共享目录的交换范围。
 
 Ubuntu 的来源准备及手动依赖边界见
 [Ubuntu 兼容指南](ubuntu-compatibility.md)。

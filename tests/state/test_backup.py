@@ -5,6 +5,7 @@ No test may call real fcitx_uninstall, greeter_uninstall, or touch real ~/.confi
 """
 
 import sys
+import json
 import shutil
 import unittest
 from pathlib import Path
@@ -360,6 +361,85 @@ class TestManagedSnapshotLifecycle(unittest.TestCase):
         with patch("builtins.print"), patch("nyxuri.state.backup.backup_configs", return_value=None):
             self.assertFalse(rollback_configs(str(snap)))
         self.assertEqual((dest / "config").read_text(), "personal edit")
+
+    def test_snapshot_restores_protected_ownership_without_claiming_foreign_paths(self):
+        """快照带回来源集合；同目录个人保留文件仍无撤回权限。"""
+        from nyxuri.kernel import ledger, transaction
+        from nyxuri.state.backup import backup_configs, rollback_configs
+        dest = self.stage("app", "baseline")
+        (dest / "owned__custom__.conf").write_text("personal owned")
+        (dest / "foreign__custom__.conf").write_text("personal foreign")
+        ledger.set_deployment("app", protected_paths=["owned__custom__.conf"])
+        with patch("builtins.print"):
+            snap = backup_configs(interactive=False)
+            self.assertTrue(transaction.unit_off("app")[0].ok)
+            self.assertTrue(rollback_configs(str(snap)))
+        self.assertEqual(ledger.get_deployment("app")["protected_paths"], ["owned__custom__.conf"])
+        self.assertTrue(transaction.unit_off("app")[0].ok)
+        self.assertFalse((dest / "owned__custom__.conf").exists())
+        self.assertEqual((dest / "foreign__custom__.conf").read_text(), "personal foreign")
+
+    def test_snapshot_rejects_unsafe_protected_paths_before_withdrawal(self):
+        """撤回现状之前验证来源字段，防止非法路径到写账本阶段才被拒绝。"""
+        from nyxuri.kernel import ledger
+        from nyxuri.state.backup import backup_configs, rollback_configs
+        dest = self.stage("app", "baseline")
+        with patch("builtins.print"):
+            snap = backup_configs(interactive=False)
+        metadata = json.loads((snap / "snapshot.json").read_text())
+        metadata["deployments"]["app"]["protected_paths"] = ["../foreign"]
+        (snap / "snapshot.json").write_text(json.dumps(metadata))
+        with patch("builtins.print"), patch("sys.stderr"):
+            self.assertFalse(rollback_configs(str(snap)))
+        self.assertEqual((dest / "config").read_text(), "baseline")
+        self.assertEqual(ledger.get_unit("app")["state"], "enabled")
+
+    def legacy_rime_state(self):
+        """模拟旧钩子写入 seed 后，Rime 正常构建更新同一运行时文件。"""
+        from nyxuri.desktop import owned_outputs
+        path = self.env.home / ".local/share/fcitx5/rime/user.yaml"
+        owned_outputs.write_output("fcitx5-rime", "fcitx5-rime", path,
+                                   b"var:\n  previously_selected_schema: rime_ice\n")
+        claim = json.loads(owned_outputs.metadata_path().read_text())["outputs"][str(path)]
+        path.write_bytes(b"var:\n  last_build_time: 1793089092\n  previously_selected_schema: rime_ice")
+        return path, claim
+
+    def test_rollback_accepts_unchanged_rime_runtime_and_keeps_legacy_baseline(self):
+        from nyxuri.desktop import owned_outputs
+        from nyxuri.state.backup import backup_configs, rollback_configs
+        dest = self.stage("kitty", "baseline")
+        runtime, claim = self.legacy_rime_state()
+        runtime_bytes = runtime.read_bytes()
+        with patch("builtins.print"):
+            snap = backup_configs(interactive=False)
+        (dest / "config").write_text("personal edit")
+        self.stage("snapshot-new", "new payload")
+
+        with patch("builtins.print"):
+            self.assertTrue(rollback_configs(str(snap)))
+
+        self.assertEqual((dest / "config").read_text(), "baseline")
+        self.assertEqual(runtime.read_bytes(), runtime_bytes)
+        # 无写入恢复不能把 Rime 更新后的内容重基成 Nyxuri 的最后写入身份。
+        self.assertEqual(json.loads(owned_outputs.metadata_path().read_text())["outputs"][str(runtime)], claim)
+
+    def test_rollback_still_preserves_rime_changes_after_snapshot(self):
+        from nyxuri.state.backup import backup_configs, rollback_configs, get_all_backups
+        self.stage("kitty", "baseline")
+        runtime, _claim = self.legacy_rime_state()
+        with patch("builtins.print"):
+            snap = backup_configs(interactive=False)
+        personal = b"var:\n  previously_selected_schema: personal\n"
+        runtime.write_bytes(personal)
+
+        with patch("builtins.print"), patch("sys.stderr"):
+            self.assertFalse(rollback_configs(str(snap)))
+
+        self.assertEqual(runtime.read_bytes(), personal)
+        safety = next(path for path in get_all_backups() if path != snap)
+        external = json.loads((safety / "external/outputs.json").read_text())
+        import base64
+        self.assertEqual(base64.b64decode(external["targets"][str(runtime)]["value"]), personal)
 
 
 if __name__ == "__main__":

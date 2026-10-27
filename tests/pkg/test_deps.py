@@ -422,6 +422,27 @@ class TestUbuntuDependencyRouting(unittest.TestCase):
             self.assertFalse(install_selected_deps(["not-declared-on-ubuntu"]))
         install.assert_not_called()
 
+    def test_optional_video_player_reports_manual_missing_without_installing(self):
+        """显式选择视频能力仍须供给播放器；缺席时不能假报可用或转为 APT/编译。"""
+        from nyxuri.pkg import deps
+        from nyxuri.pkg.catalog import get_entry
+        from nyxuri import pkg
+
+        item = get_entry("mpvpaper")
+        self.assertIsNotNone(item)
+        with patch.object(deps.DependencyProbe, "installed", return_value=False), \
+             patch.object(pkg, "install") as install, \
+             patch.object(pkg, "install_flatpaks") as flatpak, \
+             contextlib.redirect_stdout(io.StringIO()) as output, \
+             contextlib.redirect_stderr(io.StringIO()) as error:
+            self.assertFalse(deps.supply_installed(item))
+            self.assertFalse(deps.install_optional_apps(["mpvpaper"]))
+        install.assert_not_called()
+        flatpak.assert_not_called()
+        self.assertIn("mpvpaper", error.getvalue())
+        self.assertIn("static wallpapers do not require", output.getvalue())
+        self.assertIn("provide the mpvpaper executable manually", output.getvalue())
+
     def test_optional_app_installer_maps_ubuntu_repository_package(self):
         from nyxuri.pkg.deps import install_optional_apps
         from nyxuri import pkg
@@ -511,7 +532,7 @@ class TestUbuntuDependencyRouting(unittest.TestCase):
              contextlib.redirect_stderr(io.StringIO()) as stderr:
             self.assertFalse(install_optional_apps(["quickshell"]))
         install.assert_called_once_with([
-            "quickshell", "qml6-module-qtquick-controls", "qml6-module-qtquick-effects",
+            "quickshell", "matugen", "jq", "qml6-module-qtquick-controls", "qml6-module-qtquick-effects",
             "qml6-module-qtquick-layouts", "qml6-module-qtcore",
             "qml6-module-qt-labs-folderlistmodel", "qml6-module-qt5compat-graphicaleffects",
         ])

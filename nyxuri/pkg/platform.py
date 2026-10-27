@@ -171,8 +171,9 @@ def package_candidate_available(name: str) -> bool:
     wanted_version = requested_version if separator else candidate_match.group(1)
     candidate_block = False
     for line in result.stdout.splitlines():
-        # 版本表每个版本先列优先级，随后列该版本来自哪些索引。
-        version_match = re.match(r"\s*(?:\*{3}\s+)?(\S+)\s+\d+\s*$", line)
+        # 版本表先列版本与优先级，Ubuntu 渐进更新会追加 (phased N%)；
+        # 该标记不改变 Candidate 的来源判定，后续仍须找到实际软件源索引。
+        version_match = re.match(r"\s*(?:\*{3}\s+)?(\S+)\s+\d+(?:\s+\(phased \d+%\))?\s*$", line)
         if version_match:
             candidate_block = version_match.group(1) == wanted_version
             continue

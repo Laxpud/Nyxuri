@@ -1,4 +1,7 @@
 # Fcitx5 Rime — 输入法 + NyxMellow 皮肤一体单元
+target = "fcitx5"
+merge = true
+legacy_targets = { "fcitx5-rime" = "directory" }
 optional = true
 packages = ["fcitx5", "fcitx5-gtk", "fcitx5-qt", "fcitx5-configtool", "fcitx5-rime"]
 packages_aur = ["rime-ice-git"]

@@ -91,12 +91,12 @@ zh = "返回"
 en = "Back"
 
 [status_wallpapers_installed]
-zh = "{Colors.BOLD_GREEN}[已下载]{Colors.RESET}"
-en = "{Colors.BOLD_GREEN}[Downloaded]{Colors.RESET}"
+zh = "{Colors.BOLD_GREEN}[已启用]{Colors.RESET}"
+en = "{Colors.BOLD_GREEN}[Enabled]{Colors.RESET}"
 
 [status_wallpapers_missing]
-zh = "{Colors.BOLD_YELLOW}[未下载]{Colors.RESET}"
-en = "{Colors.BOLD_YELLOW}[Not downloaded]{Colors.RESET}"
+zh = "{Colors.BOLD_YELLOW}[未启用]{Colors.RESET}"
+en = "{Colors.BOLD_YELLOW}[Not enabled]{Colors.RESET}"
 
 [install_cancelled]
 zh = "{Colors.BOLD_BLUE}已取消，未写入配置{Colors.RESET}"
@@ -135,16 +135,20 @@ zh = "配置:       安装失败 ({0})"
 en = "Configs:        Failed ({0})"
 
 [summary_item_wallpapers_existing]
-zh = "壁纸:       已就绪"
-en = "Wallpapers:     Ready"
+zh = "默认壁纸:   已启用"
+en = "Bundled wallpapers: Enabled"
 
 [summary_item_wallpapers_failed]
-zh = "壁纸:       启用失败"
-en = "Wallpapers:     Enable failed"
+zh = "默认壁纸:   部署失败"
+en = "Bundled wallpapers: Deploy failed"
 
 [summary_item_wallpapers_skip]
-zh = "壁纸:       已跳过"
-en = "Wallpapers:     Skipped"
+zh = "默认壁纸:   本次未选择"
+en = "Bundled wallpapers: Not selected"
+
+[summary_item_wallpapers_not_run]
+zh = "默认壁纸:   本次未执行"
+en = "Bundled wallpapers: Not run"
 
 [summary_item_deps_ok]
 zh = "系统依赖:   依赖已就绪"
@@ -347,8 +351,8 @@ zh = "配置: {0}"
 en = "Config: {0}"
 
 [master_item_asset]
-zh = "壁纸包: {0}"
-en = "Wallpapers: {0}"
+zh = "默认壁纸: {0}"
+en = "Bundled wallpapers: {0}"
 
 [master_item_wm_section]
 zh = """\n  {Colors.BOLD_BLUE}── 窗口管理器 (单选) ──{Colors.RESET}"""
@@ -1188,8 +1192,8 @@ zh = "  {Colors.BOLD_CYAN}- 配置:{Colors.RESET} {0} 项"
 en = "  {Colors.BOLD_CYAN}- Configs:{Colors.RESET} {0} item(s)"
 
 [preflight_comp_assets]
-zh = "  {Colors.BOLD_CYAN}- 下载:{Colors.RESET} 壁纸包"
-en = "  {Colors.BOLD_CYAN}- Download:{Colors.RESET} wallpaper pack"
+zh = "  {Colors.BOLD_CYAN}- 壁纸:{Colors.RESET} 部署仓库提供的默认静态壁纸"
+en = "  {Colors.BOLD_CYAN}- Wallpapers:{Colors.RESET} Deploy bundled static defaults"
 
 [preflight_comp_deps]
 zh = "  {Colors.BOLD_CYAN}- 依赖:{Colors.RESET} 检查并安装缺失项"
@@ -1716,3 +1720,7 @@ en = "Pending = an unfinished phase; inspect nyxuri list <unit>, resolve the cau
 [cli_audit_orphan_hint]
 zh = "Orphan = 来源单元已移除；先恢复来源，或由 off 根据历史目标安全撤回。缺少历史目标时会拒绝猜测删除。"
 en = "Orphan = source unit removed; restore its source or use off to withdraw from the recorded target. Missing historical targets prevent deletion."
+
+[app_mpvpaper]
+zh = "视频壁纸（mpvpaper，可选）"
+en = "Video wallpapers (mpvpaper, optional)"

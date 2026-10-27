@@ -387,15 +387,17 @@ def _check_path_occlusion(env) -> None:
 
 
 def _check_preset_drift(env) -> None:
-    """Warn if an app's active preset is no longer in repo or user presets.
+    """只对支持目录预设的单元检查活动状态，报告无效或已移除的预设。
 
-    Lets users catch 'your kitty transparent preset was removed upstream' even
-    without running update — the dest is frozen, but doctor surfaces it. §11
+    安装候选也包含 Starship 等单文件；它们没有目录预设，不能把预设 API 的
+    不支持错误误报为配置冻结。资格检查与 read_active_preset 使用同一 manifest 规则。
     """
     from nyxuri.deploy import discover_config_items
     from nyxuri.deploy import InvalidActivePresetError, read_active_preset
-    from nyxuri.deploy.preset import _find_preset_src
+    from nyxuri.deploy.preset import _find_preset_src, _is_deployable_app as supports_presets
     for app in discover_config_items():
+        if not supports_presets(app):
+            continue
         try:
             active = read_active_preset(app)
         except InvalidActivePresetError:
@@ -643,7 +645,7 @@ def generate_bug_report() -> Optional[Path]:
     health_checks = "\n".join(health_lines)
 
     # Noctalia Hook Log
-    hook_log_path = Path(os.environ.get("XDG_STATE_HOME", str(env.home / ".local" / "state"))) / THEME_ENGINE / "hook.log"
+    hook_log_path = Path(os.environ.get("XDG_STATE_HOME") or env.home / ".local" / "state") / THEME_ENGINE / "hook.log"
     if hook_log_path.is_file():
         try:
             hook_log = "\n".join(hook_log_path.read_text(encoding="utf-8", errors="ignore").splitlines()[-20:])

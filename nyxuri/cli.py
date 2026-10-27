@@ -19,6 +19,8 @@ from nyxuri.core import (
     exec_cli,
     get_env,
     init_logger,
+    validate_xdg_layout,
+    XDGLayoutError,
 )
 
 from nyxuri.deploy import test_deploy
@@ -596,6 +598,12 @@ COMMANDS = {
 
 def main() -> None:
     """Main CLI entrypoint."""
+    # 即使 Environment 已缓存，也检查本次进程环境；拒绝必须早于锁、日志与迁移。
+    try:
+        validate_xdg_layout()
+    except XDGLayoutError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
     if os.geteuid() == 0 or os.getuid() == 0:
         print(msg("err_root_denied"), file=sys.stderr)
         sys.exit(1)

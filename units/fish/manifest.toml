@@ -1,4 +1,5 @@
-# fish shell — pinned Fisher plugin set rides on this unit
+# Fish 与固定 Fisher 插件由同一单元供给；下载和解包工具也是钩子的实际依赖。
+packages = ["fish", "curl", "tar"]
 post_install = "install-fisher"
 post_remove = "remove-fisher"
 
@@ -7,4 +8,4 @@ post_remove = "remove-fisher"
 preserve = ["fish_variables", "fish_plugins", "functions"]
 
 [platforms.ubuntu]
-packages = ["fish"]
+packages = ["fish", "curl", "tar"]

@@ -29,6 +29,10 @@ class TestShellManagement(unittest.TestCase):
     def setUp(self):
         self._ctx = TempEnv()
         self._ctx.__enter__()
+        # 本类验证管理状态机；真实runtime供给与QML探针由test_shell_switcher专项覆盖。
+        self.runtime_preflight = patch("nyxuri.desktop.shell_runtime.preflight_runtime", return_value="")
+        self.runtime_preflight.start()
+        self.addCleanup(self.runtime_preflight.stop)
 
     def tearDown(self):
         self._ctx.__exit__()

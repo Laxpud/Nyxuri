@@ -2,6 +2,7 @@
 
 import contextlib
 import io
+import hashlib
 import subprocess
 import sys
 import unittest
@@ -26,14 +27,43 @@ class TestPresetDrift(unittest.TestCase):
         return buf.getvalue()
 
     def test_default_active_no_warn(self):
-        # All apps at default → no drift.
-        self.assertNotIn("已不在仓库", self._run_drift())
+        # 默认状态应完全安静，也不能把单文件单元误报为无效预设。
+        self.assertEqual(self._run_drift(), "")
 
     def test_active_existing_preset_no_warn(self):
         from nyxuri.deploy.preset import write_active_preset
         # 'transparent' exists in the shipped kitty presets → no drift.
         write_active_preset("kitty", "transparent")
         self.assertNotIn("已不在仓库", self._run_drift())
+
+    def test_synced_flatfile_has_no_preset_warning_or_diagnostic_writes(self):
+        """Starship 的真实单文件账本保持 Synced，预设诊断不读取不适用状态。"""
+        from nyxuri.kernel import ledger, transaction
+        config = self._ctx.env.config_dir / "starship.toml"
+        config.write_text("add_newline = false\n", encoding="utf-8")
+        ledger.set_unit("starship", state="enabled", preset="default",
+                        files={"starship.toml": hashlib.sha256(config.read_bytes()).hexdigest()})
+        ledger.set_deployment("starship", target=str(config), shape="file", preserve=[], pending=None)
+        before_config = config.read_bytes()
+        before_ledger = ledger.ledger_path().read_bytes()
+        self.assertEqual(transaction.audit_units("starship"), {"starship": "Synced"})
+        self.assertEqual(self._run_drift(), "")
+        self.assertEqual(config.read_bytes(), before_config)
+        self.assertEqual(ledger.ledger_path().read_bytes(), before_ledger)
+        self.assertFalse((self._ctx.env.config_dir / "starship").exists())
+
+    def test_invalid_directory_active_preset_still_warns(self):
+        """支持目录预设的 Kitty 若活动记录无效，仍明确报告冻结。"""
+        directory = self._ctx.env.presets_dir
+        directory.mkdir(parents=True, exist_ok=True)
+        marker = directory / "kitty.active"
+        marker.write_text("../invalid-preset", encoding="utf-8")
+        with patch("nyxuri.core._CURRENT_LANG", "en"):
+            output = self._run_drift()
+        self.assertIn("kitty: active preset state is invalid", output)
+        self.assertIn("~/.config/kitty is frozen", output)
+        self.assertNotIn("starship", output)
+        self.assertEqual(marker.read_text(), "../invalid-preset")
 
     def test_active_missing_preset_warns(self):
         from nyxuri.deploy.preset import write_active_preset

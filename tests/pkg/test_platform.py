@@ -229,10 +229,13 @@ class TestAptCandidateQueries(unittest.TestCase):
              patch("nyxuri.pkg.platform.shutil.which", return_value="/usr/bin/apt-cache"), \
              patch("nyxuri.pkg.platform.subprocess.run", return_value=subprocess.CompletedProcess(
                  [], 0, sourced, "")) as run:
-            self.assertTrue(platform.package_candidate_available("niri"))
-            self.assertTrue(platform.package_candidate_available("niri=26.03"))
-            self.assertFalse(platform.package_candidate_available("niri=25.00"))
-        self.assertEqual(run.call_count, 3)
+            # Ubuntu 渐进更新只给版本行追加提示，仍必须核对候选与实际索引来源。
+            for output in (sourced, sourced.replace("26.04 100", "26.04 100 (phased 80%)")):
+                run.return_value = subprocess.CompletedProcess([], 0, output, "")
+                self.assertTrue(platform.package_candidate_available("niri"))
+                self.assertTrue(platform.package_candidate_available("niri=26.03"))
+                self.assertFalse(platform.package_candidate_available("niri=25.00"))
+        self.assertEqual(run.call_count, 6)
         self.assertEqual(run.call_args.args[0], ["apt-cache", "policy", "niri"])
         self.assertEqual(run.call_args.kwargs["timeout"], 15)
 

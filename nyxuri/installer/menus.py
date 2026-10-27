@@ -24,7 +24,7 @@ from nyxuri.desktop.presets import (
     edit_preset,
     save_preset,
 )
-from nyxuri.deploy.deploy import wallpapers_pack_present
+from nyxuri.installer.candidates import discover_install_config_items
 from nyxuri.pkg.deps import is_dep_installed, run_dep_menu_loop, run_optional_apps_menu_loop, supply_installed
 from nyxuri.sysdoctor import generate_bug_report, run_doctor
 from nyxuri.state import (
@@ -50,11 +50,10 @@ from nyxuri.tui import (
 
 def run_master_component_menu(is_update: bool = False, mode: str = "full") -> Optional[dict]:
     """Interactive checklist for choosing configs, wallpapers, and backup behavior."""
-    items = discover_config_items()
-    enabled = set()
+    items = discover_install_config_items()
+    from nyxuri.kernel import ledger, registry
+    enabled = {uid for uid, rec in ledger.all_units().items() if rec.get("state") == "enabled"}
     if is_update:
-        from nyxuri.kernel import ledger, registry
-        enabled = {uid for uid, rec in ledger.all_units().items() if rec.get("state") == "enabled"}
         items = [uid for uid in registry.unit_ids() if uid in enabled
                  and not registry.load_unit(uid).runtime and uid != "wallpapers"]
     entries: List[CheckboxEntry] = []
@@ -115,12 +114,12 @@ def run_master_component_menu(is_update: bool = False, mode: str = "full") -> Op
             entries.append(CheckboxEntry(key=f"config_{item}", label=label, checked=checked))
 
     if (mode == "full" and not is_update) or (is_update and "wallpapers" in enabled):
-        # 2. Heavy assets (wallpapers)
-        wp_checked = is_update or not wallpapers_pack_present()
-        wp_status = msg("status_wallpapers_installed") if wallpapers_pack_present() else msg("status_wallpapers_missing")
+        # 默认静态壁纸随仓库离线部署；外部视频/大包是独立手动工具，不决定本项状态。
+        wp_checked = True
+        wp_status = msg("status_wallpapers_installed") if "wallpapers" in enabled else msg("status_wallpapers_missing")
         entries.append(CheckboxEntry(
             key="assets_wallpapers",
-            label=msg("master_item_asset", f"Wallpapers & Videos {wp_status}"),
+            label=msg("master_item_asset", wp_status),
             checked=wp_checked,
         ))
 

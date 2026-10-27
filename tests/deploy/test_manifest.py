@@ -254,16 +254,14 @@ class TestRealRepoManifests(unittest.TestCase):
         deployable = manifest.discover_deployable_apps()
         self.assertNotIn("nautilus", deployable)
         self.assertNotIn("missioncenter", deployable)
-        # The shipped config units are all present. `theme` is a merge unit
-        # (shared living area) — it deploys only through the transaction's
-        # no-clobber path and never joins the atomic batch.
+        # 独占目录进入原子批次；Fcitx、Portal、主题和壁纸共享目录走逐文件事务。
         for name in ("fastfetch", "fish", "kitty", "niri", "noctalia",
-                     "starship", "xdg-desktop-portal", "zed", "mango",
-                     "fcitx5-rime"):
+                     "starship", "zed", "mango"):
             self.assertIn(name, deployable)
-        self.assertNotIn("theme", deployable)
         merge_units = {name for name, m in manifest.discover_manifest_apps() if m.merge}
-        self.assertIn("theme", merge_units)
+        for name in ("theme", "fcitx5-rime", "xdg-desktop-portal", "wallpapers"):
+            self.assertNotIn(name, deployable)
+            self.assertIn(name, merge_units)
 
     def test_stray_sidecar_files_are_gone(self):
         # KM1 ② enforcement: configs/ is a flat unit directory — no sidecars.

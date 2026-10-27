@@ -35,7 +35,7 @@ from nyxuri.deploy.preset import (
     resolve_preset_src,
     write_active_preset,
 )
-from nyxuri.deploy.templates import _phase_render_templates
+from nyxuri.deploy.templates import _phase_render_templates, prepare_screenshot_directory
 
 _CONFIG_ITEMS_CACHE: List[str] = []
 USER_HOOK_TIMEOUT = 30
@@ -207,7 +207,8 @@ def _phase_atomic_deployment(
 
 
 def merge_deploy_unit(item: str, manifest: ModuleManifest, *,
-                      baseline: Optional[dict] = None, force: bool = False) -> Optional[List[str]]:
+                      baseline: Optional[dict] = None, force: bool = False,
+                      include_rels: Optional[set[str]] = None) -> Optional[List[str]]:
     """共享目录逐文件刷新；只更新未修改受管文件，新文件落地，外来内容保留。"""
     from nyxuri.deploy.atomic import _path_identity
     env = get_env()
@@ -222,6 +223,8 @@ def merge_deploy_unit(item: str, manifest: ModuleManifest, *,
             if path.is_dir() or path.name == "manifest.toml" or any(p in ("hooks", "presets", "__presets__", "__pycache__") for p in rel.parts):
                 continue
             name = rel.as_posix()
+            if include_rels is not None and name not in include_rels:
+                continue
             if "__custom__" in name or any(name == p or name.startswith(p + "/") for p in manifest.preserve):
                 if (dest / rel).exists():
                     continue
@@ -339,8 +342,12 @@ def render_completion_screen(
     hook_diagnostics: Optional[List[str]] = None,
     notice_lines: Optional[List[str]] = None,
     carried_groups: Optional[Dict[str, List[str]]] = None,
+    wallpaper_selected: Optional[bool] = None,
 ) -> None:
     """Render completion state, including non-blocking hook diagnostics.
+
+    壁纸状态来自本轮选择及事务结果：未选择与已选择但尚未执行分开显示，
+    不用外部手动视频包的存在情况推断成功。
 
     ``carried_groups`` (#139): carried files keyed by verdict — "modified"
     (user edits, template has newer), "user" (user-placed), "unknown"
@@ -349,6 +356,8 @@ def render_completion_screen(
     """
     if chosen_items is None:
         chosen_items = discover_config_items()
+    if wallpaper_selected is None:
+        wallpaper_selected = "wallpapers" in chosen_items or wallpaper_ok is not None
     if preserved_lines is None:
         preserved_lines = []
     if failed_items is None:
@@ -378,14 +387,14 @@ def render_completion_screen(
             sys.stdout.write(f"    {Colors.BOLD_YELLOW}[!]{Colors.RESET} {msg('summary_item_configs_skip')}\n")
 
         if mode in ("full", "update", "test"):
-            if wallpaper_ok:
+            if not wallpaper_selected:
+                wallpaper_key, wallpaper_color, wallpaper_icon = "summary_item_wallpapers_skip", Colors.BOLD_YELLOW, "[!]"
+            elif wallpaper_ok is True:
                 wallpaper_key, wallpaper_color, wallpaper_icon = "summary_item_wallpapers_existing", Colors.BOLD_GREEN, "[✓]"
             elif wallpaper_ok is False:
                 wallpaper_key, wallpaper_color, wallpaper_icon = "summary_item_wallpapers_failed", Colors.BOLD_RED, "[✗]"
-            elif wallpapers_pack_present():
-                wallpaper_key, wallpaper_color, wallpaper_icon = "summary_item_wallpapers_existing", Colors.BOLD_GREEN, "[✓]"
             else:
-                wallpaper_key, wallpaper_color, wallpaper_icon = "summary_item_wallpapers_skip", Colors.BOLD_YELLOW, "[!]"
+                wallpaper_key, wallpaper_color, wallpaper_icon = "summary_item_wallpapers_not_run", Colors.BOLD_YELLOW, "[!]"
             sys.stdout.write(f"    {wallpaper_color}{wallpaper_icon}{Colors.RESET} {msg(wallpaper_key)}\n")
 
         if mode == "full":
@@ -510,7 +519,9 @@ def deploy_selected_configs(
         print(msg("deploy_failed", ", ".join(failed_items)), file=sys.stderr)
         return failed_items
     for item in items_to_deploy:
-        _phase_render_templates(only_app=item)
+        excluded = set(carry_policy.carried.get(item, {})) if carry_policy else set()
+        _phase_render_templates(only_app=item, exclude=excluded)
+        prepare_screenshot_directory(only_app=item, exclude=excluded)
     _phase_post_install_services()
     print(msg("copy_done"))
     return []
@@ -567,6 +578,7 @@ def test_deploy() -> bool:
         render_completion_screen(mode="test", chosen_items=items, preserved_lines=preserved_log, failed_items=failed_items)
         return False
     _phase_render_templates()
+    prepare_screenshot_directory()
     wallpaper_ok = enable_wallpapers_unit()
     enable_theme_unit()
     render_completion_screen(

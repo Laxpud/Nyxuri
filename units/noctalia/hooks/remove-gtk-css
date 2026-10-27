@@ -9,7 +9,7 @@ from nyxuri.desktop.owned_outputs import withdraw_outputs
 
 def main() -> int:
     # 普通 CSS 文本和 gtk-dark.css 文件名均不构成归属证明。
-    withdraw_outputs(producer="noctalia")
+    withdraw_outputs(producer="noctalia", ordinary_only=True)
     return 0
 
 

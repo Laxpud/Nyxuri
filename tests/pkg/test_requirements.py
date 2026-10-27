@@ -150,6 +150,8 @@ class TestShippedPlatformDeclarations(unittest.TestCase):
         quickshell_result = resolve_requirements(quickshell, "ubuntu")
         self.assertTrue(quickshell_result.supported)
         self.assertIn("qml6-module-qtquick-controls", quickshell_result.packages_repo)
+        self.assertIn("matugen", quickshell_result.packages_repo)
+        self.assertIn("jq", quickshell_result.packages_repo)
         self.assertEqual(quickshell_result.packages_aur, [])
         self.assertEqual(
             quickshell_result.manual,
@@ -173,6 +175,26 @@ class TestShippedPlatformDeclarations(unittest.TestCase):
 
         mango = resolve_requirements(load_manifest(self.env.env.units_src / "mango"), "ubuntu")
         self.assertFalse(mango.supported)
+
+    def test_ubuntu_video_player_is_optional_without_changing_arch_toolchain(self):
+        """Ubuntu 基础工具链保留必需字体，视频播放器仅由可选目录条目声明。"""
+        from nyxuri.core import AUR_DEPS, CORE_DEPS
+        from nyxuri.pkg.deps import core_requirements
+        from nyxuri.pkg.catalog import get_entry
+        from nyxuri.pkg.requirements import resolve_requirements
+
+        with patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"):
+            required = core_requirements()
+        self.assertNotIn("mpvpaper", required.packages_repo + required.packages_aur + required.manual)
+        self.assertIn("jetbrains-mono-nerd-font", required.manual)
+        optional = resolve_requirements(get_entry("mpvpaper"), "ubuntu")
+        self.assertTrue(optional.supported)
+        self.assertEqual(optional.packages_repo, [])
+        self.assertEqual(optional.packages_aur, [])
+        self.assertEqual(optional.manual, ["mpvpaper"])
+        self.assertIn("video wallpaper", optional.reason)
+        self.assertIn("mpvpaper", CORE_DEPS)
+        self.assertIn("mpvpaper", AUR_DEPS)
 
     def test_manifest_and_catalog_retain_arch_source_data(self):
         from nyxuri.deploy.manifest import load_manifest

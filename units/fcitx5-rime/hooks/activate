@@ -49,9 +49,10 @@ def deploy_skin(unit_src: Path) -> bool:
 
 
 def mount_rime(rime_dir: Path, marker: Path) -> None:
-    """合并 Rime schema 选择，原值与提交身份交给统一产物清单保存。
+    """声明可用的 Rime schema，原值与提交身份交给统一产物清单保存。
 
     marker 参数保留调用兼容；旧文件名清单缺少原值和hash，不能升级成清理凭据。
+    user.yaml 的上次方案、开关与构建时间由 Rime 维护，不由部署钩子创建或认领。
     """
     rime_dir.mkdir(parents=True, exist_ok=True)
     custom_yaml = rime_dir / "default.custom.yaml"
@@ -66,10 +67,8 @@ def mount_rime(rime_dir: Path, marker: Path) -> None:
         if not write_output("fcitx5-rime", "fcitx5-rime", custom_yaml, content.encode(),
                             force=os.environ.get("NYXURI_FORCE") == "1"):
             raise RuntimeError("Rime patch has user changes")
-    user_yaml = rime_dir / "user.yaml"
-    if not user_yaml.exists():
-        write_output("fcitx5-rime", "fcitx5-rime", user_yaml,
-                     b"var:\n  previously_selected_schema: rime_ice\n")
+    # default.custom.yaml 负责可用方案；Rime 会在构建和使用时更新 user.yaml。
+    # 若把后者整体登记为模板产物，构建时间变化就会被误当成部署后的个人修改。
     shared = Path("/usr/share/rime-data")
     if shutil.which("rime_deployer") and shared.is_dir():
         _timed(["rime_deployer", "--build", str(rime_dir), str(shared), str(rime_dir / "build")], 45)

@@ -107,7 +107,7 @@ def _unit_target(uid: str, data: dict) -> Optional[Path]:
     return None if transaction._is_runtime(manifest) else _safe_target(str(transaction._unit_dest(uid, manifest)))
 
 
-def _write_managed_snapshot(root: Path) -> None:
+def _write_managed_snapshot(root: Path, extra_paths: Optional[list[Path]] = None) -> None:
     """保存单位内容、对应账本、预设与 Vault，避免只回滚文件却保留新账本。"""
     from nyxuri.kernel import ledger, registry
     from nyxuri.desktop import owned_outputs
@@ -145,6 +145,14 @@ def _write_managed_snapshot(root: Path) -> None:
             manifest["paths"].append(_capture_path(target, root, f"unmanaged-units/{index}"))
             targets.append(target)
     manifest["paths"].append(_capture_path(env.presets_dir, root, "user-presets"))
+    # 迁移的旧默认路径可能尚无版本化目标记录，必须在首次改写归属前保全它。
+    captured = [Path(entry["target"]) for entry in manifest["paths"]]
+    for index, target in enumerate(extra_paths or []):
+        target = _safe_target(str(target))
+        if any(target == item or target.is_relative_to(item) for item in captured):
+            continue
+        manifest["paths"].append(_capture_path(target, root, f"extra/{index}"))
+        captured.append(target)
     # 钩子恢复记录属于单位域；无需备份 install.log、全局锁等无关状态。
     manifest["auxiliary"] = []
     for name in ("fisher.json", "fcitx-nyxmellow-theme.prev", "fcitx-nyxmellow-quickphrase.prev"):
@@ -156,6 +164,7 @@ def _write_managed_snapshot(root: Path) -> None:
 def _load_managed_snapshot(root: Path) -> Optional[dict]:
     """先验证全部恢复输入；旧目录没有元数据时明确走文件级兼容路径。"""
     from nyxuri.desktop import owned_outputs
+    from nyxuri.kernel import ledger
     metadata = root / "snapshot.json"
     if not metadata.exists():
         return None
@@ -165,6 +174,11 @@ def _load_managed_snapshot(root: Path) -> Optional[dict]:
     for key in ("units", "deployments", "presets"):
         if not isinstance(manifest.get(key), dict):
             raise ValueError(f"Invalid snapshot {key}")
+    # 来源路径等新增部署字段也须在撤回现状之前完成校验，不能写回账本时才失败。
+    try:
+        ledger._validate_ledger({"units": manifest["units"], "deployments": manifest["deployments"]})
+    except ledger.LedgerError as exc:
+        raise ValueError(f"Invalid snapshot ownership: {exc}") from exc
     if not isinstance(manifest.get("parts", {}), dict) or not all(
             isinstance(key, str) and isinstance(value, str)
             for key, value in manifest.get("parts", {}).items()):
@@ -238,8 +252,22 @@ def _restore_managed_snapshot(root: Path, manifest: dict) -> bool:
     from nyxuri.desktop import owned_outputs
     with ledger.mutation_lock():
         for uid, record in ledger.all_units().items():
+            deployment = ledger.get_deployment(uid)
+            # 普通 off 禁止处理中途迁移；rollback 已先完成安全快照，可按迁移身份
+            # 撤回新区已复制且未变的文件，再从原历史目标执行常规归档和撤回。
+            migration = deployment.get("migration")
+            if deployment.get("pending") == "migration" and migration:
+                from nyxuri.deploy.atomic import _path_identity
+                target = _safe_target(migration["target"])
+                if str(target) != deployment["target"]:
+                    for rel, digest in migration["files"].items():
+                        path = transaction._safe_leaf(target, rel)
+                        if _path_identity(path) == digest:
+                            path.unlink()
+                ledger.set_deployment(uid, pending="deploy", migration=None)
             if record.get("state") == "enabled" or ledger.get_deployment(uid).get("pending"):
-                steps = transaction.unit_off(uid, cascade=True)
+                # 回滚要恢复一个完整单位集合；中途不按半恢复的开关重写 Portal 等条件载荷。
+                steps = transaction.unit_off(uid, cascade=True, _sync_dependents=False)
                 if not all(step.ok for step in steps):
                     raise RuntimeError(f"Could not withdraw current unit: {uid}")
         # Vault/active 状态与目标内容一同恢复；预先备份已保存回滚前的个人修改。
@@ -250,7 +278,10 @@ def _restore_managed_snapshot(root: Path, manifest: dict) -> bool:
         owned_outputs.restore_state(root / "external", manifest.get("external", {}))
         units = {**ledger.all_units(), **manifest["units"]}
         current = ledger.read_ledger()
-        deployments = {**current.get("deployments", {}), **manifest["deployments"]}
+        # 旧五字段快照没有部署元数据；不能残留回滚前的新目标、pending 或归属。
+        deployments = {uid: meta for uid, meta in current.get("deployments", {}).items()
+                       if uid not in manifest["units"]}
+        deployments.update(manifest["deployments"])
         # 零件选择与其恢复文件同属单位形态；其他单位的选择不被旧快照抹除。
         snap_units = set(manifest["units"])
         parts = {key: value for key, value in current.get("parts", {}).items()
@@ -285,7 +316,8 @@ def _prune_old_snapshots(base_dir: Path, protected_snapshot: Optional[Path] = No
 
 
 def backup_configs(
-    note: str = "", interactive: bool = True, protected_snapshot: Optional[Path] = None
+    note: str = "", interactive: bool = True, protected_snapshot: Optional[Path] = None,
+    extra_paths: Optional[list[Path]] = None
 ) -> Optional[Path]:
     """Create a complete snapshot of all active dotfiles configurations."""
     from nyxuri.deploy.deploy import config_item_dest, discover_config_items
@@ -309,7 +341,7 @@ def backup_configs(
     from nyxuri.kernel import ledger
     try:
         with ledger.mutation_lock():
-            _write_managed_snapshot(tmp_dir)
+            _write_managed_snapshot(tmp_dir, extra_paths=extra_paths)
             # 安装前的文件级副本仍保留，供旧工具与手工恢复使用；v2 回滚以单位元数据为准。
             for item in discover_config_items():
                 cfg_path = config_item_dest(item)

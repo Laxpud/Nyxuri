@@ -24,9 +24,8 @@ class TestUbuntuInstallWorkflow(unittest.TestCase):
             "backend": patch.object(workflows, "backend_available", return_value=True),
             "platform": patch.object(workflows, "current_platform", return_value="ubuntu"),
             "requirements_platform": patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"),
-            "items": patch.object(workflows, "discover_config_items", return_value=list(configs)),
+            "items": patch.object(workflows, "discover_install_config_items", return_value=list(configs)),
             "wm": patch.object(workflows, "detect_preferred_wm", return_value="niri"),
-            "wallpapers": patch.object(workflows, "wallpapers_pack_present", return_value=True),
             "preflight": patch.object(workflows, "_phase_preflight_check"),
             "hooks": patch.object(workflows, "run_user_hooks", return_value=[]),
             "screen": patch.object(workflows, "render_completion_screen"),
@@ -109,13 +108,33 @@ class TestUbuntuInstallWorkflow(unittest.TestCase):
         """工具链手动资源尚未供应时，不把复制配置当作完整安装成功。"""
         workflows, mocks = self._common(["niri"])
         with patch("sys.stdin.isatty", return_value=False), \
-             patch.object(workflows, "get_missing_deps", side_effect=[["mpvpaper"], ["mpvpaper"]]), \
+             patch.object(workflows, "get_missing_deps", side_effect=[["jetbrains-mono-nerd-font"], ["jetbrains-mono-nerd-font"]]), \
              patch.object(workflows, "install_selected_deps", return_value=False) as install, \
              redirect_stderr(io.StringIO()) as error:
             self.assertFalse(workflows.install_configs_workflow("full"))
-        install.assert_called_once_with(["mpvpaper"])
+        install.assert_called_once_with(["jetbrains-mono-nerd-font"])
         mocks["on"].assert_not_called()
-        self.assertIn("mpvpaper", error.getvalue())
+        self.assertIn("jetbrains-mono-nerd-font", error.getvalue())
+
+    def test_static_full_install_does_not_require_optional_video_player(self):
+        """视频播放器缺席不能阻断静态基础配置，真正必需的字体仍参与检查。"""
+        from nyxuri.pkg import deps
+        workflows, mocks = self._common(["niri"])
+        inspected = []
+
+        def installed(_probe, name):
+            inspected.append(name)
+            return name != "mpvpaper"
+
+        with patch("sys.stdin.isatty", return_value=False), \
+             patch.object(deps.DependencyProbe, "installed", new=installed), \
+             patch.object(workflows.transaction, "missing_packages", return_value=[]), \
+             patch.object(workflows, "install_selected_deps") as install:
+            self.assertTrue(workflows.install_configs_workflow("full"))
+        self.assertNotIn("mpvpaper", inspected)
+        self.assertIn("jetbrains-mono-nerd-font", inspected)
+        install.assert_not_called()
+        self.assertEqual([call.args[0] for call in mocks["on"].call_args_list], ["niri", "wallpapers"])
 
     def test_config_mode_skips_packages_and_hooks_but_uses_unit_transaction(self):
         """配置模式仍登记归属，并明确将运行时激活保留为未完成阶段。"""
@@ -142,14 +161,18 @@ class TestUbuntuInstallWorkflow(unittest.TestCase):
              patch.object(workflows, "get_missing_deps", return_value=["fish"]), \
              patch.object(workflows, "install_selected_deps",
                           side_effect=lambda names: events.append(("core", names)) or True), \
-             patch.object(workflows.transaction, "missing_packages", side_effect=[["niri"], []]) as missing, \
+             patch.object(workflows.transaction, "missing_packages", side_effect=[["niri"], [], []]) as missing, \
              patch.object(workflows, "unit_package_installer",
                           side_effect=lambda uid, names: events.append(("unit", uid, names)) or True) as installer:
             self.assertTrue(workflows.install_configs_workflow("full"))
-        self.assertEqual(events, [("core", ["fish"]), ("unit", "niri", ["niri"]), ("on", "niri")])
-        self.assertEqual(missing.call_count, 2)
-        mocks["on"].assert_called_once_with("niri", force=False, install_packages=installer,
-                                           run_hooks=True, check_packages=True)
+        self.assertEqual(events, [("core", ["fish"]), ("unit", "niri", ["niri"]), ("on", "niri"), ("on", "wallpapers")])
+        self.assertEqual(missing.call_count, 3)
+        mocks["on"].assert_any_call("niri", force=False, install_packages=installer,
+                                   run_hooks=True, check_packages=True)
+        mocks["on"].assert_any_call("wallpapers", force=False, install_packages=installer,
+                                   run_hooks=True, check_packages=True)
+        self.assertTrue(mocks["screen"].call_args.kwargs["wallpaper_selected"])
+        self.assertTrue(mocks["screen"].call_args.kwargs["wallpaper_ok"])
         mocks["hooks"].assert_called_once()
 
     def test_noninteractive_full_install_skips_uninstalled_optional_unit(self):
@@ -164,7 +187,7 @@ class TestUbuntuInstallWorkflow(unittest.TestCase):
         supply.assert_called_once()
         self.assertEqual(supply.call_args.args[0].name, "greeter")
         install.assert_not_called()
-        self.assertEqual([call.args[0] for call in mocks["on"].call_args_list], ["niri"])
+        self.assertEqual([call.args[0] for call in mocks["on"].call_args_list], ["niri", "wallpapers"])
 
     def test_successful_install_registers_actual_content_for_doctor(self):
         """从空 HOME 经真实单元事务安装，文件和账本必须能直接完成对账。"""
@@ -176,13 +199,16 @@ class TestUbuntuInstallWorkflow(unittest.TestCase):
         (source / "manifest.toml").write_text(
             'packages = []\n[platforms.ubuntu]\npackages = []\n', encoding="utf-8")
         (source / "config").write_text("payload", encoding="utf-8")
+        wallpaper = units / "wallpapers"
+        wallpaper.mkdir()
+        (wallpaper / "manifest.toml").write_text('packages = []\nmerge = true\ntarget = "@pictures/Wallpapers"\n')
+        (wallpaper / "fallback.png").write_bytes(b"default wallpaper fixture")
         self.ctx.env.units_src = units
         with patch("sys.stdin.isatty", return_value=False), \
              patch.object(workflows, "backend_available", return_value=True), \
              patch.object(workflows, "current_platform", return_value="ubuntu"), \
              patch("nyxuri.pkg.platform.current_platform", return_value="ubuntu"), \
-             patch.object(workflows, "discover_config_items", return_value=["install-example"]), \
-             patch.object(workflows, "wallpapers_pack_present", return_value=True), \
+             patch.object(workflows, "discover_install_config_items", return_value=["install-example"]), \
              patch.object(workflows, "_phase_preflight_check"), \
              patch.object(workflows, "get_missing_deps", return_value=[]), \
              patch.object(workflows, "run_user_hooks", return_value=[]), \
@@ -192,6 +218,58 @@ class TestUbuntuInstallWorkflow(unittest.TestCase):
         self.assertEqual((self.ctx.env.config_dir / "install-example/config").read_text(), "payload")
         self.assertEqual(ledger.get_unit("install-example")["state"], "enabled")
         self.assertEqual(transaction.audit_units("install-example"), {"install-example": "Synced"})
+
+
+class TestWallpaperResultReporting(unittest.TestCase):
+    """壁纸独立选项按本轮选择和事务结果显示，不再用外部视频包推断成功。"""
+
+    def test_workflow_passes_selected_success_failure_and_not_run_results(self):
+        from nyxuri.installer import workflows
+        from nyxuri.kernel.transaction import Step
+        cases = [
+            (["wallpapers"], False, True, True, True),
+            (["wallpapers"], True, False, True, False),
+            (["app"], False, True, False, None),
+            (["app", "wallpapers"], True, False, True, None),
+        ]
+        for items, fail_first, expected_ok, selected, wallpaper_ok in cases:
+            with self.subTest(items=items, fail_first=fail_first), TempEnv(), \
+                 patch.object(workflows.transaction, "plan_on", side_effect=lambda uid: [uid]), \
+                 patch.object(workflows.transaction, "unit_on", side_effect=lambda uid, **kwargs: [Step(uid, not fail_first, "result")]), \
+                 patch.object(workflows, "run_user_hooks", return_value=[]), \
+                 patch.object(workflows, "render_completion_screen") as screen, \
+                 patch("builtins.print"):
+                result = workflows._deploy_units(items, update=False, conflict_decision=False)
+                self.assertEqual(result, expected_ok)
+                self.assertEqual(screen.call_args.kwargs["wallpaper_selected"], selected)
+                self.assertIs(screen.call_args.kwargs["wallpaper_ok"], wallpaper_ok)
+
+    def test_completion_uses_only_explicit_current_run_wallpaper_result(self):
+        from contextlib import redirect_stdout
+        from nyxuri.deploy.deploy import render_completion_screen
+        from nyxuri.core import msg
+        cases = [(False, None, "summary_item_wallpapers_skip"),
+                 (True, True, "summary_item_wallpapers_existing"),
+                 (True, False, "summary_item_wallpapers_failed"),
+                 (True, None, "summary_item_wallpapers_not_run")]
+        with TempEnv(), patch("sys.stdin.isatty", return_value=False), \
+             patch("nyxuri.pkg.deps.get_missing_deps", return_value=[]), \
+             patch("nyxuri.deploy.deploy.wallpapers_pack_present", side_effect=AssertionError("External pack is irrelevant")):
+            for selected, wallpaper_ok, key in cases:
+                with self.subTest(selected=selected, wallpaper_ok=wallpaper_ok), redirect_stdout(io.StringIO()) as output:
+                    render_completion_screen("full", chosen_items=[], wallpaper_selected=selected,
+                                             wallpaper_ok=wallpaper_ok)
+                    self.assertIn(msg(key), output.getvalue())
+
+    def test_preflight_describes_bundled_static_deployment(self):
+        from contextlib import redirect_stdout
+        from nyxuri.installer import workflows
+        from nyxuri.core import msg
+        with TempEnv(), redirect_stdout(io.StringIO()) as output:
+            workflows._phase_preflight_check("config", [], True, False)
+            self.assertIn(msg("preflight_comp_assets"), output.getvalue())
+            self.assertNotIn("Download", output.getvalue())
+            self.assertNotIn("下载", output.getvalue())
 
 
 if __name__ == "__main__":

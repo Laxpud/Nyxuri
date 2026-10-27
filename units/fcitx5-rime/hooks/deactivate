@@ -9,16 +9,16 @@ from nyxuri.desktop.owned_outputs import withdraw_outputs
 
 def revert_rime(rime_dir: Path, marker: Path) -> None:
     """按完整原值恢复；旧 marker 不能授权按行删除个人文件。"""
-    withdraw_outputs(producer="fcitx5-rime")
+    withdraw_outputs(producer="fcitx5-rime", ordinary_only=True)
 
 
 def withdraw_skin(theme_dir: Path) -> None:
     """按消费者记录清理皮肤，固定文件名不构成所有权。"""
-    withdraw_outputs(consumer="fcitx5-rime")
+    withdraw_outputs(consumer="fcitx5-rime", ordinary_only=True)
 
 
 def main() -> int:
-    withdraw_outputs(consumer="fcitx5-rime")
+    withdraw_outputs(consumer="fcitx5-rime", ordinary_only=True)
     print("[✓] Tracked Fcitx outputs withdrawn; user changes preserved")
     return 0
 

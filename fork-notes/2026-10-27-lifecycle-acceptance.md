@@ -1,7 +1,7 @@
 # 管理生命周期修复与 Ubuntu 流程验收
 
 记录日期：2026-10-27。范围与授权依据：[审查及修复方案](2026-10-27-management-lifecycle-audit.md)。
-本页记录这次实现、验收和交互变化；当前仍在执行，未完成的项目不视为通过。
+冻结日期：2026-10-27。本页记录这次实现、验收和交互变化；下述通过结论限于实际覆盖的环境，明确列出的未覆盖项不视为通过。
 正式行为分别维护在单元、预设、状态、命令与 Ubuntu 契约页。
 
 ## 两部分交付
@@ -30,17 +30,39 @@
 | 预设切换 → 重载结果 | 文件提交后 | 忽略重载失败 | 重载失败返回失败并记录 pending；没有运行实例时无需重载 | 文件落地与运行时采用分开反馈 | 重载返回码/重试回归通过 |
 | 快照管理 → 列表/恢复 | 选恢复点 | 主要为文件目录备份 | 区分完整状态快照与旧文件快照；恢复前建立保险，部分失败列恢复点 | 用户知道是否包含账本、Vault、预设、零件与生成产物 | `tests/state/test_backup.py` |
 | 卸载 → 选择项及结果 | 执行 standard/restore/purge | 可能按蓝图目录删除未认领配置，钩子先于备份 | 依据账本列单元，先保险再统一停用；失败不继续清理状态 | 用户个人文件与无来源内容保留，purge 仍保留恢复备份 | `tests/state/test_uninstall.py` |
-| Noctalia → 模板输出设置 | 消费者启用/停用后 | 固定输出可能生成到停用应用目录 | 仅保留已启用消费者的具名模板项 | 停用不会被在途主题渲染重新创建 | Noctalia/Fcitx 产物回归；真实 daemon 待验 |
-| Nyxuri Shell → 模板错误 / Shell 切换提示 | 生成输出冲突或网关缺失 | 可能直接覆盖 / 切换时自动补写网关 | 冲突提交失败可见；网关缺失要求刷新 Niri | 切换不暗中改配置 | QML lint、产物与网关回归；真实会话待验 |
+| Noctalia → 模板输出设置 | 消费者启用/停用后 | 固定输出可能生成到停用应用目录 | 仅保留已启用消费者的具名模板项 | 停用不会被在途主题渲染重新创建 | Noctalia/Fcitx 产物回归；真实 Noctalia 5.4 与 Nyxuri Shell 色板提交、现有 Kitty 刷新已验 |
+| Nyxuri Shell → 模板错误 / Shell 切换提示 | 生成输出冲突或网关缺失 | 可能直接覆盖 / 切换时自动补写网关 | 冲突提交失败可见；网关缺失要求刷新 Niri | 切换不暗中改配置 | QML lint、产物与网关回归；真实会话切换、失败回滚与主题生成已验 |
 | Fish → 启用结果 | 固定插件安装 | 固定 lockfile 与个人插件清单冲突，旧清单可授予删除 | 临时安装后逐文件预检；冲突默认 partial，force 仅替换固定产物 | 保留个人插件清单、额外插件和后续修改 | Fisher 个人插件/强制恢复/退役产物回归 |
+| Shell → 切换到 Nyxuri Shell | 停止当前 Shell 前 | 入口文件存在即可继续，缺 qs 或 QML 时可能已停掉旧 Shell | 检查实际 qs、平台依赖、两套 Material Symbols 字体和隔离 QML 导入；失败显示原因 | 预检失败保留当前 Shell；查询不清缓存 | 真实 qs 0.3.2 导入探针、启动及缺失入口保留旧 Shell 已验 |
+| CLI / 安装器 → 启动 | 自定义 XDG 根目录 | 部分变量静默归一，部分消费者使用不同目录 | 四个 XDG 根目录只接受默认位置；不支持的值在写入前报错 | 用户须明确调整环境，避免配置与应用读取位置分裂 | 97 项路径相关检查通过；空值消费者补充检查通过 |
+| 依赖 → 应用 → 视频壁纸 | Ubuntu 选择可选应用 | mpvpaper 被纳入完整安装必需手动资源 | 新增可选视频壁纸条目，提示需人工提供 mpvpaper | 不需要视频壁纸时，缺少播放器不阻挡静态壁纸安装 | 60 项包与安装编排检查通过；视频播放待实际供给 |
+| Kitty → 字体缩放 | 使用默认或透明预设 | 两条无效滚轮映射产生解析警告 | 删除无效滚轮映射，保留 Ctrl 加减及恢复字号 | 使用有效键盘快捷键调整字号 | Kitty 0.45 实际配置解析无错误、无警告 |
+| Fcitx → 启用 / 更新 | 账本仍指向旧 fcitx5-rime 配置目录 | 目标路径与 Fcitx 读取位置不一致 | 迁移至共享 fcitx5 目录；先备份，冲突显示待完成与恢复点 | 迁移 force 采用旧生效内容，同轮继续保留个人修改；未完成时 off 拒绝 | 迁移、冲突、重试与旧快照恢复定向检查通过；实际 GTK4 窗口提交“你好”已验 |
+| Portal → WM 开关结果 | Niri / Mango 启用或停用，Portal 已启用 | 整目录配置可能影响其他桌面；通用规则始终存在 | 同步受支持且已启用 WM 的专用规则；未知通用规则保留并报告 | 多 WM 共存；需重登采用路由，不暗中重启会话服务 | 条件启停与旧通用规则退役检查通过；GNOME 三类请求、Niri 文件选择/单屏非交互截图/共享帧已验 |
+| 壁纸 → 安装 / 更新 | Pictures 本地化或图片目录改变 | 固定英文 Pictures 路径可能与消费者不一致 | 使用实际图片目录；已登记旧目标先备份再迁移 | 静态壁纸部署与消费者使用同一路径 | 本地化及目标变更定向检查通过 |
+| 安装 → 组件选择 | 首次安装枚举配置 | 原子目录列表漏掉 merge 单元 | 共用候选发现包含 Fcitx、Portal 等共享目录；运行时单元仍独立 | 选择安装时实际部署共享配置 | 候选/菜单/workflow 定向检查及 VM 完整安装 |
+| 安装 → 默认壁纸选项 | 选择组件 | “壁纸包”“已下载/未下载”，与视频包存在性耦合 | “默认壁纸”“已启用/未启用”，按单元状态勾选 | 本项部署仓库静态图，外部视频包另行管理 | 菜单回归；本地化路径实际显示 lawson_fuji.webp |
+| 安装 → 执行预览 | 确认之前 | “下载壁纸包” | “部署仓库提供的默认静态壁纸” | 准确说明网络与内容范围 | 最终 `install full` 真实 PTY 输出 |
+| 安装 / 更新 → 完成页 | 壁纸事务结束或未执行 | 已启用可能显示跳过 | 区分已启用、部署失败、本次未选择、本次未执行 | 前序失败不会误说壁纸已完成 | 四分支回归；VM 完成页显示 Enabled |
+| 依赖 → Ubuntu 包可用性 | APT 候选行含 phased 百分比 | 正常候选误判不可用 | 接受带分阶段发布标记的候选版本 | tmux 等有候选的包能进入真实安装 | VM apt-cache 原始输出、真实安装及定向检查 |
+| Fish → 安装 / 停用 | 新系统安装或真实 hook 清理 | 缺 curl/tar；停用可能等待父事务锁 | 声明下载工具；删除 hook 只清理已登记外部产物，普通变换由父事务处理 | 依赖完整，停用不会因重复锁死等 | 真实 Fisher 下载及 53 命令生命周期 |
+| Fish / custom → 停用结果 | 首装前已有保留路径 | 原有插件可能被误移入 Vault | 只有已记录来源的受保护文件归档；未知个人内容留在生效目录 | preserve 声明本身不授予所有权 | 原有 getopts.fish 真实运行、on/off/uninstall 后字节一致 |
+| Rime → 快照恢复 | Rime 自行更新 user.yaml | last_build_time 等变化导致虚假冲突 | 不新认领运行时 user.yaml；旧记录同内容恢复安全无操作 | 用户运行数据不冒充静态生成配置 | 真实 Rime 部署后的 snapshot/rollback 与旧记录回归 |
+| Niri → GTK 输入 | Niri 启动的 GTK 应用 | 在已测原生路径不能提交中文 | Niri 进程环境设置 GTK_IM_MODULE=fcitx | 已有输入法组保持，用户选择 Rime 后可输入 | 无额外环境前缀的真实 GTK4 输入得到“你好” |
+| Niri → 截图保存 | 默认截图目录尚不存在 | Portal 写入失败并可能一直等待 | 成功部署默认模板后准备本地化 Screenshots 容器 | 不认领/删除用户截图；目录准备失败留 pending | 单屏公共 Screenshot 返回 PNG，1280×800 |
+| Shell → 切回 Noctalia | Noctalia 初始化耗时较长 | 固定短预算导致健康进程被回滚 | Noctalia 目标/恢复均最多 30 秒，Nyxuri Shell 4 秒，以真实 IPC 为准 | 超时有预算说明并恢复旧 Shell，存活不算就绪 | 25.64 秒诊断；最终公开命令两向成功 |
+| Shell → 缓存与主题设置 | 包装器启动 Python/CLI 子进程 | 改写 XDG_CACHE_HOME 后被布局门禁拒绝 | 只设置 Qt QML_DISK_CACHE_PATH，保留标准 XDG 根目录 | 偏好与色板生成恢复；不放宽用户自定义布局限制 | 实际 qs、Qt 缓存路径及 Python/CLI 定向检查 |
+| Shell 设置 → 剪贴板依赖 / 诊断 | key 后端缺失或命令失败 | 未探测误显示依赖缺失/已完成 | 未知用“?”；失败显示后端命令错误，诊断 probed=false | 区分没探测与确认缺失，避免让用户重复安装已有工具 | 真实 key 缺席状态及剪贴板服务回归 |
+| Noctalia / Shell → Kitty 外观 | 色板异步生成后 | 早于落盘发信号，现有窗口仍旧色 | 受管提交成功后只通知本用户的真实 Kitty 实例；停用门控继续生效 | 现有窗口随新色板刷新，theme sync 不提前通知 | 同一 PID 10650 在两种 Shell 下深浅切换截图 |
+| doctor → Starship 预设 | 单文件单元诊断 | 把 default 当目录预设而报无效 | 按实际目录预设能力检查 | 单文件配置不再产生虚假预设错误 | 定向回归；最终 doctor 27通过/5警告/0错误 |
 
 ## 环境与证据边界
 
 - TempEnv 定向检查不写真实 HOME；全量回归使用只读根文件系统、独立 HOME/XDG、断网与隔离桌面总线。
 - 既有主测试集按 Arch 发行版视图运行；Ubuntu 专项显式切换平台。该结果不能替代 Ubuntu 实机验收。
 - Ubuntu VM：`nyxuri-ubuntu2604`，Ubuntu 26.04.1，6 vCPU / 12 GiB / 80 GiB。
-- 干净恢复点：`clean-ubuntu2604-no-nyxuri`，已验证能够回滚。虚拟图形采用软件渲染；硬件图形路径另行标明。
-- 真实桌面、完整 CLI 生命周期及有个人配置场景尚待执行。最终结果与限制将在本页续记。
+- 干净恢复点：`clean-ubuntu2604-no-nyxuri`，已验证能够回滚，原始系统 VM 保持关机。
+- 图形验收使用该测试盘的独立副本 `qemu:///session` / `nyxuri-ubuntu2604-graphics`：virtio 3D、VirGL，实际渲染器为宿主既有 NVIDIA GTX 1650。没有修改宿主驱动、libvirt 全局权限或日常 VM。单输出 1280×800；不能推广为物理多屏或其他显卡验收。
 
 ## 第一部分验收结果
 
@@ -65,3 +87,69 @@
 首轮全量的 5 处失败均已定位处理：3 处旧测试仍要求直接补写网关、忽略不支持的 runtime 预设，
 或漏 mock 新声明依赖；2 处来自隔离环境未创建 XDG_RUNTIME_DIR 与语言假设。修正后运行了上述完整回归。
 合并复核另外补齐首次生成文件冲突及 Starship 可逆变换，最终回归包含这些修复。
+
+## 第二部分验收结果
+
+最终候选完成 Ubuntu 26.04.1 真实安装、两个独立配置起点、真实版本差异的公开 CLI 生命周期，
+以及 GNOME → Niri → GNOME → Niri 会话共存验证。第一部分已提交 `b77a07b`；
+第二部分与本记录同批单独本地提交，不推送。
+
+### 安装与依赖
+
+从无 Nyxuri 的干净恢复点开始，经真实 `install full` 安装。首次尝试先后暴露并修复：
+APT phased 候选解析、Fish 缺少 curl/tar、首次候选漏掉 merge 单元，以及默认壁纸完成页状态。
+故这是“从干净起点排错并完成安装”，不是“首次尝试零错误”。Noctalia 会话 hook 在实际登录后
+重试完成；最终包含 10 个单元。最后一次完整安装是已有系统的幂等复核，输出 Configs 10 installed、
+Bundled wallpapers Enabled、System Deps Ready，不能把这次 no-op 当作首次供给证明。
+
+用户明确批准后，在 VM 准备 DankLinux PPA、Noctalia APT 及公开签名密钥；
+安装器本身仍不添加软件源/密钥、不刷新索引。真实版本包括 Niri 26.04、Noctalia 5.4.0、
+Quickshell 0.3.2、matugen 4.2.0；Rime Ice、Nerd Font 和 Material Symbols 按手动供给边界
+使用完整官方资源，没有空文件或假包状态。没有添加免密 sudo，也未更换 GDM。
+
+### 真实生命周期与个人配置
+
+两条运行器均使用独立普通账号 `nyxuri-cli-lifecycle`、独立源码副本和显式 HOME；
+全部 Nyxuri 管理操作走公开 launcher，真实包、Fisher 下载和 Rime hook 均执行。
+
+| 场景 | 实际覆盖 | 最终结果与持久证据（VM 内） |
+| --- | --- | --- |
+| 选定真实应用生命周期 | Niri/theme/Kitty/Fish/Starship/Portal/Fcitx；V1→V2 新增/修改/删除；个人修改保留；force 原字节快照；透明预设；off/on；snapshot 后改状态再 rollback；uninstall standard；install config 再 on | 53 条命令、94 项断言，通过；`/var/tmp/nyxuri-realapp-evidence-004/` |
+| 首装前已有个人配置 | Kitty/Fish/通用 Portal/Fcitx profile、ClassicUI、个人皮肤；通过官方 Fisher 安装真实 getopts.fish；四单元 on/off/on/uninstall 后逐字节及插件运行核验；仅 Kitty 强制接管并核对原始快照 | 46 条命令、173 项断言，通过；`/var/tmp/nyxuri-personal-evidence-003/results/` |
+
+这些个人内容是测试账号下专门生成的无隐私夹具，没有复制 tester 或宿主真实用户配置。
+早期场景揭示 Fish 清理锁冲突、Rime user.yaml 运行数据误认领、未知保留文件误归档，均修复后重跑。
+中途完整归档导出被自动审批拒绝，后改为仅导出状态/计数；一次重启误清 VM tmpfs 中的旧逐步记录，
+已明确披露并重新运行上述最终两条场景，证据改存 `/var/tmp`。旧失败日志或截图只在确实保留时引用，
+不声称已找回丢失记录。
+
+### 真实图形会话
+
+| 项目 | 实际结果 | 边界 |
+| --- | --- | --- |
+| Niri/Noctalia | 真正登录，1280×800 输出、静态壁纸、GTK/终端深浅主题正常 | 单屏 VirGL VM |
+| Fcitx/Rime | Niri 部署环境中直接启动 GTK4，无命令前缀覆盖；选择 Rime 后键入 nihao+空格提交“你好”，皮肤已启用 | GTK_IM_MODULE 的原生 Wayland 路径差异未推广为上游根因；不覆盖原有用户输入法组 |
+| Kitty | 默认/透明预设解析无旧滚轮警告；实际字号增加；Ctrl+Shift+V 粘贴测试命令，Ctrl+Shift+C 复制得到 `NYXURI_CLIPBOARD_PROBE` | 深浅色复核使用同一 PID 10650，包含 Noctalia 与 Nyxuri Shell |
+| Nyxuri Shell | 真实 QML 导入/字体预检、缺失入口保留旧 Shell、实际启动及主题生成通过 | 实验性全功能未纳入完成结论；key-cli 缺失的既有降级明确显示 |
+| Shell 切换 | 正式公开 CLI Nyxuri Shell → Noctalia 以及反向均成功；失败路径实际回滚通过 | Noctalia BlueZ 注册曾等待25秒，观测25.64秒才就绪；最终预算30秒，未把诊断60秒包装器当正式通过 |
+| GNOME FileChooser | 公共 OpenFile 选择测试文件，内容 SHA-256 与夹具一致 | 实际操作选择按钮，未直接调用 impl 后端 |
+| GNOME Screenshot | 公共交互请求，选择整屏并按快门，返回有效1280×800 PNG | 有实际成功响应与文件检查 |
+| GNOME ScreenCast | 公共授权后 PipeWire DMABuf BGRA 1280×800，收到1帧、EOS、Session.Close | 没有以“返回节点”代替收到画面 |
+| Niri FileChooser / ScreenCast | 选中文件内容一致；公共共享取得 DMABuf BGRx 1280×800 一帧并关闭 | 与 GNOME 路由分别执行 |
+| Niri Screenshot | 修复默认本地化目录后，公共非交互单屏请求返回有效1280×800 PNG | interactive=true 在 Niri26.04 返回 UnknownMethod；多输出仍为已知上游限制 |
+| 最终 doctor | 27通过、5警告、0错误，Starship无虚假预设错误 | 默认bash、VM提示与未选择的greeter等警告不冒充错误或已验证硬件 |
+
+GNOME 初期请求因没有可观察显示/未完成交互而超时；通过仅显示的 SPICE 客户端恢复实时观察后，
+三类公共请求均实际完成。无证据将前述超时归因于 Nyxuri 路由。最终 Niri 非交互截图同样成功。
+
+### 自动检查、证据与未覆盖项
+
+- 完整隔离回归：**1,366 项，OK，23 项跳过**；随后只修改 Noctalia 等待预算，相关 **19 项**现有定向测试通过。
+  跳过的真实运行时检查未冒充通过；VM 已补验本阶段实际需要的 qs、matugen、主题及 Portal。
+- 第一部分的 5 组真实 PTY 成功/取消/冲突/部分失败/重试记录继续有效。第二部分新增菜单候选、
+  壁纸文案与状态由现有定向回归和最终真实安装输出对应核对，没有新增未授权范围的测试。
+- 主机持久证据根：`/home/laxpud/.local/share/nyxuri-acceptance/evidence/ubuntu/`。
+  `initial/` 保存干净起点安装排错与实际依赖供给；`graphics/` 保存输入截图、Portal结果、
+  Shell切换、终端热加载、最终回归和无原件的生命周期汇总。
+- 未覆盖：物理多屏、其他GPU、长期输入法稳定性、Mango/Plasma真实登录、视频壁纸播放器及
+  实验性Shell全部功能。没有自动切换显示管理器、编译未声明软件或把可选能力记成完整验收。

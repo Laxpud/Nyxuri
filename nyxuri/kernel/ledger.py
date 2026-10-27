@@ -70,14 +70,26 @@ def _validate_ledger(data: Any) -> dict[str, Any]:
             target = meta.get("target")
             if not isinstance(target, str) or not Path(target).is_absolute() or ".." in Path(target).parts or "\0" in target:
                 raise ValueError(f"invalid deployment target: {uid}")
-            if meta.get("pending") not in (None, "deploy", "post_install", "withdraw", "post_remove", "config-only", "part_deploy", "part_reload", "preset_reload", "consumer-sync"):
+            if meta.get("pending") not in (None, "deploy", "post_install", "withdraw", "post_remove", "config-only", "part_deploy", "part_reload", "preset_reload", "consumer-sync", "migration"):
                 raise ValueError(f"invalid deployment phase: {uid}")
             preserve = meta.get("preserve", [])
+            protected = meta.get("protected_paths", [])
             archived = meta.get("archived_baselines", {})
             if not isinstance(preserve, list) or not all(_safe_relative(rel) for rel in preserve):
                 raise ValueError(f"invalid deployment preservation: {uid}")
+            if not isinstance(protected, list) or not all(_safe_relative(rel) for rel in protected):
+                raise ValueError(f"invalid protected path ownership: {uid}")
             if not isinstance(archived, dict) or not all(_safe_relative(rel) and isinstance(digest, str) for rel, digest in archived.items()):
                 raise ValueError(f"invalid archived baselines: {uid}")
+            migration = meta.get("migration")
+            if migration is not None:
+                if (not isinstance(migration, dict) or migration.get("shape") not in ("directory", "merge")
+                        or not isinstance(migration.get("target"), str) or not Path(migration["target"]).is_absolute()
+                        or ".." in Path(migration["target"]).parts
+                        or not isinstance(migration.get("backup"), str)
+                        or not isinstance(migration.get("files"), dict)
+                        or not all(_safe_relative(rel) and isinstance(digest, str) for rel, digest in migration["files"].items())):
+                    raise ValueError(f"invalid pending migration: {uid}")
             part = meta.get("pending_part")
             if part is not None and (not isinstance(part, dict) or not _safe_unit_id(part.get("slot")) or not _safe_unit_id(part.get("variant"))):
                 raise ValueError(f"invalid pending part: {uid}")

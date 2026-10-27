@@ -6,6 +6,7 @@ the hooks only touch the side domains, which is what these tests pin.
 """
 
 import importlib.util
+import json
 import os
 import configparser
 import shutil
@@ -73,6 +74,22 @@ class TestRimeMount(unittest.TestCase):
         self.assertEqual(custom.read_text(encoding="utf-8"), "patch:\n  schema_list:\n    - schema: rime_ice\n")
         self.assertFalse(self.marker.exists())
         self.assertIn("default.custom.yaml", metadata_path().read_text(encoding="utf-8"))
+        # 运行时状态交给 Rime 创建，不能被钩子的模板归属清单接管。
+        self.assertFalse((self.rime_dir / "user.yaml").exists())
+        self.assertNotIn(str(self.rime_dir / "user.yaml"),
+                         json.loads(metadata_path().read_text())["outputs"])
+
+    def test_mount_preserves_rime_runtime_state_without_claiming_it(self):
+        self.rime_dir.mkdir(parents=True)
+        runtime = self.rime_dir / "user.yaml"
+        content = b"var:\n  last_build_time: 1793089092\n  previously_selected_schema: personal\n"
+        runtime.write_bytes(content)
+
+        with patch.object(self.activate.shutil, "which", return_value=None), patch("builtins.print"):
+            self.activate.mount_rime(self.rime_dir, self.marker)
+
+        self.assertEqual(runtime.read_bytes(), content)
+        self.assertNotIn(str(runtime), json.loads(metadata_path().read_text())["outputs"])
 
     def test_mount_is_idempotent(self):
         self.rime_dir.mkdir(parents=True)

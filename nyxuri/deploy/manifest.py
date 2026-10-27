@@ -9,7 +9,7 @@ preserves ``monitor.kdl``; missioncenter's package is ``mission-center``).
 Schema (all fields optional, flat at top level)::
 
     target = "starship.toml"   # single-file unit: lands at ~/.config/<target>
-    target = "~/Pictures/Wallpapers"  # shared living area (implies merge use)
+    target = "@pictures/Wallpapers"  # shared living area resolved by get_pics_dir
     merge = true               # shared living area: no-clobber deploy, off
                                # withdraws only laid files (never rm -rf)
     runtime = true             # ledger-only unit: no living area, no deploy;
@@ -88,6 +88,9 @@ class ModuleManifest:
     preset_reload: List[str] = field(default_factory=list)
     parts: Dict[str, dict] = field(default_factory=dict)
     platforms: Dict[str, dict] = field(default_factory=dict)
+    legacy_targets: Dict[str, str] = field(default_factory=dict)  # 已知旧落地点与旧形状，仅供有账本的迁移
+    when_units: Dict[str, List[str]] = field(default_factory=dict)  # 具名文件要求全部对应单元启用且平台支持
+    retired_files: List[str] = field(default_factory=list)  # 仅凭旧账本精确身份退役，未知/修改内容保留
 
 
 def _is_deployable(app_src: Path) -> bool:
@@ -151,13 +154,14 @@ def _as_platforms_map(value) -> Dict[str, dict]:
 
 
 def living_path(m: ModuleManifest, config_dir: Path) -> Path:
-    """A unit's living-area path (unit-model.md §4 target exception).
+    """解析实际落地点：相对目标位于 config_dir，动态图片目标使用 get_pics_dir。
 
-    A ``~/``-prefixed (or absolute) ``target`` declares a shared living area
-    outside ``~/.config`` — expanded against ``$HOME``. A bare ``target`` is
-    the single-file exception under ``~/.config``; no target means
-    ``~/.config/<unit>``.
+    merge 把该落点当作共享目录；无 merge 的 target 是单文件。~/ 与绝对路径
+    用于 HOME 内的其他位置，后续事务按实际绝对路径记录和检查历史目标。
     """
+    if m.target.startswith("@pictures/"):
+        from nyxuri.core import get_pics_dir
+        return get_pics_dir() / m.target[len("@pictures/"):]
     if m.target.startswith(("~", "/")):
         return Path(os.path.expanduser(m.target))
     return config_dir / (m.target or m.name)
@@ -216,6 +220,9 @@ def load_manifest(app_src: Path) -> ModuleManifest:
         preset_reload=_as_str_list(presets.get("reload")),
         parts=manifest_parts,
         platforms=_as_platforms_map(data.get("platforms")),
+        legacy_targets=dict(data.get("legacy_targets", {})),
+        when_units=_as_str_map(data.get("when_units")),
+        retired_files=_as_str_list(data.get("retired_files")),
     )
 
 
