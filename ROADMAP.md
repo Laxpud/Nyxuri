@@ -22,6 +22,8 @@
 | T3 | 设置界面替换：Caelestia 安卓风味默认 + Dashboard 双轨 | 进行中 |
 | T4 | Shell 可控性与透明化 | 待开始 |
 | T5 | 多合成器 (Multi-WM) 架构解耦（门禁触发） | 待开始 |
+| M1 | 单元生命周期、冲突保护与状态恢复统一 | 已完成 |
+| U1 | Ubuntu 26.04 包管理、依赖声明与桌面兼容 | 已完成 |
 
 ### T0 终端体验修复（复制粘贴最终之战）
 
@@ -112,6 +114,22 @@
   收编过渡形态——`SUPPORTED_WMS` 硬编码元组、组件菜单 WM 特判、doctor 三处
   合成器字面量（债务登记见 [delayed-decisions](llms-wiki/delayed-decisions.md)）。
 - 热重载、浮动便签与屏幕探测跨合成器适配，`doctor` 诊断与 `greeter` 会话自适应。
+
+### M1 单元生命周期与状态恢复
+
+统一安装、更新、预设与单元事务；强制前备份、停用保护修改、失败待重试及生成文件归属。
+契约见 [单元模型](llms-wiki/unit-model.md)、[预设机制](llms-wiki/preset-mechanism.md)
+与 [状态操作](llms-wiki/state-ops.md)。
+
+### U1 Ubuntu 26.04 兼容
+
+- **已落地**：APT/dpkg 后端、平台依赖声明、Shell 运行时预检、默认 XDG 布局门禁，
+  以及 Fcitx 旧布局与 Portal 多会话规则迁移。
+- **已验收**：Ubuntu 26.04 GNOME/Niri 会话、个人配置首次部署、升级、恢复与卸载重装；
+  物理多屏及其他 GPU 不由单屏虚拟机结果代表。
+- **交付边界**：Niri 多输出截图及可选运行时仍有限制；不自动切换显示管理器或编译源码。
+- **实现与限制**：见 [Ubuntu 兼容指南](llms-wiki/ubuntu-compatibility.md)；平台字段见
+  [manifest-schema](llms-wiki/manifest-schema.md#平台依赖覆盖)。
 
 ## Shell 侧
 

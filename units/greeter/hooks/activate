@@ -30,7 +30,8 @@ from nyxuri.core import (  # noqa: E402
 )
 from nyxuri.core import msg  # noqa: E402
 
-CONFLICT_DMS = ["sddm", "lightdm", "gdm", "ly"]
+# Ubuntu 的 systemd 单元名是 gdm3；保留 gdm 以识别其他发行版的名称。
+CONFLICT_DMS = ["sddm", "lightdm", "gdm3", "gdm", "ly"]
 TRUSTED_EXEC_DIRS = (Path("/usr/bin"), Path("/usr/local/bin"))
 UNSAFE_PATH_CHARS = frozenset(chr(code) for code in range(32)) | {chr(127)} | set(" '$;&|<>(){}[]*?!\\\"`")
 
