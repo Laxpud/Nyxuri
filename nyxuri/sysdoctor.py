@@ -350,20 +350,28 @@ def _check_vm(env) -> None:
             pass
 
 def _check_greeter(env) -> None:
-    """Greeter state: session binary + /etc/greetd usage + service enabled."""
+    """检查会话入口、生效配置和服务；Ubuntu 同时核对包内运行用户与目录。"""
     from nyxuri.core import GREETER_ETC_CFG, GREETER_PKG, GREETER_SESSION_BIN
+    from nyxuri.pkg.platform import current_platform
     if shutil.which(GREETER_SESSION_BIN):
         print(msg("doctor_ok", text(f"{GREETER_PKG}: 已安装", f"{GREETER_PKG}: installed")))
     else:
         print(msg("doctor_warn", text(f"{GREETER_PKG}: 未安装", f"{GREETER_PKG}: not installed")))
     cfg_uses = False
-    if GREETER_ETC_CFG.is_file():
+    package_error = None
+    if current_platform() == "ubuntu":
+        from nyxuri.desktop.greeter import ubuntu_greeter_error
+        package_error = ubuntu_greeter_error()
+        cfg_uses = package_error is None
+    elif GREETER_ETC_CFG.is_file():
         try:
             cfg_uses = GREETER_SESSION_BIN in GREETER_ETC_CFG.read_text(encoding="utf-8", errors="ignore")
         except Exception:
             pass
     if cfg_uses:
         print(msg("doctor_ok", text(f"greetd 配置: 已使用 {GREETER_PKG}", f"greetd config: using {GREETER_PKG}")))
+    elif package_error:
+        print(msg("doctor_warn", package_error))
     else:
         print(msg("doctor_warn", text(
             f"greetd 配置未使用 {GREETER_PKG}（nyxuri on greeter）",

@@ -755,8 +755,12 @@ zh = "{Colors.BOLD_YELLOW}[!] 需要交互式终端。{Colors.RESET}"
 en = "{Colors.BOLD_YELLOW}[!] An interactive terminal is required.{Colors.RESET}"
 
 [greeter_install_failed]
-zh = "{Colors.BOLD_RED}[!] noctalia-greeter 安装失败。稍后运行 {CLI_CMD} greeter install 重试。{Colors.RESET}"
-en = "{Colors.BOLD_RED}[!] Install failed. Retry later with: {CLI_CMD} greeter install{Colors.RESET}"
+zh = "{Colors.BOLD_RED}[!] 未找到可用的 Noctalia Greeter 会话入口。检查软件包后运行 {CLI_CMD} on greeter 重试。{Colors.RESET}"
+en = "{Colors.BOLD_RED}[!] No usable Noctalia Greeter session entry found. Check the packages and retry: {CLI_CMD} on greeter{Colors.RESET}"
+
+[greeter_package_invalid]
+zh = "{Colors.BOLD_RED}[!] Greeter 软件包配置未就绪：{0}。请检查软件包与服务覆盖配置，当前显示管理器未切换。{Colors.RESET}"
+en = "{Colors.BOLD_RED}[!] Greeter package configuration is not ready: {0}. Check the packages and service overrides; the display manager was not switched.{Colors.RESET}"
 
 [greeter_dm_conflict]
 zh = "{Colors.BOLD_YELLOW}[!] 检测到已启用的显示管理器（{0}），现在切换到 greetd{Colors.RESET}"
@@ -847,8 +851,8 @@ zh = "{Colors.BOLD_GREEN}[✓] 已清理状态目录: {0}{Colors.RESET}"
 en = "{Colors.BOLD_GREEN}[✓] Removed state directory: {0}{Colors.RESET}"
 
 [greeter_uninstall_done]
-zh = "{Colors.BOLD_GREEN}[✓] 登录界面已卸载。若需移除软件包: paru -R noctalia-greeter greetd{Colors.RESET}"
-en = "{Colors.BOLD_GREEN}[✓] Login screen uninstalled. To remove packages: paru -R noctalia-greeter greetd{Colors.RESET}"
+zh = "{Colors.BOLD_GREEN}[✓] 已恢复接管前的显示管理器设置，重启后生效。greetd 与 noctalia-greeter 软件包仍保留。{Colors.RESET}"
+en = "{Colors.BOLD_GREEN}[✓] Previous display manager settings restored; effective after reboot. The greetd and noctalia-greeter packages remain installed.{Colors.RESET}"
 
 [backing_up]
 zh = """\n{Colors.BOLD_BLUE}:: 正在创建配置快照…{Colors.RESET}"""

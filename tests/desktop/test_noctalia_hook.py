@@ -101,6 +101,10 @@ class TestExternalOutputLifecycle(unittest.TestCase):
 
     def enable(self, unit_id):
         from nyxuri.kernel import ledger
+        # 既有用例启用 theme 时同时准备真实模板，符合事务先部署再注册消费者的顺序。
+        if unit_id == "theme":
+            shutil.copytree(self.ctx.env.units_src / "theme",
+                            self.ctx.env.config_dir / "nyxuri/templates", dirs_exist_ok=True)
         config = self.ctx.env.config_dir / "noctalia/noctalia-config.toml"
         files = ({"noctalia-config.toml": hashlib.sha256(config.read_bytes()).hexdigest()}
                  if unit_id == "noctalia" and config.is_file() else {})
