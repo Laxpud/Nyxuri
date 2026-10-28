@@ -228,7 +228,7 @@ class TestRealRepoManifests(unittest.TestCase):
     def test_noctalia_manifest_preserves_ddcutil(self):
         m = manifest.load_manifest(self.env.units_src / "noctalia")
         self.assertEqual(m.preserve_values,
-                         {"noctalia-config.toml": ["enable_ddcutil"]})
+                         {"noctalia-config.toml": ["enable_ddcutil", "builtin_ids"]})
         self.assertEqual(m.preserve, [])
 
     def test_starship_target_unit(self):

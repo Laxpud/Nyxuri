@@ -1,7 +1,8 @@
 # noctalia theme engine manifest
 dependencies = ["theme"]
 packages = ["noctalia", "python-gobject", "gtk-layer-shell", "wl-clipboard", "python-cairo"]
-preserve_values = { "noctalia-config.toml" = ["enable_ddcutil"] }
+# 已有内置模板的撤回脚本会删除应用主题和 include；更新时保留用户的启用选择。
+preserve_values = { "noctalia-config.toml" = ["enable_ddcutil", "builtin_ids"] }
 chmod = ["wallpaper-hook.sh", "mpvpaper-sync.sh", "tools/*.sh", "tools/*.py"]
 post_install = "render-gtk"
 post_remove = "remove-gtk-css"

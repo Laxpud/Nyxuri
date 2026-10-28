@@ -1,6 +1,6 @@
 # Ubuntu 兼容
 
-> 本页说明 Ubuntu 的依赖供应、安装边界与会话限制，以 `nyxuri/pkg/`、单元 manifest 和 `catalog.toml` 为准；进度只在 [ROADMAP](../ROADMAP.md#ubuntu-兼容) 维护。
+> 本页说明 Ubuntu 的依赖供应、安装边界与会话限制，以 `nyxuri/pkg/`、单元 manifest 和 `catalog.toml` 为准；进度只在 [ROADMAP](../ROADMAP.md#u1-ubuntu-2604-兼容) 维护。
 
 ## 支持边界
 
@@ -84,6 +84,26 @@ Fish 单元显式供给 Fisher 下载与解包所需的 `curl`、`tar`；从已�
 切换到 Nyxuri Shell 前先检查实际 Quickshell、平台包、字体和隔离 QML 导入探针。
 失败时显示具体原因并保留当前 Shell；检查过程及运行时选择见
 [Shell 开发指南](shell/development.md)。
+
+### Greeter
+
+`nyxuri on greeter` 使用已配置 APT 源提供的 `greetd` 与 `noctalia-greeter`。
+Ubuntu 26.04 的 Noctalia 源需包含 `resolute-backports/`，以供给 Greeter 及其
+wlroots 运行库；仍由用户准备来源，Nyxuri 不自动添加软件源或刷新索引。
+Ubuntu 包通过 systemd 覆盖项读取 `/etc/greetd/noctalia-greeter.toml`，使用 `_greetd`
+用户；启用前核对该配置、状态目录属主和 systemd 实际启动命令，不覆盖包内配置、VT
+或会话选择。布局不一致时停止并报告，先修复软件包或已有服务覆盖项再重试。
+
+启用只切换下次启动使用的显示管理器，不停止当前会话；原选择保存在
+`/etc/greetd/nyxuri-display-manager`。外观同步规则仅允许本地活动会话中的 `sudo`
+组成员免密同步。`nyxuri off greeter` 恢复原显示管理器和原 polkit 规则，保留软件包、
+包内 TOML 与 `/var/lib/noctalia-greeter` 外观数据；接管前已经使用 greetd 时仍保持
+greetd，原来没有显示管理器时恢复为不启用。恢复记录缺失或无效时拒绝猜测。
+
+Greeter 首次安装前已经运行的 Noctalia 可能尚未注册 `greeter-sync`。安装后重新启动
+Noctalia 或重新登录，再运行 `noctalia msg greeter-sync`；CLI 帮助列出该命令不代表
+当前实例已经提供接口。`shell.greeter_sync.auto_sync = true` 时，后续壁纸、配色及深浅
+模式变化由 Noctalia 自动同步；登录界面在下次启动时读取同步结果。
 
 ## Niri 会话行为与限制
 

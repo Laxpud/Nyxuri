@@ -17,6 +17,7 @@ import signal
 import shutil
 import subprocess
 import sys
+import tomllib
 
 from nyxuri.core import get_env
 from nyxuri.kernel import ledger
@@ -410,6 +411,12 @@ def refresh_consumer_outputs(overrides: dict[str, bool] | None = None) -> None:
             grants = {raw: grant for raw, grant in _read_authorizations().items()
                       if grant["consumer"] not in disabled and grant["unit"] not in disabled}
             _save_authorizations(grants)
+    # 1. 所有开关都更新门控，但只有主题生产者和消费者需要重建模板表。
+    # Greeter 等无关单元不能借这一步迁移桌面主题或触发 Noctalia 的撤回钩子。
+    specs = _specs()
+    related = {"noctalia", "theme", *(consumer for consumer, _, _ in specs.values())}
+    if overrides and related.isdisjoint(overrides):
+        return
     (env.state_dir / "template-staging/nyxuri-shell").mkdir(parents=True, exist_ok=True)
     path = env.config_dir / "noctalia/noctalia-config.toml"
     if not path.is_file() or not _enabled("noctalia", overrides):
@@ -417,17 +424,38 @@ def refresh_consumer_outputs(overrides: dict[str, bool] | None = None) -> None:
     original_text = path.read_text(encoding="utf-8")
     text = original_text
     previous_hash = hashlib.sha256(path.read_bytes()).hexdigest()
-    for name in _specs():
+    # 2. 保留已有内置模板。清空 builtin_ids 会执行 Noctalia 的 undo_hook，
+    # 删除旧主题文件和 Kitty include；即使替代模板可读，也不能把这当成无损迁移。
+    # 新部署使用暂存模板；旧部署继续使用原生模板，避免两个生产者写同一个目标。
+    builtins = tomllib.loads(original_text).get("theme", {}).get("templates", {}).get("builtin_ids", [])
+    retained = list(builtins)
+    for builtin, consumer in (("kitty", "kitty"), ("qt", "theme")):
+        if overrides and (overrides.get(consumer) is False or overrides.get("theme") is False):
+            retained = [name for name in retained if name != builtin]
+    for name in specs:
         text = re.sub(r"(?m)^\[theme\.templates\.user\." + re.escape(name)
                       + r"\]\s*\n(?:(?!^\[).*(?:\n|$))*", "", text)
-    # 内置 kitty/qt 绕过可追踪的写入路径，改用同内容的显式暂存模板。
-    text = re.sub(r'(?m)^builtin_ids\s*=.*$', 'builtin_ids = []', text)
+    if retained != builtins:
+        # 仅改主题表中的键，避免误碰插件或其他同名配置项。
+        text = re.sub(r'(?m)(^\[theme\.templates\]\s*\n)((?:(?!^\[).*(?:\n|$))*)',
+                      lambda match: match[1] + re.sub(r'(?m)^builtin_ids\s*=.*$',
+                          'builtin_ids = ' + json.dumps(retained), match[2]), text)
     command = env.repo_dir / "units/noctalia/hooks/commit-output"
     staging = env.state_dir / "template-staging/noctalia"
     staging.mkdir(parents=True, exist_ok=True)
-    for index, (name, (consumer, source, target)) in enumerate(_specs().items()):
+    native_templates = {"nyxuri_kitty": "kitty", "nyxuri_qt5": "qt", "nyxuri_qt6": "qt"}
+    for index, (name, (consumer, source, target)) in enumerate(specs.items()):
         if not _enabled(consumer, overrides) or not _enabled("theme", overrides):
             continue
+        if native_templates.get(name) in retained:
+            # 旧模板仍工作时，不登记可能尚未部署的替代输入；停用消费者时上面才撤回。
+            continue
+        # 3. 只登记已经部署且可读的输入。缺少模板时保留原配置和主题，事务保持
+        # consumer-sync 待重试；不能先撤回旧输出，再让守护进程发现替代输入不存在。
+        try:
+            source.read_bytes()
+        except OSError as error:
+            raise RuntimeError(f"Theme template is not ready: {source}; refresh its owning unit before retrying") from error
         stage = staging / name
         hook = " ".join(shlex.quote(str(value)) for value in (command, name))
         text += (f'\n[theme.templates.user.{name}]\nindex = {index}\n'
