@@ -7,6 +7,10 @@ chmod = ["wallpaper-hook.sh", "mpvpaper-sync.sh", "tools/*.sh", "tools/*.py"]
 post_install = "render-gtk"
 post_remove = "remove-gtk-css"
 
+[presets]
+# 只替换顶栏配置；壁纸、主题、工具和钩子脚本仍使用单元底版。
+allow = ["laxpud"]
+
 [platforms.ubuntu]
 # Orbit 的 GTK draw 信号需要 GI 的 Cairo 转换器；python3-cairo 本身只提供绘图模块。
 packages = ["noctalia", "python3-gi", "gir1.2-gtklayershell-0.1", "wl-clipboard", "python3-cairo", "python3-gi-cairo"]

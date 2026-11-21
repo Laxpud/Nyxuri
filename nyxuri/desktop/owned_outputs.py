@@ -444,6 +444,7 @@ def refresh_consumer_outputs(overrides: dict[str, bool] | None = None) -> None:
     staging = env.state_dir / "template-staging/noctalia"
     staging.mkdir(parents=True, exist_ok=True)
     native_templates = {"nyxuri_kitty": "kitty", "nyxuri_qt5": "qt", "nyxuri_qt6": "qt"}
+    registrations = []
     for index, (name, (consumer, source, target)) in enumerate(specs.items()):
         if not _enabled(consumer, overrides) or not _enabled("theme", overrides):
             continue
@@ -458,26 +459,33 @@ def refresh_consumer_outputs(overrides: dict[str, bool] | None = None) -> None:
             raise RuntimeError(f"Theme template is not ready: {source}; refresh its owning unit before retrying") from error
         stage = staging / name
         hook = " ".join(shlex.quote(str(value)) for value in (command, name))
-        text += (f'\n[theme.templates.user.{name}]\nindex = {index}\n'
-                 f'input_path = {json.dumps(str(source))}\noutput_path = {json.dumps(str(stage))}\n'
-                 f'post_hook = {json.dumps(hook)}\n')
-    # 当前文件未知或已有个人修改时，只更新外置门控，绝不借其他单元开关改写个人配置。
-    record = ledger.get_unit("noctalia")
-    relative = "noctalia-config.toml"
-    if text != original_text and (not record or record.get("files", {}).get(relative) != previous_hash):
-        print(f"[!] Noctalia template configuration conflict; preserved: {path}", file=sys.stderr)
-        raise RuntimeError("Noctalia template configuration conflict; refresh noctalia after review")
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    temporary.write_text(text, encoding="utf-8")
-    os.replace(temporary, path)
-    # 仅刷新本次受管变换对应的基线；若变换前已有个人修改，保留原基线供doctor报告。
-    record = ledger.get_unit("noctalia")
-    relative = "noctalia-config.toml"
-    if record and record.get("files", {}).get(relative) == previous_hash:
-        files = dict(record["files"])
-        files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
-        ledger.set_unit("noctalia", state=record["state"], preset=record["preset"], files=files,
-                        vault=record["vault"], updated=record["updated"])
+        registrations.append(f'\n[theme.templates.user.{name}]\nindex = {index}\n'
+                             f'input_path = {json.dumps(str(source))}\noutput_path = {json.dumps(str(stage))}\n'
+                             f'post_hook = {json.dumps(hook)}\n')
+    generated = "".join(registrations)
+    # 注册块和前文都没变时，保留两者之间原有的空行，不为排版报冲突或改写文件。
+    if (generated and original_text.endswith(generated)
+            and original_text.removesuffix(generated).rstrip("\n") == text.rstrip("\n")):
+        text = original_text
+    else:
+        text += generated
+    if text != original_text:
+        # 当前文件未知或已有个人修改时，只更新外置门控，不借消费者开关覆盖个人配置。
+        relative = "noctalia-config.toml"
+        record = ledger.get_unit("noctalia")
+        if not record or record.get("files", {}).get(relative) != previous_hash:
+            print(f"[!] Noctalia template configuration conflict; preserved: {path}", file=sys.stderr)
+            raise RuntimeError("Noctalia template configuration conflict; refresh noctalia after review")
+        temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+        temporary.write_text(text, encoding="utf-8")
+        os.replace(temporary, path)
+        # 只提交本次成功写入的基线，不把原有个人改动登记成模板内容。
+        record = ledger.get_unit("noctalia")
+        if record and record.get("files", {}).get(relative) == previous_hash:
+            files = dict(record["files"])
+            files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+            ledger.set_unit("noctalia", state=record["state"], preset=record["preset"], files=files,
+                            vault=record["vault"], updated=record["updated"])
     # 非Noctalia会话也可能保留其enabled配置。只有同用户的实际实例在运行才请求重载；
     # 当前偏好不能替代进程事实，真实实例拒绝重载时仍应报告partial供重试。
     if os.environ.get("WAYLAND_DISPLAY") and shutil.which("noctalia") and _noctalia_instance_running():

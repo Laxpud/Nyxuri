@@ -92,3 +92,12 @@ nyxuri preset <app> part <slot> <name>  # 切换通用零件插槽（如 nyxuri 
 `save` 拒 `default`（保留字）、拒官方同名（官方优先）。`delete` 同样拒这两类。`edit` 也拒这两类
 （官方预设只读）——想改官方预设的口味，先 `apply` 它再 `save` 成用户预设。也可跳过命令，直接
 编辑 `~/.config/nyxuri/presets/<app>/<name>/` 里的文件，`apply` 即部署。冲突可用 `apply <name> --force` / `part <slot> <name> --force` 备份后覆盖。
+
+### Noctalia 顶栏预设
+
+启用 `noctalia` 单元后，可以在预设工作台选择 `laxpud`，或运行 `nyxuri preset noctalia apply laxpud`。
+它继承默认单元，只把顶栏换成 `Laxpud_bar`，不另设主题、壁纸或插件。`apply default` 恢复原栏，
+并显式禁用 `Laxpud_bar`，避免普通 GUI 布局覆盖从状态文件里重新建出第二条栏。
+
+Noctalia 的 GUI 覆盖仍优先。如果旧的个人 TOML 或 GUI 覆盖显式指定了栏的 `enabled`，切预设
+不会替你清掉它；要交由预设切换，先备份，再移出旧开关覆盖。个人文件仍按[文件保留规则](file-preservation.md)处理。

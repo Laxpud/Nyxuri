@@ -1,0 +1,85 @@
+# Laxpud 顶栏：只替换顶栏与关联的小组件设置，沿用当前字体及主题。
+# 本机显示器边距、托盘固定项和额外插件由个人配置提供，不写进预设。
+[bar]
+order = ["Laxpud_bar"]
+
+[bar.bar]
+enabled = false
+
+[bar.Laxpud_bar]
+enabled = true
+position = "top"
+reserve_space = true
+thickness = 34
+# 贴住屏幕顶边才能画出内凹圆角；尺寸和边距均为逻辑像素。
+margin_edge = 0
+margin_ends = 114
+radius = 14
+concave_edge_corners = true
+background_opacity = 0.86
+shadow = true
+padding = 16
+widget_spacing = 8
+font_weight = 700
+capsule_thickness = 0.67
+color = "on_surface"
+# 日期与天气在左，署名、工作区与快捷入口居中，系统状态在右。
+start = ["clock", "weather"]
+center = ["group:g2", "group:quick"]
+end = ["group:g1", "group:devices"]
+
+[[bar.Laxpud_bar.capsule_group]]
+id = "quick"
+members = ["launcher", "wallpaper", "screenshot"]
+fill = "surface_container"
+padding = 8.0
+radius = 12.0
+widget_spacing = 5
+
+[[bar.Laxpud_bar.capsule_group]]
+id = "devices"
+members = ["volume", "bluetooth", "network", "battery"]
+fill = "surface_container"
+padding = 8.0
+radius = 12.0
+widget_spacing = 5
+
+[[bar.Laxpud_bar.capsule_group]]
+id = "g1"
+members = ["notifications", "tray"]
+fill = "surface_container"
+padding = 6.0
+
+[[bar.Laxpud_bar.capsule_group]]
+id = "g2"
+members = ["Laxpud", "workspaces"]
+fill = "surface_container"
+padding = 6.0
+
+[widget.Laxpud]
+type = "text"
+text = "Laxpud"
+
+[widget.clock]
+font_scale = 0.98
+format = "{:%m/%d %H:%M %A}"
+scale = 0.9
+
+[widget.weather]
+show_condition = false
+show_temperature = true
+
+[widget.network]
+show_label = false
+
+[widget.workspaces]
+style = "regular"
+show_labels = true
+labels_only_when_occupied = true
+label_source = "id"
+pill_scale = 1.0
+active_pill_size = 2.3
+inactive_pill_size = 0.65
+# 用主题强调色表示当前工作区，空工作区用低对比度的轮廓色。
+focused_color = "primary"
+empty_color = "outline_variant"

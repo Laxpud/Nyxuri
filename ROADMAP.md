@@ -121,7 +121,8 @@
 
 统一安装、更新、预设与单元事务；强制前备份、停用保护修改、失败待重试及生成文件归属。
 契约见 [单元模型](llms-wiki/unit-model.md)、[预设机制](llms-wiki/preset-mechanism.md)
-与 [状态操作](llms-wiki/state-ops.md)。
+与 [状态操作](llms-wiki/state-ops.md)。`ubuntu` 分支的 Noctalia 顶栏沿用这套事务，见
+[Noctalia 顶栏预设](llms-wiki/preset-mechanism.md#noctalia-顶栏预设)。
 
 ### U1 Ubuntu 26.04 兼容
 

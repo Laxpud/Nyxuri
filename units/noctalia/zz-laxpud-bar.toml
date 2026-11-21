@@ -1,0 +1,4 @@
+# 没选 laxpud 时不显示这条栏。Noctalia 也会从 GUI 覆盖里补建同名栏，
+# 因此默认版不能只靠删除预设布局来停用它。
+[bar.Laxpud_bar]
+enabled = false
